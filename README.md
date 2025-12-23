@@ -1,179 +1,183 @@
-# 免费V2Ray节点每日更新
+# 免费V2Ray节点收集器
 
-[![Daily Update](https://github.com/yafeisun/free_v2ray_daily/actions/workflows/update_nodes.yml/badge.svg)](https://github.com/yafeisun/free_v2ray_daily/actions/workflows/update_nodes.yml)
+一个自动化的V2Ray节点收集和测试系统，每日从多个免费节点网站收集最新的V2Ray节点。
 
-本项目每天自动从多个免费节点网站收集最新的V2Ray、Clash、Shadowsocks等节点，经过测速验证后更新到节点列表。
+## 功能特性
 
-## 📋 功能特性
+- 🌐 **多网站支持**: 支持6个主流免费V2Ray节点网站
+- 📰 **文章链接收集**: 自动获取每个网站最新发布的文章链接
+- 🔗 **订阅链接提取**: 自动提取V2Ray订阅链接（过滤Clash/Sing-box）
+- 🧪 **连通性测试**: 自动测试节点可用性，丢弃超时节点
+- 🇭🇰 **地区分类**: 自动识别并分离香港节点
+- 📁 **分类保存**: 不同类型节点分别保存到不同文件
+- ⚡ **独立脚本**: 每个网站都有独立的收集脚本
+- 🤖 **自动化**: 支持GitHub Actions自动部署
 
-- ✅ **自动收集**: 每天自动从5个主要免费节点网站收集最新节点
-- ✅ **智能解析**: 支持订阅链接和直接节点列表两种格式
-- ✅ **连通性测试**: 自动测试所有节点的连通性，过滤无效节点
-- ✅ **多协议支持**: 支持VMess、VLESS、Trojan、Hysteria、Shadowsocks等协议
-- ✅ **自动更新**: 通过GitHub Actions每天北京时间早上8点自动更新
-- ✅ **完全免费**: 所有节点均来自公开免费资源
+## 支持的网站
 
-## 🌐 数据来源
+1. [FreeClashNode](https://www.freeclashnode.com/free-node/)
+2. [米贝77](https://www.mibei77.com/)
+3. [ClashNodeV2Ray](https://clashnodev2ray.github.io/)
+4. [ProxyQueen](https://www.proxyqueen.top/)
+5. [玩转迷](https://wanzhuanmi.com/)
+6. [CFMem](https://www.cfmem.com/)
 
-本项目从以下网站收集节点信息：
+## 项目结构
 
-1. [FreeClashNode](https://www.freeclashnode.com/free-node/) - 每日更新免费Clash节点
-2. [米贝节点](https://www.mibei77.com/) - 高质量免费节点分享
-3. [ClashNodeV2Ray](https://clashnodev2ray.github.io/) - GitHub Pages节点分享
-4. [ProxyQueen](https://www.proxyqueen.top/) - 多区域节点覆盖
-5. [玩转迷](https://wanzhuanmi.com/) - 技术分享类节点
-
-## 📦 节点列表
-
-最新的有效节点列表请查看：[nodelist.txt](https://github.com/yafeisun/free_v2ray_daily/blob/main/nodelist.txt)
-
-## 🚀 使用方法
-
-### 1. 直接使用节点列表
-
-直接下载 `nodelist.txt` 文件，导入到你的V2Ray客户端中。
-
-### 2. 订阅链接
-
-部分网站提供订阅链接，可以直接在客户端中添加订阅。
-
-### 3. 支持的客户端
-
-- V2Ray (Windows/Mac/Linux/Android/iOS)
-- Clash (Windows/Mac/Linux/Android/iOS)
-- Shadowrocket (iOS)
-- Quantumult X (iOS)
-- Sing-Box
-- 其他支持V2Ray协议的客户端
-
-## ⚙️ 技术实现
-
-### 核心功能
-
-- **网站爬虫**: 使用BeautifulSoup解析网页，智能提取最新文章链接
-- **节点解析**: 支持Base64编码的订阅链接和直接节点文本
-- **连通性测试**: 使用TCP连接测试节点可用性
-- **自动提交**: 通过GitPython自动提交更新到GitHub
-
-### 技术栈
-
-- **Python 3.9+**: 主要编程语言
-- **Requests**: HTTP请求库
-- **BeautifulSoup4**: HTML解析
-- **GitPython**: Git操作
-- **GitHub Actions**: 自动化CI/CD
-
-## 📅 更新时间
-
-- **自动更新**: 每天北京时间早上8点 (UTC时间0点)
-- **手动触发**: 支持通过GitHub Actions手动触发更新
-- **更新频率**: 每日一次，确保节点新鲜度
-
-## 🔧 本地运行
-
-### 环境要求
-
-```bash
-Python 3.9+
-pip
-git
+```
+free_v2ray_daily/
+├── config/                 # 配置文件
+│   ├── settings.py        # 项目设置和路径配置
+│   └── websites.py        # 网站配置信息
+├── src/                    # 源代码
+│   ├── collectors/        # 网站收集器
+│   ├── parsers/           # 解析器
+│   ├── testers/           # 测试工具
+│   └── utils/             # 工具类
+├── scripts/               # 独立脚本
+│   ├── freeclashnode.py   # FreeClashNode独立脚本
+│   ├── mibei77.py         # 米贝77独立脚本
+│   └── run_all_sites.py   # 批量运行脚本
+├── result/                # 结果文件
+│   ├── webpage.txt        # 最新文章链接
+│   ├── subscription.txt   # V2Ray订阅链接
+│   ├── nodelist.txt       # 其他地区节点
+│   └── nodelist_HK.txt    # 香港节点
+├── tests/                 # 测试文件
+├── docs/                  # 文档
+├── run.py                 # 主程序入口
+└── requirements.txt       # 依赖包
 ```
 
-### 安装步骤
+## 安装和使用
 
-1. 克隆仓库
-```bash
-git clone https://github.com/yafeisun/free_v2ray_daily.git
-cd free_v2ray_daily
-```
+### 1. 环境要求
 
-2. 创建虚拟环境
-```bash
-python3 -m venv venv
-source venv/bin/activate  # Linux/Mac
-# 或
-venv\Scripts\activate     # Windows
-```
+- Python 3.8+
+- 网络连接
 
-3. 安装依赖
+### 2. 安装依赖
+
 ```bash
 pip install -r requirements.txt
 ```
 
-4. 运行收集器
+### 3. 运行方式
+
+#### 运行所有网站
 ```bash
-python node_collector.py
+python3 run.py
 ```
 
-### 配置说明
-
-主要配置在 `config.py` 文件中：
-
-```python
-# 网站配置
-WEBSITES = [
-    'https://www.freeclashnode.com/free-node/',
-    'https://www.mibei77.com/',
-    # ... 更多网站
-]
-
-# 测试配置
-CONNECTION_TIMEOUT = 5  # 连接超时时间（秒）
-MAX_WORKERS = 10        # 最大并发测试线程数
+#### 运行指定网站
+```bash
+python3 run.py --sites freeclashnode mibei77
 ```
 
-## 📊 节点统计
+#### 跳过连通性测试
+```bash
+python3 run.py --no-test
+```
 
-- **每日收集**: 约100-300个节点
-- **有效节点**: 约30-80个节点（根据网络状况变化）
-- **覆盖区域**: 美国、新加坡、日本、香港、欧洲等
-- **支持协议**: VMess、VLESS、Trojan、Hysteria、Shadowsocks
+#### 运行独立脚本
+```bash
+python3 scripts/freeclashnode.py
+python3 scripts/run_all_sites.py
+```
 
-## ⚠️ 免责声明
+## 输出文件说明
 
-1. **仅供学习交流**: 本项目仅用于技术学习和交流目的
-2. **网络安全**: 请遵守当地法律法规，合理使用网络资源
-3. **服务稳定性**: 免费节点可能不稳定，建议仅供临时使用
-4. **隐私保护**: 使用免费节点时请注意保护个人隐私信息
-5. **商业用途**: 禁止将本项目的节点用于任何商业用途
+### `result/webpage.txt`
+包含各网站最新发布的文章链接，格式：
+```
+# 各网站最新文章链接
+# 收集时间: 2025-12-23 13:17:43
+# 总网站数: 6
+================================================================================
 
-## 🤝 贡献指南
+# freeclashnode
+https://www.freeclashnode.com/free-node/2025-12-23-free-clash-subscribe.htm
 
-欢迎提交Issue和Pull Request！
+------------------------------------------------------------
+```
 
-### 贡献方式
+### `result/subscription.txt`
+包含所有V2Ray订阅链接，格式：
+```
+# V2Ray订阅链接收集结果
+# 收集时间: 2025-12-23 13:17:43
+# 总链接数: 6
+================================================================================
 
-1. **报告问题**: 如果发现无效节点或程序错误，请提交Issue
-2. **新增网站**: 推荐新的免费节点网站
-3. **功能改进**: 提出功能建议或代码优化
-4. **文档完善**: 改进README和代码注释
+# freeclashnode
+# 文章链接: https://www.freeclashnode.com/free-node/2025-12-23-free-clash-subscribe.htm
+# 链接数: 2
+https://node.freeclashnode.com/uploads/2025/12/4-20251223.txt
+https://node.freeclashnode.com/uploads/2025/12/1-20251223.txt
 
-### 开发规范
+------------------------------------------------------------
+```
 
-- 遵循PEP 8代码规范
-- 添加必要的注释和文档
-- 确保代码测试通过
-- 提交前请运行代码检查
+### `result/nodelist.txt` 和 `result/nodelist_HK.txt`
+包含经过连通性测试的有效节点，已按地区分类。
 
-## 📄 许可证
+## 配置说明
 
-本项目采用 [MIT License](LICENSE) 开源协议。
+### 网站配置
+在 `config/websites.py` 中可以配置：
+- 网站URL
+- 文章列表选择器
+- 文章链接选择器
+- 订阅链接选择器
 
-## 🙏 致谢
+### 项目设置
+在 `config/settings.py` 中可以配置：
+- 文件路径
+- 连通性测试参数
+- 日志设置
 
-感谢以下开源项目和服务：
+## 自动化部署
 
-- [Python](https://www.python.org/) - 编程语言
-- [Requests](https://requests.readthedocs.io/) - HTTP库
-- [BeautifulSoup](https://www.crummy.com/software/BeautifulSoup/) - HTML解析
-- [GitHub Actions](https://github.com/features/actions) - CI/CD平台
-- 各个免费节点网站的维护者
+项目支持GitHub Actions自动部署：
 
-## 📞 联系方式
+1. Fork本项目到你的GitHub
+2. 启用GitHub Actions
+3. 每日自动运行收集任务
+4. 自动提交结果到仓库
 
-- **GitHub**: [@yafeisun](https://github.com/yafeisun)
-- **Issues**: [提交问题](https://github.com/yafeisun/free_v2ray_daily/issues)
+## 开发说明
 
----
+### 添加新网站
 
-⭐ 如果这个项目对你有帮助，请给个Star支持一下！
+1. 在 `src/collectors/` 中创建新的收集器类
+2. 继承 `BaseCollector` 类
+3. 实现必要的方法
+4. 在 `config/websites.py` 中添加配置
+5. 在主程序中注册新收集器
+
+### 自定义解析
+
+每个网站的收集器都可以自定义：
+- 文章链接提取逻辑
+- 订阅链接过滤规则
+- 节点解析方法
+
+## 注意事项
+
+- 本项目仅用于学习和研究目的
+- 请遵守相关网站的使用条款
+- 节点的可用性会随时间变化
+- 建议定期检查和更新配置
+
+## 许可证
+
+MIT License
+
+## 贡献
+
+欢迎提交Issue和Pull Request来改进项目。
+
+## 更新日志
+
+- **v2.0.0**: 重构项目结构，添加文章链接收集功能
+- **v1.0.0**: 初始版本，支持基本的节点收集和测试

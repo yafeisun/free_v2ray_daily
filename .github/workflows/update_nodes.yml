@@ -1,0 +1,114 @@
+name: Update Free Nodes
+
+on:
+  schedule:
+    # 每天北京时间早上8点 (UTC时间0点) 运行
+    - cron: '0 0 * * *'
+  
+  workflow_dispatch:  # 允许手动触发
+    inputs:
+      force_update:
+        description: '强制更新所有节点'
+        required: false
+        default: 'false'
+        type: boolean
+
+jobs:
+  update-nodes:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        fetch-depth: 0
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+        cache: 'pip'
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+    
+    - name: Run node collector
+      id: collector
+      run: |
+        echo "开始节点收集..."
+        python node_collector.py
+        echo "节点收集完成"
+      env:
+        GIT_EMAIL: ${{ secrets.GIT_EMAIL || 'action@github.com' }}
+        GIT_NAME: ${{ secrets.GIT_NAME || 'GitHub Action' }}
+        FORCE_UPDATE: ${{ github.event.inputs.force_update || 'false' }}
+      continue-on-error: true
+    
+    - name: Check for changes
+      id: changes
+      run: |
+        if git diff --quiet HEAD -- nodelist.txt; then
+          echo "has_changes=false" >> $GITHUB_OUTPUT
+          echo "没有检测到节点更新"
+        else
+          echo "has_changes=true" >> $GITHUB_OUTPUT
+          echo "检测到节点更新"
+          # 显示更新统计
+          if [ -f nodelist.txt ]; then
+            node_count=$(wc -l < nodelist.txt)
+            echo "节点总数: $node_count"
+          fi
+        fi
+    
+    - name: Commit and push changes
+      if: steps.changes.outputs.has_changes == 'true'
+      run: |
+        git config --global user.email "${{ secrets.GIT_EMAIL || 'action@github.com' }}"
+        git config --global user.name "${{ secrets.GIT_NAME || 'GitHub Action' }}"
+        
+        # 添加文件到暂存区
+        git add nodelist.txt
+        
+        # 获取节点数量用于提交信息
+        if [ -f nodelist.txt ]; then
+          node_count=$(wc -l < nodelist.txt)
+          commit_msg="Auto update nodes - $(date '+%Y-%m-%d %H:%M:%S') ($node_count nodes)"
+        else
+          commit_msg="Auto update nodes - $(date '+%Y-%m-%d %H:%M:%S')"
+        fi
+        
+        git commit -m "$commit_msg"
+        git push
+        
+        echo "更新已提交并推送到仓库"
+    
+    - name: Create summary
+      if: always()
+      run: |
+        echo "## 节点更新摘要" >> $GITHUB_STEP_SUMMARY
+        echo "- **运行时间**: $(date '+%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_STEP_SUMMARY
+        echo "- **触发方式**: ${{ github.event_name }}" >> $GITHUB_STEP_SUMMARY
+        
+        if [ "${{ steps.changes.outputs.has_changes }}" == "true" ]; then
+          echo "- **更新状态**: ✅ 成功更新" >> $GITHUB_STEP_SUMMARY
+          if [ -f nodelist.txt ]; then
+            node_count=$(wc -l < nodelist.txt)
+            echo "- **节点数量**: $node_count" >> $GITHUB_STEP_SUMMARY
+          fi
+        else
+          echo "- **更新状态**: ℹ️ 无更新" >> $GITHUB_STEP_SUMMARY
+        fi
+        
+        if [ "${{ steps.collector.outcome }}" != "success" ]; then
+          echo "- **收集状态**: ⚠️ 收集过程中出现错误" >> $GITHUB_STEP_SUMMARY
+        fi
+    
+    - name: Notify on failure
+      if: failure()
+      run: |
+        echo "❌ 节点更新失败"
+        echo "请检查日志以获取详细信息"
+        exit 1

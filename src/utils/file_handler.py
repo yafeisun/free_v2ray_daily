@@ -37,6 +37,8 @@ class FileHandler:
                 # 区分不同类型的节点文件
                 if 'nodelist' in filepath:
                     filepath = os.path.join(date_dir, "nodelist.txt")
+                elif 'nodetotal' in filepath:
+                    filepath = os.path.join(date_dir, "nodetotal.txt")
                 else:
                     # 其他文件保持原有逻辑
                     filepath = filepath.replace('.txt', f'_{date_suffix}.txt')
@@ -47,6 +49,8 @@ class FileHandler:
                 # 如果是节点文件，确保使用正确的文件名
                 if 'nodelist' in filepath:
                     filepath = os.path.join(result_dir, "nodelist.txt")
+                elif 'nodetotal' in filepath:
+                    filepath = os.path.join(result_dir, "nodetotal.txt")
                 # 其他文件保持原路径
                 
             with open(filepath, 'w', encoding='utf-8') as f:
@@ -103,6 +107,8 @@ class FileHandler:
             if date_suffix:
                 if 'nodelist' in filename:
                     filename = f"result/{date_suffix}/nodelist.txt"
+                elif 'nodetotal' in filename:
+                    filename = f"result/{date_suffix}/nodetotal.txt"
                 else:
                     filename = filename.replace('.txt', f'_{date_suffix}.txt')
             
@@ -208,50 +214,142 @@ class FileHandler:
             return None
     
     def save_webpage_links(self, articles_with_source, date_suffix=None):
-            """保存文章链接到文件"""
-            try:
-                # 确定文件路径
-                if date_suffix:
-                    # 按日期创建子目录: result/20251223/webpage.txt
-                    date_dir = f"result/{date_suffix}"
-                    os.makedirs(date_dir, exist_ok=True)
-                    filepath = os.path.join(date_dir, "webpage.txt")
-                else:
-                    # 默认保存到根目录
-                    filepath = WEBPAGE_LINKS_FILE
-                    
-                with open(filepath, 'w', encoding='utf-8') as f:
-                    f.write("# 各网站最新文章链接\n")
-                    f.write(f"# 收集时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
-                    if date_suffix:
-                        f.write(f"# 目标日期: {date_suffix}\n")
-                    f.write(f"# 总网站数: {len(articles_with_source)}\n")
-                    f.write("=" * 80 + "\n\n")
-                    
-                    for article in articles_with_source:
-                        f.write(f"# {article['website_name']}\n")
-                        f.write(f"{article['article_url']}\n")
-                        f.write("-" * 60 + "\n")
-                
-                self.logger.info(f"文章链接已保存到 {filepath}，共 {len(articles_with_source)} 个网站")
+        """保存文章链接到文件"""
+        try:
+            # 只按日期保存，不再保存到根目录
+            if date_suffix:
+                # 按日期创建子目录: result/20251223/webpage.txt
+                date_dir = f"result/{date_suffix}"
+                os.makedirs(date_dir, exist_ok=True)
+                filepath = os.path.join(date_dir, "webpage.txt")
+            else:
+                # 如果没有日期后缀，不保存到根目录
+                self.logger.info("未指定日期后缀，跳过保存文章链接到根目录")
                 return True
                 
-            except Exception as e:
-                self.logger.error(f"保存文章链接失败: {str(e)}")
-                return False
+            with open(filepath, 'w', encoding='utf-8') as f:
+                f.write("# 各网站最新文章链接\n")
+                f.write(f"# 收集时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+                if date_suffix:
+                    f.write(f"# 目标日期: {date_suffix}\n")
+                f.write(f"# 总网站数: {len(articles_with_source)}\n")
+                f.write("=" * 80 + "\n\n")
+                
+                for article in articles_with_source:
+                    f.write(f"# {article['website_name']}\n")
+                    f.write(f"{article['article_url']}\n")
+                    f.write("-" * 60 + "\n")
+            
+            self.logger.info(f"文章链接已保存到 {filepath}，共 {len(articles_with_source)} 个网站")
+            return True
+            
+        except Exception as e:
+            self.logger.error(f"保存文章链接失败: {str(e)}")
+            return False
+    
+    def load_existing_articles(self, date_suffix=None):
+        """加载现有的文章链接缓存"""
+        try:
+            # 确定文件路径
+            if date_suffix:
+                # 按日期查找: result/20251223/webpage.txt
+                filepath = f"result/{date_suffix}/webpage.txt"
+            else:
+                # 默认路径
+                filepath = WEBPAGE_LINKS_FILE
+            
+            if not os.path.exists(filepath):
+                self.logger.debug(f"文章缓存文件不存在: {filepath}")
+                return {}
+            
+            articles = {}
+            
+            with open(filepath, 'r', encoding='utf-8') as f:
+                content = f.read()
+                
+            sections = content.split('------------------------------------------------------------')
+            for section in sections:
+                lines = section.strip().split('\n')
+                website_name = None
+                article_url = None
+                
+                for line in lines:
+                    line = line.strip()
+                    if line.startswith('# ') and not line.startswith('===') and not line.startswith('各网站'):
+                        website_name = line.replace('#', '').strip()
+                    elif line.startswith('https://') and not line.startswith('#') and website_name:
+                        article_url = line.strip()
+                        if website_name and article_url:
+                            articles[website_name] = article_url
+                            
+            self.logger.info(f"从缓存加载了 {len(articles)} 个文章链接")
+            return articles
+            
+        except Exception as e:
+            self.logger.error(f"加载文章缓存失败: {str(e)}")
+            return {}
+    
+    def load_existing_subscriptions(self, date_suffix=None):
+        """加载现有的订阅链接缓存"""
+        try:
+            # 确定文件路径
+            if date_suffix:
+                # 按日期查找: result/20251223/subscription.txt
+                filepath = f"result/{date_suffix}/subscription.txt"
+            else:
+                # 默认路径
+                filepath = SUBSCRIPTION_FILE
+            
+            if not os.path.exists(filepath):
+                self.logger.debug(f"订阅缓存文件不存在: {filepath}")
+                return {}
+            
+            subscriptions = {}
+            
+            with open(filepath, 'r', encoding='utf-8') as f:
+                content = f.read()
+                
+            sections = content.split('------------------------------------------------------------')
+            for section in sections:
+                lines = section.strip().split('\n')
+                website_name = None
+                article_url = None
+                links = []
+                
+                for line in lines:
+                    line = line.strip()
+                    if line.startswith('# ') and not line.startswith('===') and '文章链接:' not in line and '链接数:' not in line:
+                        website_name = line.replace('#', '').strip()
+                    elif line.startswith('# 文章链接:'):
+                        if '文章链接: None' not in line:
+                            article_url = line.split('文章链接:')[1].strip()
+                    elif line.startswith('https://') and not line.startswith('#'):
+                        links.append(line)
+                
+                if website_name and article_url and links:
+                    key = f"{website_name}_{article_url}"
+                    subscriptions[key] = links
+                    
+            self.logger.info(f"从缓存加载了 {len(subscriptions)} 个订阅链接组")
+            return subscriptions
+            
+        except Exception as e:
+            self.logger.error(f"加载订阅缓存失败: {str(e)}")
+            return {}
     
     def save_subscription_links(self, v2ray_links_with_source, date_suffix=None):
         """保存V2Ray订阅链接到文件"""
         try:
-            # 确定文件路径
+            # 只按日期保存，不再保存到根目录
             if date_suffix:
                 # 按日期创建子目录: result/20251223/subscription.txt
                 date_dir = f"result/{date_suffix}"
                 os.makedirs(date_dir, exist_ok=True)
                 filepath = os.path.join(date_dir, "subscription.txt")
             else:
-                # 默认保存到根目录
-                filepath = SUBSCRIPTION_FILE
+                # 如果没有日期后缀，不保存到根目录
+                self.logger.info("未指定日期后缀，跳过保存订阅链接到根目录")
+                return True
                 
             with open(filepath, 'w', encoding='utf-8') as f:
                 f.write("# V2Ray订阅链接收集结果\n")
@@ -306,7 +404,7 @@ class FileHandler:
             with open(filename, 'r', encoding='utf-8') as f:
                 for line in f:
                     link = line.strip()
-                    if link:
+                    if link and not link.startswith('#') and link.startswith('https://'):
                         links.append(link)
             
             self.logger.info(f"从 {filename} 加载了 {len(links)} 个V2Ray订阅链接")
@@ -315,3 +413,75 @@ class FileHandler:
         except Exception as e:
             self.logger.error(f"加载V2Ray订阅链接失败: {str(e)}")
             return []
+    
+    def sync_latest_to_root(self, date_suffix):
+        """同步最新一天的节点数据到根目录"""
+        try:
+            # 确保result目录存在
+            result_dir = "result"
+            os.makedirs(result_dir, exist_ok=True)
+            
+            # 同步测速前节点 (nodetotal.txt)
+            nodetotal_src = f"result/{date_suffix}/nodetotal.txt"
+            nodetotal_dst = f"result/nodetotal.txt"
+            
+            if os.path.exists(nodetotal_src):
+                import shutil
+                shutil.copy2(nodetotal_src, nodetotal_dst)
+                self.logger.info(f"已同步测速前节点: {nodetotal_src} -> {nodetotal_dst}")
+            else:
+                self.logger.warning(f"测速前节点文件不存在: {nodetotal_src}")
+            
+            # 同步测速后节点 (nodelist.txt)
+            nodelist_src = f"result/{date_suffix}/nodelist.txt"
+            nodelist_dst = f"result/nodelist.txt"
+            
+            if os.path.exists(nodelist_src):
+                import shutil
+                shutil.copy2(nodelist_src, nodelist_dst)
+                self.logger.info(f"已同步测速后节点: {nodelist_src} -> {nodelist_dst}")
+            else:
+                self.logger.warning(f"测速后节点文件不存在: {nodelist_src}")
+                
+            return True
+            
+        except Exception as e:
+            self.logger.error(f"同步最新数据到根目录失败: {str(e)}")
+            return False
+    
+    def clean_root_temp_files(self):
+        """清理根目录下的临时文件和中间结果"""
+        try:
+            files_to_remove = [
+                "result/webpage.txt",
+                "result/subscription.txt"
+            ]
+            
+            removed_count = 0
+            for filepath in files_to_remove:
+                if os.path.exists(filepath):
+                    os.remove(filepath)
+                    self.logger.info(f"已删除临时文件: {filepath}")
+                    removed_count += 1
+            
+            # 清理旧的测试文件
+            result_dir = "result"
+            if os.path.exists(result_dir):
+                for filename in os.listdir(result_dir):
+                    filepath = os.path.join(result_dir, filename)
+                    if (os.path.isfile(filepath) and 
+                        (filename.endswith('_test.txt') or 
+                         filename.endswith('_temp.txt') or
+                         filename.endswith('_backup.txt') or
+                         filename.startswith('test_') or
+                         'temp_' in filename)):
+                        os.remove(filepath)
+                        self.logger.info(f"已删除测试文件: {filepath}")
+                        removed_count += 1
+            
+            self.logger.info(f"清理完成，共删除 {removed_count} 个临时文件")
+            return True
+            
+        except Exception as e:
+            self.logger.error(f"清理临时文件失败: {str(e)}")
+            return False

@@ -14,13 +14,13 @@ from datetime import datetime
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from src.collectors.freeclashnode import FreeClashNodeCollector
-from src.utils.logger import Logger
+from src.utils.logger import get_logger
 from src.utils.file_handler import FileHandler
-from config.settings import WEBSITES
+from config.websites import WEBSITES
 
 def main():
     """主函数"""
-    logger = Logger().get_logger()
+    logger = get_logger("freeclashnode")
     file_handler = FileHandler()
     
     try:

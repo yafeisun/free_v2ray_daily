@@ -17,7 +17,8 @@ WEBSITES = [
     'clashnodev2ray',
     'proxyqueen',
     'wanzhuanmi',
-    'cfmem'
+    'cfmem',
+    'clashnodecc'
 ]
 
 def main():

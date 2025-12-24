@@ -40,6 +40,28 @@ class BaseCollector(ABC):
             'User-Agent': USER_AGENT
         })
         
+        # 禁用SSL验证（与代理使用保持一致）
+        self.session.verify = False
+        
+        # 配置代理（如果系统有设置代理）
+        import os
+        http_proxy = os.getenv('http_proxy') or os.getenv('HTTP_PROXY')
+        https_proxy = os.getenv('https_proxy') or os.getenv('HTTPS_PROXY')
+        
+        if http_proxy or https_proxy:
+            # 使用系统代理设置
+            proxies = {}
+            if http_proxy:
+                proxies['http'] = http_proxy
+            if https_proxy:
+                proxies['https'] = https_proxy
+            self.session.proxies.update(proxies)
+            self.logger.info(f"使用系统代理: {proxies}")
+        else:
+            # 如果没有代理设置，禁用代理以避免潜在问题
+            self.session.proxies = {'http': None, 'https': None}
+            self.logger.info("禁用代理设置")
+        
         # 配置参数
         self.timeout = REQUEST_TIMEOUT
         self.retry_count = REQUEST_RETRY
@@ -49,6 +71,53 @@ class BaseCollector(ABC):
         self.collected_nodes = []
         self.subscription_links = []
         self.raw_data = ""
+    
+    def _make_request(self, url, method='GET', **kwargs):
+        """带重试机制的请求方法，支持代理失败时自动切换到直接连接"""
+        last_exception = None
+        using_proxy = bool(self.session.proxies.get('http') or self.session.proxies.get('https'))
+        
+        for attempt in range(self.retry_count + 1):
+            try:
+                response = self.session.request(
+                    method, 
+                    url, 
+                    timeout=self.timeout, 
+                    verify=False, 
+                    **kwargs
+                )
+                response.raise_for_status()
+                return response
+                
+            except requests.exceptions.Timeout as e:
+                last_exception = e
+                self.logger.warning(f"请求超时 (尝试 {attempt + 1}/{self.retry_count + 1}): {url}")
+                if attempt < self.retry_count:
+                    time.sleep(2 ** attempt)  # 指数退避
+                    
+            except requests.exceptions.ConnectionError as e:
+                last_exception = e
+                self.logger.warning(f"连接错误 (尝试 {attempt + 1}/{self.retry_count + 1}): {url}")
+                
+                # 如果使用代理且连接失败，尝试禁用代理重试
+                if using_proxy and attempt == 0:
+                    self.logger.info(f"代理连接失败，尝试直接访问: {url}")
+                    self.session.proxies = {'http': None, 'https': None}
+                    using_proxy = False
+                    continue
+                
+                if attempt < self.retry_count:
+                    time.sleep(2 ** attempt)
+                    
+            except requests.exceptions.RequestException as e:
+                last_exception = e
+                self.logger.warning(f"请求错误 (尝试 {attempt + 1}/{self.retry_count + 1}): {url}")
+                if attempt < self.retry_count:
+                    time.sleep(1)
+        
+        # 所有重试都失败
+        self.logger.error(f"请求失败，已重试 {self.retry_count + 1} 次: {last_exception}")
+        raise last_exception
         
     def collect(self):
         """收集节点的主方法"""
@@ -85,8 +154,7 @@ class BaseCollector(ABC):
         """获取文章URL，支持指定日期"""
         try:
             self.logger.info(f"访问网站: {self.base_url}")
-            response = self.session.get(self.base_url, timeout=self.timeout, verify=False)
-            response.raise_for_status()
+            response = self._make_request(self.base_url)
             
             soup = BeautifulSoup(response.text, 'html.parser')
             
@@ -141,9 +209,9 @@ class BaseCollector(ABC):
             if time_url:
                 return time_url
             
-            # 如果都没找到，返回主页URL
-            self.logger.warning(f"未找到文章链接，使用主页URL")
-            return self.base_url
+            # 如果都没找到，返回None
+            self.logger.warning(f"未找到文章链接")
+            return None
             
         except Exception as e:
             self.logger.error(f"获取文章链接失败: {str(e)}")
@@ -153,8 +221,7 @@ class BaseCollector(ABC):
         """从文章中提取节点"""
         try:
             self.logger.info(f"解析文章: {article_url}")
-            response = self.session.get(article_url, timeout=self.timeout, verify=False)
-            response.raise_for_status()
+            response = self._make_request(article_url)
             
             content = response.text
             self.raw_data = content
@@ -225,7 +292,9 @@ class BaseCollector(ABC):
         
         for link in links:
             clean_link = self._clean_link(link)
-            if clean_link and clean_link not in seen and self._is_valid_url(clean_link):
+            if (clean_link and clean_link not in seen and 
+                self._is_valid_url(clean_link) and 
+                self._is_valid_subscription_link(clean_link)):
                 cleaned_links.append(clean_link)
                 seen.add(clean_link)
         
@@ -235,8 +304,7 @@ class BaseCollector(ABC):
         """从订阅链接获取节点"""
         try:
             self.logger.info(f"获取订阅内容: {subscription_url}")
-            response = self.session.get(subscription_url, timeout=self.timeout, verify=False)
-            response.raise_for_status()
+            response = self._make_request(subscription_url)
             
             content = response.text.strip()
             nodes = self.parse_node_text(content)
@@ -252,8 +320,7 @@ class BaseCollector(ABC):
         """获取V2Ray订阅链接"""
         try:
             self.logger.info(f"解析文章: {article_url}")
-            response = self.session.get(article_url, timeout=self.timeout, verify=False)
-            response.raise_for_status()
+            response = self._make_request(article_url)
             
             content = response.text
             
@@ -454,13 +521,32 @@ class BaseCollector(ABC):
         clean_link = re.sub(r'<[^>]+>', '', link)
         clean_link = re.sub(r'["\'`<>]', '', clean_link).strip()
         
-        # 处理常见的错误链接格式
-        for suffix in ['/strong', '/span', '/pp', '/h3', '&nbsp;', '/div', 'div']:
-            if suffix in clean_link:
-                clean_link = clean_link.split(suffix)[0]
+        # 如果字符串中包含URL，提取URL部分（更严格的匹配）
+        # 匹配完整的URL，直到遇到空白字符、引号或HTML标签开始
+        url_match = re.search(r'(https?://[^\s\'"<>&]+)', clean_link)
+        if url_match:
+            clean_link = url_match.group(1)
         
-        # 移除末尾的无效字符
+        # 移除URL中的HTML实体编码
+        clean_link = clean_link.replace('%3C', '').replace('%3E', '').replace('%20', ' ')
+        clean_link = clean_link.replace('&lt;', '').replace('&gt;', '').replace('&nbsp;', ' ')
+        
+        # 处理常见的错误链接格式（只在末尾匹配）
+        for suffix in ['/strong', '/span', '/pp', '/h3', '&nbsp;', '/div', 'div', '/p']:
+            if clean_link.endswith(suffix):
+                clean_link = clean_link[:-len(suffix)]
+        
+        # 移除末尾的无效字符和HTML标签残留
+        clean_link = re.sub(r'[<>"]+$', '', clean_link)
         clean_link = clean_link.rstrip(';/')
+        
+        # 确保只返回有效的URL
+        if not clean_link.startswith('http'):
+            return ""
+        
+        # 验证URL格式
+        if not re.match(r'^https?://[^\s/$.?#].[^\s]*$', clean_link):
+            return ""
         
         return clean_link.strip()
     
@@ -476,4 +562,81 @@ class BaseCollector(ABC):
                 r'(?:/?|[/?]\S+)$', re.IGNORECASE)
             return url_pattern.match(url) is not None
         except:
+            return False
+    
+    def _is_valid_subscription_link(self, url):
+        """验证是否为有效的V2Ray订阅链接"""
+        try:
+            # 导入排除模式
+            from config.websites import EXCLUDED_SUBSCRIPTION_PATTERNS
+            
+            # 检查是否匹配排除模式
+            for pattern in EXCLUDED_SUBSCRIPTION_PATTERNS:
+                if re.match(pattern, url, re.IGNORECASE):
+                    self.logger.debug(f"链接被排除规则过滤: {url}")
+                    return False
+            
+            # 必须以.txt结尾（V2Ray格式）
+            if not url.endswith('.txt'):
+                return False
+            
+            from urllib.parse import urlparse
+            parsed = urlparse(url)
+            path_part = parsed.path.lower()
+            
+            # 首先排除明显的非V2Ray文件（基于文件名模式）
+            non_v2ray_patterns = [
+                r'.*clash.*\.txt',
+                r'.*sing.*box.*\.txt',
+                r'.*config.*\.txt',
+                r'.*yaml.*\.txt',
+                r'.*yml.*\.txt'
+            ]
+            
+            for pattern in non_v2ray_patterns:
+                if re.match(pattern, url, re.IGNORECASE):
+                    return False
+            
+            # 检查URL路径中是否包含V2Ray相关关键词
+            v2ray_keywords = ['v2ray', 'sub', 'subscribe', 'node', 'link', 'vmess', 'vless', 'trojan']
+            has_keyword = any(keyword in path_part for keyword in v2ray_keywords)
+            
+            # 如果路径中没有关键词，检查域名
+            if not has_keyword:
+                domain = parsed.netloc.lower()
+                domain_keywords = ['v2ray', 'node', 'sub', 'vmess', 'vless', 'trojan']
+                has_domain_keyword = any(keyword in domain for keyword in domain_keywords)
+                
+                # 如果域名也没有关键词，则检查是否为常见的节点服务域名模式
+                if not has_domain_keyword:
+                    # 常见的节点服务域名模式
+                    common_patterns = [
+                        r'.*\.mibei77\.com',
+                        r'.*\.freeclashnode\.com',
+                        r'.*node\..*',
+                        r'.*sub\..*',
+                        r'.*api\..*',
+                        r'.*\..*\.txt$'  # 任何包含数字和字母的.txt文件
+                    ]
+                    
+                    for pattern in common_patterns:
+                        if re.match(pattern, url, re.IGNORECASE):
+                            return True
+                    
+                    # 如果都不匹配，则认为不是V2Ray订阅
+                    return False
+            
+            # 排除明显的内容转换网站
+            excluded_domains = [
+                'subconverter', 'subx', 'sub.xeton', 'api.v1.mk', 'v1.mk',
+                'raw.git', 'githubusercontent.com', 'gitlab.com'
+            ]
+            for domain in excluded_domains:
+                if domain in parsed.netloc.lower():
+                    return False
+            
+            return True
+            
+        except Exception as e:
+            self.logger.warning(f"验证订阅链接时出错: {url} - {str(e)}")
             return False

@@ -68,6 +68,61 @@ class ClashNodeV2RayCollector(BaseCollector):
                 return True
         return False
     
+    def find_subscription_links(self, content):
+        """重写订阅链接查找方法，专门查找ClashNodeV2Ray的订阅链接"""
+        links = []
+        
+        # ClashNodeV2Ray特定的订阅链接模式
+        clashnodev2ray_patterns = [
+            # 标准的V2Ray订阅链接
+            r'https?://[^\s\'"]*\.txt[^\s\'"]*',
+            # GitHub Pages相关的链接
+            r'https?://[^\s\'"]*github[^\s\'"]*\.txt[^\s\'"]*',
+            r'https?://[^\s\'"]*raw\.githubusercontent[^\s\'"]*\.txt[^\s\'"]*',
+            # 可能的域名
+            r'https?://[^\s\'"]*\.github\.io[^\s\'"]*\.txt[^\s\'"]*',
+            r'https?://[^\s\'"]*\.pages\.dev[^\s\'"]*\.txt[^\s\'"]*',
+            # sfdr域名（从日志中看到的）
+            r'https?://sfdr\.[^\s\'"]*\.txt[^\s\'"]*',
+            # 包含日期的链接
+            r'https?://[^\s\'"]*/\d{4}/\d{2}/\d{2}[^\s\'"]*\.txt[^\s\'"]*',
+        ]
+        
+        for pattern in clashnodev2ray_patterns:
+            try:
+                matches = re.findall(pattern, content, re.IGNORECASE)
+                for match in matches:
+                    clean_link = self._clean_link(match)
+                    if clean_link and self._is_valid_url(clean_link):
+                        # 验证链接是否有效
+                        if self._is_valid_subscription_link(clean_link):
+                            links.append(clean_link)
+                            self.logger.info(f"找到ClashNodeV2Ray订阅链接: {clean_link}")
+            except Exception as e:
+                self.logger.warning(f"ClashNodeV2Ray链接匹配失败: {pattern} - {str(e)}")
+        
+        # 去重
+        unique_links = list(set(links))
+        self.logger.info(f"ClashNodeV2Ray找到 {len(unique_links)} 个订阅链接")
+        
+        return unique_links
+    
+    def _is_valid_subscription_link(self, link):
+        """验证是否为有效的V2Ray订阅链接"""
+        # 排除明显的非V2Ray链接
+        excluded_patterns = [
+            r'.*clash.*',
+            r'.*sing.*box.*',
+            r'.*yaml.*',
+            r'.*json.*',
+        ]
+        
+        for pattern in excluded_patterns:
+            if re.search(pattern, link, re.IGNORECASE):
+                return False
+        
+        return True
+    
     def extract_direct_nodes(self, content):
         """重写直接节点提取方法，优化GitHub Pages解析"""
         nodes = []

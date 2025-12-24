@@ -5,6 +5,7 @@
 """
 
 import re
+import base64
 from bs4 import BeautifulSoup
 from .base_collector import BaseCollector
 
@@ -49,6 +50,43 @@ class WanzhuanmiCollector(BaseCollector):
         except Exception as e:
             self.logger.error(f"获取文章链接失败: {str(e)}")
             return None
+    
+    def get_nodes_from_subscription(self, subscription_url):
+        """重写订阅链接处理，支持base64解码"""
+        try:
+            self.logger.info(f"获取订阅内容: {subscription_url}")
+            response = self.session.get(subscription_url, timeout=self.timeout, verify=False)
+            response.raise_for_status()
+            
+            content = response.text.strip()
+            nodes = self.parse_node_text(content)
+            
+            # 如果没有找到节点，尝试base64解码
+            if not nodes:
+                try:
+                    # 玩转迷可能使用base64编码
+                    decoded_content = base64.b64decode(content).decode('utf-8', errors='ignore')
+                    self.logger.info("检测到base64编码，已解码内容")
+                    nodes = self.parse_node_text(decoded_content)
+                except Exception as e:
+                    self.logger.warning(f"base64解码失败: {str(e)}")
+                    # 尝试其他编码方式
+                    try:
+                        # 移除可能的填充字符后重试
+                        padded_content = content + '=' * (-len(content) % 4)
+                        decoded_content = base64.b64decode(padded_content).decode('utf-8', errors='ignore')
+                        nodes = self.parse_node_text(decoded_content)
+                        if nodes:
+                            self.logger.info("修复填充字符后解码成功")
+                    except Exception as e2:
+                        self.logger.warning(f"修复base64解码也失败: {str(e2)}")
+            
+            self.logger.info(f"从订阅链接获取到 {len(nodes)} 个节点")
+            return nodes
+            
+        except Exception as e:
+            self.logger.error(f"获取订阅链接失败: {str(e)}")
+            return []
     
     def find_subscription_links(self, content):
         """重写订阅链接查找方法"""

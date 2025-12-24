@@ -22,6 +22,7 @@ from src.collectors.clashnodev2ray import ClashNodeV2RayCollector
 from src.collectors.proxyqueen import ProxyQueenCollector
 from src.collectors.wanzhuanmi import WanzhuanmiCollector
 from src.collectors.cfmem import CfmemCollector
+from src.collectors.clashnodecc import ClashNodeCCCollector
 
 class NodeCollector:
     """节点收集器主类"""
@@ -38,7 +39,8 @@ class NodeCollector:
             "clashnodev2ray": ClashNodeV2RayCollector(WEBSITES["clashnodev2ray"]),
             "proxyqueen": ProxyQueenCollector(WEBSITES["proxyqueen"]),
             "wanzhuanmi": WanzhuanmiCollector(WEBSITES["wanzhuanmi"]),
-            "cfmem": CfmemCollector(WEBSITES["cfmem"])
+            "cfmem": CfmemCollector(WEBSITES["cfmem"]),
+            "clashnodecc": ClashNodeCCCollector(WEBSITES["clashnodecc"])
         }
         
         self.all_nodes = []
@@ -48,99 +50,89 @@ class NodeCollector:
         self.source_info = {}
     
     def collect_all_nodes(self):
-        """收集所有网站的节点"""
+        """收集所有网站的文章和订阅链接 - 两阶段执行策略"""
         self.logger.info("=" * 50)
-        self.logger.info("开始收集节点")
+        self.logger.info("第一阶段：收集所有网站的文章链接和订阅链接")
         self.logger.info("=" * 50)
         
         start_time = time.time()
         today = datetime.now().strftime('%Y-%m-%d')
+        date_str = datetime.now().strftime('%Y%m%d')
         
+        # 创建日期目录
+        date_dir = f"result/{date_str}"
+        os.makedirs(date_dir, exist_ok=True)
+        
+        # 第一阶段：收集所有网站的文章链接和订阅链接
         for site_name, collector in self.collectors.items():
             try:
-                self.logger.info(f"正在收集 {site_name} 的节点...")
+                self.logger.info(f"正在收集 {site_name} 的文章和订阅链接...")
                 
-                # 检查今天的缓存
-                existing_articles = self._load_existing_articles(today)
-                existing_subscriptions = self._load_existing_subscriptions(today)
+                # 获取最新文章URL
+                article_url = collector.get_latest_article_url()
                 
-                # 检查是否已有今天的文章链接
-                existing_article = self._find_existing_article(existing_articles, site_name, today)
-                if existing_article:
-                    self.logger.info(f"跳过 {site_name} - 已找到今天的文章链接: {existing_article}")
-                    collector.last_article_url = existing_article
+                # 获取V2Ray订阅链接
+                v2ray_links = []
+                if article_url:
+                    v2ray_links = collector.get_v2ray_subscription_links(article_url)
+                
+                # 合并保存文章链接和订阅链接到一个文件
+                info_file = os.path.join(date_dir, f"{site_name}_info.txt")
+                with open(info_file, 'w', encoding='utf-8') as f:
+                    f.write(f"# {site_name} 文章和订阅链接\n")
+                    f.write(f"# 更新时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+                    f.write("-" * 60 + "\n\n")
                     
-                    # 检查是否已有该文章的订阅链接
-                    existing_v2ray_links = self._find_existing_subscriptions(existing_subscriptions, site_name, existing_article)
-                    if existing_v2ray_links:
-                        self.logger.info(f"跳过 {site_name} - 已找到该文章的 {len(existing_v2ray_links)} 个V2Ray订阅链接")
-                        # 从订阅链接获取实际节点
-                        nodes = self._get_nodes_from_subscription_links(existing_v2ray_links, collector)
-                        v2ray_links = existing_v2ray_links
+                    # 文章链接部分
+                    f.write("## 文章链接\n")
+                    if article_url:
+                        f.write(f"{article_url}\n")
+                        self.articles_with_source.append({
+                            'website_name': site_name,
+                            'article_url': article_url,
+                            'date': today
+                        })
                     else:
-                        # 需要获取订阅链接
-                        v2ray_links = collector.get_v2ray_subscription_links(existing_article)
-                        # 从订阅链接获取实际节点
-                        nodes = self._get_nodes_from_subscription_links(v2ray_links, collector)
-                else:
-                    # 收集节点
-                    nodes = collector.collect()
+                        f.write("# 今日未更新文章\n")
+                    f.write("\n")
                     
-                    # 收集V2Ray订阅链接
-                    if hasattr(collector, 'last_article_url') and collector.last_article_url:
-                        v2ray_links = collector.get_v2ray_subscription_links(collector.last_article_url)
-                        # 从订阅链接获取实际节点
-                        v2ray_nodes = self._get_nodes_from_subscription_links(v2ray_links, collector)
-                        nodes.extend(v2ray_nodes)
+                    # 订阅链接部分
+                    f.write("## 订阅链接\n")
+                    if v2ray_links:
+                        for link in v2ray_links:
+                            f.write(f"{link}\n")
                     else:
-                        v2ray_links = []
+                        f.write("# 无V2Ray订阅链接\n")
                 
-                # 保存文章链接信息
-                if hasattr(collector, 'last_article_url') and collector.last_article_url:
-                    self.articles_with_source.append({
-                        'website_name': site_name,
-                        'article_url': collector.last_article_url,
-                        'date': today
-                    })
+                self.logger.info(f"{site_name}: 文章和订阅链接已保存到 {info_file}，共 {len(v2ray_links)} 个链接")
                 
-                # 记录V2Ray订阅链接信息
+                # 记录V2Ray订阅链接信息（用于汇总）
                 if not v2ray_links:
                     self.v2ray_links_with_source.append({
                         'url': '# 无V2Ray订阅链接',
                         'source': site_name,
-                        'source_url': collector.last_article_url if hasattr(collector, 'last_article_url') else 'N/A'
+                        'source_url': article_url if article_url else 'N/A'
                     })
                 else:
                     for link in v2ray_links:
                         self.v2ray_links_with_source.append({
                             'url': link,
                             'source': site_name,
-                            'source_url': collector.last_article_url
+                            'source_url': article_url
                         })
                 
-                if nodes:
-                    self.all_nodes.extend(nodes)
-                    self.v2ray_subscription_links.extend(v2ray_links)
-                    
-                    self.source_info[site_name] = {
-                        "count": len(nodes),
-                        "enabled": collector.enabled,
-                        "subscription_links": len(collector.subscription_links),
-                        "v2ray_links": len(v2ray_links),
-                        "links": collector.subscription_links[:5],
-                        "v2ray_link_samples": v2ray_links[:5]
-                    }
-                    self.logger.info(f"{site_name} 收集完成: {len(nodes)} 个节点，{len(v2ray_links)} 个V2Ray订阅链接")
-                else:
-                    self.source_info[site_name] = {
-                        "count": 0,
-                        "enabled": collector.enabled,
-                        "subscription_links": 0,
-                        "v2ray_links": 0,
-                        "links": [],
-                        "v2ray_link_samples": []
-                    }
-                    self.logger.warning(f"{site_name} 未收集到节点")
+                # 收集所有订阅链接（不去重，保留网站信息）
+                self.v2ray_subscription_links.extend(v2ray_links)
+                
+                # 更新源信息
+                self.source_info[site_name] = {
+                    "count": 0,  # 稍后更新
+                    "enabled": collector.enabled,
+                    "subscription_links": len(v2ray_links),
+                    "v2ray_links": len(v2ray_links),
+                    "links": v2ray_links[:5],
+                    "v2ray_link_samples": v2ray_links[:5]
+                }
                 
                 # 请求间隔
                 if site_name != list(self.collectors.keys())[-1]:
@@ -148,28 +140,94 @@ class NodeCollector:
                     
             except Exception as e:
                 self.logger.error(f"收集 {site_name} 时出错: {str(e)}")
+                # 即使出错也保存错误信息
+                article_file = os.path.join(date_dir, f"{site_name}_article.txt")
+                with open(article_file, 'w', encoding='utf-8') as f:
+                    f.write(f"# {site_name} 文章链接\n")
+                    f.write(f"# 更新时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+                    f.write(f"# 状态: 收集失败\n")
+                    f.write(f"# 错误信息: {str(e)}\n")
+                    f.write("-" * 60 + "\n\n")
         
-        end_time = time.time()
-        duration = end_time - start_time
+        # 第一阶段完成
+        first_phase_time = time.time() - start_time
+        self.logger.info(f"第一阶段完成，耗时: {first_phase_time:.2f}秒")
+        self.logger.info(f"收集到 {len(self.v2ray_subscription_links)} 个订阅链接")
+        
+        # 第二阶段：通过订阅链接获取节点
+        self.logger.info("=" * 50)
+        self.logger.info("第二阶段：通过订阅链接获取节点")
+        self.logger.info("=" * 50)
+        
+        second_start_time = time.time()
+        
+        # 去重订阅链接（保留网站信息）
+        unique_links = []
+        seen_links = set()
+        links_with_source = []
+        
+        for link_info in self.v2ray_links_with_source:
+            if link_info['url'] not in seen_links and link_info['url'] != '# 无V2Ray订阅链接':
+                seen_links.add(link_info['url'])
+                unique_links.append(link_info['url'])
+                links_with_source.append(link_info)
+        
+        self.logger.info(f"去重后有 {len(unique_links)} 个唯一订阅链接")
+        
+        # 通过订阅链接获取节点
+        for i, link_info in enumerate(links_with_source):
+            try:
+                self.logger.info(f"处理订阅链接 ({i+1}/{len(links_with_source)}): {link_info['url'][:50]}...")
+                
+                # 获取收集器实例
+                collector = self.collectors[link_info['source']]
+                
+                # 从订阅链接获取节点
+                nodes = collector.get_nodes_from_subscription(link_info['url'])
+                
+                if nodes:
+                    self.all_nodes.extend(nodes)
+                    self.logger.info(f"从 {link_info['source']} 获取到 {len(nodes)} 个节点")
+                    
+                    # 更新源信息中的节点数
+                    if link_info['source'] in self.source_info:
+                        self.source_info[link_info['source']]['count'] += len(nodes)
+                else:
+                    self.logger.warning(f"从 {link_info['url']} 未获取到节点")
+                
+                # 请求间隔
+                if i < len(links_with_source) - 1:
+                    time.sleep(REQUEST_DELAY)
+                    
+            except Exception as e:
+                self.logger.error(f"处理订阅链接失败 {link_info['url']}: {str(e)}")
         
         # 去重
         original_count = len(self.all_nodes)
         self.all_nodes = list(set(self.all_nodes))
         duplicate_count = original_count - len(self.all_nodes)
         
-        original_v2ray_count = len(self.v2ray_subscription_links)
-        self.v2ray_subscription_links = list(set(self.v2ray_subscription_links))
-        v2ray_duplicate_count = original_v2ray_count - len(self.v2ray_subscription_links)
+        # 保存去重后的所有节点到 nodetotal.txt（纯节点信息，无文件头）
+        nodetotal_file = os.path.join(date_dir, "nodetotal.txt")
+        with open(nodetotal_file, 'w', encoding='utf-8') as f:
+            for node in self.all_nodes:
+                f.write(f"{node}\n")
+        
+        self.logger.info(f"所有节点已保存到 {nodetotal_file}，原始: {original_count} 个，去重后: {len(self.all_nodes)} 个，重复: {duplicate_count} 个")
+        
+        end_time = time.time()
+        total_duration = end_time - start_time
+        second_phase_time = end_time - second_start_time
         
         self.logger.info("=" * 50)
         self.logger.info("节点收集完成")
-        self.logger.info(f"总收集时间: {duration:.2f}秒")
+        self.logger.info(f"总收集时间: {total_duration:.2f}秒")
+        self.logger.info(f"第一阶段时间: {first_phase_time:.2f}秒")
+        self.logger.info(f"第二阶段时间: {second_phase_time:.2f}秒")
         self.logger.info(f"原始节点数: {original_count}")
         self.logger.info(f"去重后节点数: {len(self.all_nodes)}")
         self.logger.info(f"重复节点数: {duplicate_count}")
-        self.logger.info(f"原始V2Ray订阅链接数: {original_v2ray_count}")
-        self.logger.info(f"去重后V2Ray订阅链接数: {len(self.v2ray_subscription_links)}")
-        self.logger.info(f"重复V2Ray订阅链接数: {v2ray_duplicate_count}")
+        self.logger.info(f"唯一订阅链接数: {len(unique_links)}")
         self.logger.info("=" * 50)
         
         return self.all_nodes
@@ -194,23 +252,38 @@ class NodeCollector:
         return valid_nodes
     
     def save_results(self, valid_nodes):
-        """保存结果"""
+        """保存结果 - 按照新的文件结构"""
         try:
-            # 保存V2Ray订阅链接
-            v2ray_success = self.file_handler.save_v2ray_links(self.v2ray_links_with_source)
-            if not v2ray_success:
-                self.logger.warning("V2Ray订阅链接保存失败")
+            date_str = datetime.now().strftime('%Y%m%d')
+            date_dir = f"result/{date_str}"
             
-            # 保存节点列表
-            success = self.file_handler.save_nodes_to_file(valid_nodes)
-            if not success:
-                return False
+            # 保存测速后的节点到日期目录下的 nodelist.txt（纯节点信息，无文件头）
+            nodelist_file = os.path.join(date_dir, "nodelist.txt")
+            with open(nodelist_file, 'w', encoding='utf-8') as f:
+                for node in valid_nodes:
+                    f.write(f"{node}\n")
+            
+            self.logger.info(f"测速后节点已保存到 {nodelist_file}，共 {len(valid_nodes)} 个有效节点")
+            
+            # 同步一份到 result 根目录
+            os.makedirs("result", exist_ok=True)
+            
+            # 同步 nodetotal.txt 到根目录
+            nodetotal_src = os.path.join(date_dir, "nodetotal.txt")
+            nodetotal_dst = "result/nodetotal.txt"
+            if os.path.exists(nodetotal_src):
+                import shutil
+                shutil.copy2(nodetotal_src, nodetotal_dst)
+                self.logger.info(f"nodetotal.txt 已同步到根目录")
+            
+            # 同步 nodelist.txt 到根目录
+            nodelist_dst = "result/nodelist.txt"
+            import shutil
+            shutil.copy2(nodelist_file, nodelist_dst)
+            self.logger.info(f"nodelist.txt 已同步到根目录")
             
             # 保存元数据
             self.file_handler.save_nodes_with_metadata(valid_nodes, self.source_info)
-            
-            # 清理旧备份
-            self.file_handler.clean_old_backups()
             
             self.logger.info("结果保存完成")
             return True
@@ -262,29 +335,14 @@ class NodeCollector:
             target_dates = [datetime.now()]
         
         try:
-            # 1. 收集所有网站的节点
+            # 1. 收集所有网站的节点（新策略：依次执行，按网站保存文件）
             all_nodes = self.collect_all_nodes()
-            
-            # 2. 保存文章链接（按日期分文件夹）
-            date_suffix = datetime.now().strftime('%Y%m%d') if target_dates is None else target_dates[0].strftime('%Y%m%d') if len(target_dates) == 1 else None
-            webpage_saved = self.file_handler.save_webpage_links(self.articles_with_source, date_suffix)
-            if webpage_saved:
-                self.logger.info("文章链接保存完成")
-            else:
-                self.logger.error("文章链接保存失败")
-            
-            # 3. 保存V2Ray订阅链接（按日期分文件夹）
-            links_saved = self.file_handler.save_subscription_links(self.v2ray_links_with_source, date_suffix)
-            if links_saved:
-                self.logger.info("订阅链接信息保存完成")
-            else:
-                self.logger.error("V2Ray订阅链接保存失败")
             
             if not all_nodes:
                 self.logger.warning("未收集到任何节点")
                 return False
             
-            # 4. 测试节点连通性
+            # 2. 测试节点连通性
             if test_connectivity:
                 self.logger.info("开始测试节点连通性...")
                 valid_nodes = self.connectivity_tester.test_nodes(all_nodes)
@@ -293,42 +351,29 @@ class NodeCollector:
                 valid_nodes = all_nodes
                 self.logger.info("跳过连通性测试")
             
-            if not valid_nodes:
-                self.logger.warning("没有有效的节点")
+            # 3. 保存结果（新策略：保存测速结果并同步到根目录）
+            success = self.save_results(valid_nodes)
+            if not success:
                 return False
             
-            # 5. 按AI服务可用性分类保存节点
-            ai_available_nodes = []
+            # 9. 同步最新节点到根目录并清理临时文件
+            date_suffix = datetime.now().strftime('%Y%m%d')
+            # 同步最新数据到根目录
+            sync_success = self.file_handler.sync_latest_to_root(date_suffix)
             
-            for node in valid_nodes:
-                # 重新测试AI服务可用性
-                host, port = self._extract_host_port_from_node(node)
-                if host and port:
-                    is_ai_available, _ = self.connectivity_tester.test_ai_services_connectivity(host, port)
-                    if is_ai_available:
-                        ai_available_nodes.append(node)
+            # 清理根目录临时文件
+            clean_success = self.file_handler.clean_root_temp_files()
             
-            # 6. 保存节点到文件
-            # 保存到日期目录
-            ai_saved = self.file_handler.save_nodes(ai_available_nodes, NODELIST_FILE, date_suffix)
-            
-            # 同步最新节点到根目录
-            if date_suffix:
-                # 保存AI可用节点到根目录
-                root_ai_saved = self.file_handler.save_nodes(ai_available_nodes, NODELIST_FILE, None)
-                
-                if ai_saved and root_ai_saved:
-                    self.logger.info(f"节点保存完成: AI可用节点 {len(ai_available_nodes)} 个")
-                    self.logger.info(f"节点已同步到根目录: result/nodelist.txt")
-                else:
-                    self.logger.error("节点保存失败")
-                    return False
+            if sync_success:
+                self.logger.info(f"节点保存完成:")
+                self.logger.info(f"  - 测速前节点: {len(all_nodes)} 个 -> result/nodetotal.txt")
+                self.logger.info(f"  - 测速后有效节点: {len(valid_nodes)} 个 -> result/nodelist.txt")
+                self.logger.info(f"  - 已同步到根目录")
+                if clean_success:
+                    self.logger.info(f"  - 已清理临时文件")
             else:
-                if ai_saved:
-                    self.logger.info(f"节点保存完成: AI可用节点 {len(ai_available_nodes)} 个")
-                else:
-                    self.logger.error("节点保存失败")
-                    return False
+                self.logger.error("节点保存或同步失败")
+                return False
             
             self.logger.info("收集流程完成")
             return True
@@ -339,118 +384,29 @@ class NodeCollector:
     
     def _load_existing_articles(self, date_str=None):
         """加载现有的文章链接缓存"""
-        articles = {}
-        
-        # 确定要检查的文件路径
+        # 使用file_handler的新方法
+        date_suffix = None
         if date_str:
-            # 转换日期格式: YYYY-MM-DD -> YYYYMMDD
-            formatted_date = date_str.replace('-', '')
-            webpage_file = f"result/{formatted_date}/webpage.txt"
-        else:
-            # 如果没有指定日期，先尝试今天的日期目录
-            today = datetime.now().strftime('%Y-%m-%d')
-            formatted_date = today.replace('-', '')
-            webpage_file = f"result/{formatted_date}/webpage.txt"
-            # 如果今天的目录不存在，再检查根目录
-            if not os.path.exists(webpage_file):
-                webpage_file = "result/webpage.txt"
+            date_suffix = date_str.replace('-', '')
         
-        if not os.path.exists(webpage_file):
-            self.logger.debug(f"文章缓存文件不存在: {webpage_file}")
-            return articles
-        
-        try:
-            with open(webpage_file, 'r', encoding='utf-8') as f:
-                content = f.read()
-                
-            sections = content.split('------------------------------------------------------------')
-            for section in sections:
-                lines = section.strip().split('\n')
-                website_name = None
-                article_url = None
-                
-                for line in lines:
-                    line = line.strip()
-                    if line.startswith('# ') and not line.startswith('===') and not line.startswith('各网站'):
-                        website_name = line.replace('#', '').strip()
-                    elif line.startswith('https://') and not line.startswith('#') and website_name:
-                        article_url = line.strip()
-                        date_match = re.search(r'(\d{4}-\d{2}-\d{2})', line)
-                        if date_match:
-                            date_str = date_match.group(1)
-                            key = f"{website_name}_{date_str}"
-                            articles[key] = article_url
-                        
-                        # 总是保存最新的文章链接（无论是否有日期）
-                        articles[f"{website_name}_latest"] = article_url
-                            
-        except Exception as e:
-            self.logger.error(f"加载文章缓存失败: {str(e)}")
-        
-        return articles
+        return self.file_handler.load_existing_articles(date_suffix)
     
     def _load_existing_subscriptions(self, date_str=None):
         """加载现有的订阅链接缓存"""
-        subscriptions = {}
-        
-        # 确定要检查的文件路径
+        # 使用file_handler的新方法
+        date_suffix = None
         if date_str:
-            # 转换日期格式: YYYY-MM-DD -> YYYYMMDD
-            formatted_date = date_str.replace('-', '')
-            subscription_file = f"result/{formatted_date}/subscription.txt"
-        else:
-            # 如果没有指定日期，先尝试今天的日期目录
-            today = datetime.now().strftime('%Y-%m-%d')
-            formatted_date = today.replace('-', '')
-            subscription_file = f"result/{formatted_date}/subscription.txt"
-            # 如果今天的目录不存在，再检查根目录
-            if not os.path.exists(subscription_file):
-                subscription_file = "result/subscription.txt"
+            date_suffix = date_str.replace('-', '')
         
-        if not os.path.exists(subscription_file):
-            self.logger.debug(f"订阅缓存文件不存在: {subscription_file}")
-            return subscriptions
-        
-        try:
-            with open(subscription_file, 'r', encoding='utf-8') as f:
-                content = f.read()
-                
-            sections = content.split('------------------------------------------------------------')
-            for section in sections:
-                lines = section.strip().split('\n')
-                website_name = None
-                article_url = None
-                links = []
-                
-                for line in lines:
-                    line = line.strip()
-                    if line.startswith('# ') and not line.startswith('===') and '文章链接:' not in line and '链接数:' not in line:
-                        website_name = line.replace('#', '').strip()
-                    elif line.startswith('# 文章链接:'):
-                        if '文章链接: None' not in line:
-                            article_url = line.split('文章链接:')[1].strip()
-                    elif line.startswith('https://') and not line.startswith('#'):
-                        links.append(line)
-                
-                if website_name and article_url and links:
-                    key = f"{website_name}_{article_url}"
-                    subscriptions[key] = links
-                    
-        except Exception as e:
-            self.logger.error(f"加载订阅链接缓存失败: {str(e)}")
-        
-        return subscriptions
+        return self.file_handler.load_existing_subscriptions(date_suffix)
     
     def _find_existing_article(self, existing_articles, website_name, date_str):
         """查找现有的文章链接"""
-        # 优先查找指定日期的文章
-        key = f"{website_name}_{date_str}"
-        if key in existing_articles:
-            return existing_articles[key]
+        # 直接使用网站名称作为键名（与缓存解析逻辑一致）
+        if website_name in existing_articles:
+            return existing_articles[website_name]
         
-        # 如果没有指定日期的文章，查找最新文章
-        key_latest = f"{website_name}_latest"
-        return existing_articles.get(key_latest)
+        return None
     
     def _find_existing_subscriptions(self, existing_subscriptions, website_name, article_url):
         """查找现有的订阅链接"""

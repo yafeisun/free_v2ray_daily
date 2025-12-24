@@ -174,34 +174,52 @@ class ConnectivityTester:
             
             parsed = urllib.parse.urlparse(node)
             
+            host = None
+            port = None
+            
+            # 尝试标准URL格式解析
             if parsed.hostname and parsed.port:
-                # 标准格式
                 host = parsed.hostname
                 port = parsed.port
             else:
-                # 尝试base64解码
+                # 尝试base64解码格式
                 try:
                     data = node[5:]  # 去掉 ss://
+                    # 修复base64填充
                     data += '=' * (-len(data) % 4)
                     decoded = base64.b64decode(data).decode('utf-8')
                     
-                    if ':' in decoded:
-                        parts = decoded.split(':')
-                        if len(parts) >= 2:
-                            host = parts[0]
-                            port = int(parts[1].split('@')[0] if '@' in parts[1] else parts[1])
+                    # 解析格式: method:password@server:port
+                    if '@' in decoded:
+                        auth_part, server_part = decoded.rsplit('@', 1)
+                        if ':' in server_part:
+                            server, port_str = server_part.rsplit(':', 1)
+                            host = server
+                            port = int(port_str)
                         else:
-                            self.logger.warning("无法解析SS节点格式")
+                            self.logger.warning(f"无法解析SS节点服务器部分: {server_part}")
                             return False
                     else:
-                        self.logger.warning("无法解析SS节点格式")
-                        return False
-                except:
-                    self.logger.warning("无法解析SS节点")
+                        # 格式: method:password:server:port
+                        parts = decoded.split(':')
+                        if len(parts) >= 3:
+                            host = parts[-2]
+                            port = int(parts[-1])
+                        else:
+                            self.logger.warning(f"无法解析SS节点格式: {decoded}")
+                            return False
+                            
+                except Exception as decode_error:
+                    self.logger.warning(f"SS节点base64解码失败: {str(decode_error)}")
                     return False
             
             if not host or not port:
-                self.logger.warning("SS节点缺少主机或端口信息")
+                self.logger.warning(f"SS节点缺少主机或端口信息: host={host}, port={port}")
+                return False
+            
+            # 验证主机和端口的有效性
+            if not self._is_valid_host(host) or not (1 <= port <= 65535):
+                self.logger.warning(f"SS节点主机或端口无效: {host}:{port}")
                 return False
             
             # 测试延迟
@@ -429,3 +447,21 @@ class ConnectivityTester:
     def test_all_nodes(self, nodes):
         """批量测试所有节点（兼容方法）"""
         return self.test_nodes(nodes)
+    
+    def _is_valid_host(self, host):
+        """验证主机名是否有效"""
+        if not host:
+            return False
+        
+        # 检查是否为IP地址
+        import ipaddress
+        try:
+            ipaddress.ip_address(host)
+            return True
+        except ValueError:
+            pass
+        
+        # 检查是否为有效域名
+        import re
+        domain_pattern = r'^(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$'
+        return bool(re.match(domain_pattern, host))

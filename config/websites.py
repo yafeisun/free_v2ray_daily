@@ -4,12 +4,13 @@
 网站配置文件
 """
 
-# 目标网站列表
+# 目标网站列表 - 配置驱动的插件架构
 WEBSITES = {
     "freeclashnode": {
         "name": "FreeClashNode",
         "url": "https://www.freeclashnode.com/free-node/",
         "enabled": True,
+        "collector_key": "freeclashnode",  # 对应收集器插件的关键字
         "selectors": [
             '.post-title a',
             'h2 a',
@@ -24,6 +25,7 @@ WEBSITES = {
         "name": "米贝节点",
         "url": "https://www.mibei77.com/",
         "enabled": True,
+        "collector_key": "mibei77",  # 对应收集器插件的关键字
         "selectors": [
             '.post h2 a',
             '.entry-title a',
@@ -39,6 +41,7 @@ WEBSITES = {
         "name": "ClashNodeV2Ray",
         "url": "https://clashnodev2ray.github.io/",
         "enabled": True,
+        "collector_key": "clashnodev2ray",  # 对应收集器插件的关键字
         "selectors": [
             'a[href*="/2025/12/23/"]',
             'h1 a',
@@ -56,6 +59,7 @@ WEBSITES = {
         "name": "ProxyQueen",
         "url": "https://www.proxyqueen.top/",
         "enabled": True,
+        "collector_key": "proxyqueen",  # 对应收集器插件的关键字
         "selectors": [
             '.post-title a',
             'h2 a',
@@ -70,6 +74,7 @@ WEBSITES = {
         "name": "玩转迷",
         "url": "https://wanzhuanmi.com/",
         "enabled": True,
+        "collector_key": "wanzhuanmi",  # 对应收集器插件的关键字
         "selectors": [
             'a[href*="/archives/1259"]',
             'a[href*="/archives/"]',
@@ -86,6 +91,7 @@ WEBSITES = {
         "name": "CFMem",
         "url": "https://www.cfmem.com/",
         "enabled": True,
+        "collector_key": "cfmem",  # 对应收集器插件的关键字
         "selectors": [
             '.post-title a',
             'h2 a',
@@ -97,6 +103,49 @@ WEBSITES = {
             r'https?://[^\s\'"]*?\.txt[^\s\'"]*',
             r'https?://[^\s\'"]*?/sub[^\s\'"]*',
             r'https?://[^\s\'"]*?/subscribe[^\s\'"]*'
+        ]
+    },
+    "clashnodecc": {
+        "name": "ClashNodeCC",
+        "url": "https://clashnode.cc/",
+        "enabled": True,
+        "collector_key": "clashnodecc",  # 对应收集器插件的关键字
+        "selectors": [
+            'article:first-child a',
+            '.post:first-child a',
+            '.entry-title:first-child a',
+            'h1 a',
+            'h2 a',
+            '.post-title a',
+            '.entry-title a',
+            'article h2 a',
+            '.content h2 a',
+            '.latest-post a',
+            'a[href*="/archives/"]',
+            'a[href*="/post/"]',
+            'a[href*="/node/"]'
+        ],
+        "patterns": [
+            r'https?://[^\s\'"]*\.txt[^\s\'"]*',
+            r'https?://[^\s\'"]*(?:sub|subscribe|link|api|node)[^\s\'"]*\.txt[^\s\'"]*',
+            r'https?://[^\s\'"]*(?:github\.com|gitlab\.com|raw\.githubusercontent\.com)[^\s\'"]*\.txt[^\s\'"]*',
+            r'https?://[^\s\'"]*/[^\s\'"]*(?:sub|subscribe|link)[^\s\'"]*',
+            r'https?://[^\s\'"]*\.txt'
+        ]
+    },
+    "example_site": {
+        "name": "示例网站",
+        "url": "https://example.com/",
+        "enabled": False,  # 默认禁用，仅用于演示
+        "collector_key": "example_site",  # 对应收集器插件的关键字
+        "selectors": [
+            'article:first-child a',
+            '.post-title a',
+            'h2 a'
+        ],
+        "patterns": [
+            r'example://[^\s\n\r]+',
+            r'https?://example\.com/[^\s\'"]*\.txt'
         ]
     }
 }
@@ -138,6 +187,38 @@ SUBSCRIPTION_PATTERNS = [
     r'["\']((?:https?://[^\s\'"]*?/api[^\s\'"]*?))["\']',
     r'["\']((?:https?://[^\s\'"]*?\.txt))["\']',  # 通用.txt文件模式
     r'https?://[^\s\'"\)]*\.txt',  # 独立的.txt文件模式
+]
+
+# 非节点订阅链接排除模式（排除明显不是V2Ray节点的链接）
+EXCLUDED_SUBSCRIPTION_PATTERNS = [
+    # 排除Clash相关订阅
+    r'.*(?:clash|Clash|CLASH).*\.txt',
+    r'.*(?:sing-?box|singbox|Sing-?Box|SINGBOX).*\.txt',
+    r'.*(?:yaml|yml).*\.txt',
+    r'.*(?:config|Config).*\.txt',
+    
+    # 排除明显的内容聚合网站
+    r'.*(?:parsing|Parsing|PAESING).*\.txt',
+    r'.*(?:convert|Convert|CONVERT).*\.txt',
+    r'.*(?:transform|Transform|TRANSFORM).*\.txt',
+    
+    # 排除特定的非节点网站
+    r'.*(?:subconverter|subx|sub\.xeton).*',
+    r'.*(?:api\.v1\.mk|v1\.mk).*',
+    r'.*(?:raw\.git).*',
+    
+    # 排除包含特定关键词的链接
+    r'.*(?:免费机场|机场推荐|vpn推荐|科学上网).*',
+    r'.*(?:广告|推广|aff).*',
+    r'.*(?:破解|crack|hack).*',
+    
+    # 排除明显的测试链接
+    r'.*(?:test|Test|TEST).*\.txt',
+    r'.*(?:demo|Demo|DEMO).*\.txt',
+    r'.*(?:example|Example|EXAMPLE).*\.txt',
+    
+    # 排除过长的路径（通常不是节点订阅）
+    r'https?://[^/]+/[^/]+/[^/]+/[^/]+/[^/]+/.*',
 ]
 
 # 节点协议模式

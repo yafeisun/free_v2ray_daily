@@ -14,12 +14,12 @@ from datetime import datetime
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from src.collectors.mibei77 import Mibei77Collector
-from src.utils.logger import Logger
-from config.settings import WEBSITES
+from src.utils.logger import get_logger
+from config.websites import WEBSITES
 
 def main():
     """主函数"""
-    logger = Logger().get_logger()
+    logger = get_logger("mibei77")
     
     try:
         # 初始化收集器

@@ -5,6 +5,7 @@
 """
 
 import re
+import base64
 from bs4 import BeautifulSoup
 from .base_collector import BaseCollector
 
@@ -48,6 +49,96 @@ class Mibei77Collector(BaseCollector):
         except Exception as e:
             self.logger.error(f"获取文章链接失败: {str(e)}")
             return None
+    
+    def get_nodes_from_subscription(self, subscription_url):
+        """重写从订阅链接获取节点的方法，支持base64解码"""
+        try:
+            self.logger.info(f"获取订阅内容: {subscription_url}")
+            response = self.session.get(subscription_url, timeout=self.timeout, verify=False)
+            response.raise_for_status()
+            
+            content = response.text.strip()
+            
+            # 先尝试直接解析
+            nodes = self.parse_node_text(content)
+            
+            # 如果没有找到节点，尝试base64解码
+            if not nodes:
+                try:
+                    # 米贝节点通常使用base64编码
+                    decoded_content = base64.b64decode(content).decode('utf-8', errors='ignore')
+                    self.logger.info("检测到base64编码，已解码内容")
+                    nodes = self.parse_node_text(decoded_content)
+                except Exception as e:
+                    self.logger.warning(f"base64解码失败: {str(e)}")
+                    # 尝试其他编码方式
+                    try:
+                        # 移除可能的填充字符后重试
+                        padded_content = content + '=' * (-len(content) % 4)
+                        decoded_content = base64.b64decode(padded_content).decode('utf-8', errors='ignore')
+                        nodes = self.parse_node_text(decoded_content)
+                        if nodes:
+                            self.logger.info("修复填充字符后解码成功")
+                    except Exception as e2:
+                        self.logger.warning(f"修复base64解码也失败: {str(e2)}")
+            
+            self.logger.info(f"从订阅链接获取到 {len(nodes)} 个节点")
+            return nodes
+            
+        except Exception as e:
+            self.logger.error(f"获取订阅链接失败: {str(e)}")
+            return []
+    
+    def find_subscription_links(self, content):
+        """重写订阅链接查找方法，专门查找米贝77的订阅链接"""
+        links = []
+        
+        # 米贝77特定的订阅链接模式
+        mibei77_patterns = [
+            # 标准的V2Ray订阅链接
+            r'https?://[^\s\'"]*\.txt[^\s\'"]*',
+            # 米贝77域名下的链接
+            r'https?://[^\s\'"]*mibei77[^\s\'"]*\.txt[^\s\'"]*',
+            r'https?://[^\s\'"]*mm\.[^\s\'"]*\.txt[^\s\'"]*',
+            # 包含日期的链接
+            r'https?://[^\s\'"]*/\d{4}\.\d{2}[^\s\'"]*\.txt[^\s\'"]*',
+            r'https?://[^\s\'"]*/\d{8}[^\s\'"]*\.txt[^\s\'"]*',
+        ]
+        
+        for pattern in mibei77_patterns:
+            try:
+                matches = re.findall(pattern, content, re.IGNORECASE)
+                for match in matches:
+                    clean_link = self._clean_link(match)
+                    if clean_link and self._is_valid_url(clean_link):
+                        # 验证链接是否有效
+                        if self._is_valid_subscription_link(clean_link):
+                            links.append(clean_link)
+                            self.logger.info(f"找到米贝77订阅链接: {clean_link}")
+            except Exception as e:
+                self.logger.warning(f"米贝77链接匹配失败: {pattern} - {str(e)}")
+        
+        # 去重
+        unique_links = list(set(links))
+        self.logger.info(f"米贝77找到 {len(unique_links)} 个订阅链接")
+        
+        return unique_links
+    
+    def _is_valid_subscription_link(self, link):
+        """验证是否为有效的V2Ray订阅链接"""
+        # 排除明显的非V2Ray链接
+        excluded_patterns = [
+            r'.*clash.*',
+            r'.*sing.*box.*',
+            r'.*yaml.*',
+            r'.*json.*',
+        ]
+        
+        for pattern in excluded_patterns:
+            if re.search(pattern, link, re.IGNORECASE):
+                return False
+        
+        return True
     
     def extract_direct_nodes(self, content):
         """重写直接节点提取方法"""

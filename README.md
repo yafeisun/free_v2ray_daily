@@ -45,17 +45,17 @@ free_v2ray_daily/
 │   ├── clashnodecc.py     # ClashNodeCC独立脚本
 │   └── run_all_sites.py   # 批量运行脚本
 ├── result/                # 结果文件
-│   ├── 20251224/          # 按日期分文件夹（示例）
+│   ├── 20251224/          # 按日期分文件夹（本地存储，不提交到GitHub）
 │   │   ├── webpage.txt    # 2025-12-24的文章链接
 │   │   ├── subscription.txt # 2025-12-24的订阅链接
 │   │   └── nodelist.txt   # 2025-12-24的有效节点
-│   ├── 20251223/          # 按日期分文件夹（示例）
+│   ├── 20251223/          # 按日期分文件夹（本地存储，不提交到GitHub）
 │   │   ├── webpage.txt    # 2025-12-23的文章链接
 │   │   ├── subscription.txt # 2025-12-23的订阅链接
 │   │   └── nodelist.txt   # 2025-12-23的有效节点
 │   ├── webpage.txt        # 最新文章链接（兼容性）
 │   ├── subscription.txt   # V2Ray订阅链接（兼容性）
-│   └── nodelist.txt       # 所有有效节点（兼容性）
+│   └── nodelist.txt       # 所有有效节点（兼容性，提交到GitHub）
 ├── tests/                 # 测试文件
 ├── docs/                  # 文档
 ├── .github/workflows/     # GitHub Actions配置
@@ -174,7 +174,12 @@ python3 scripts/run_all_sites.py
 
 ## 输出文件说明
 
-### 按日期分文件夹结构（推荐）
+**重要说明**：
+- 带日期格式的文件夹（如 `result/20251224/`）仅在本地存储，**不会提交到GitHub**
+- 根目录的 `result/nodelist.txt` 会提交到GitHub，作为最新数据源
+- 推荐订阅链接：`https://raw.githubusercontent.com/yafeisun/free_v2ray_daily/refs/heads/main/result/nodelist.txt`
+
+### 按日期分文件夹结构（本地存储）
 系统现在支持按日期自动分文件夹保存数据，避免重复执行：
 
 ```
@@ -251,12 +256,16 @@ https://mm.mibei77.com/2025.12/12.2464bafrg.txt
 ## 订阅链接使用
 
 ### 直接使用节点文件
-您可以将 `result/YYYYMMDD/nodelist.txt` 中的节点内容直接复制到您的V2Ray客户端中。
+您可以将 `result/nodelist.txt` 中的节点内容直接复制到您的V2Ray客户端中。
+
+**注意**：带日期的文件夹不会提交到GitHub，请使用根目录的 `nodelist.txt` 获取最新数据。
 
 ### 按日期访问历史数据
 系统支持按日期访问历史数据：
 - 2025-12-24的数据：`https://raw.githubusercontent.com/你的用户名/free_v2ray_daily/main/result/20251224/nodelist.txt`
 - 2025-12-23的数据：`https://raw.githubusercontent.com/你的用户名/free_v2ray_daily/main/result/20251223/nodelist.txt`
+
+**注意**：带日期的文件夹不会提交到GitHub，建议使用以下订阅链接获取最新数据。
 
 ### 通过订阅转换服务
 为了更方便地使用这些节点，您可以通过订阅转换服务将节点文件转换为订阅链接：
@@ -271,6 +280,7 @@ https://mm.mibei77.com/2025.12/12.2464bafrg.txt
    - https://api.dler.io/
 
 3. **转换步骤**
+   - 获取最新节点文件：`https://raw.githubusercontent.com/yafeisun/free_v2ray_daily/refs/heads/main/result/nodelist.txt`
    - 将节点文件内容进行Base64编码
    - 在订阅转换服务中输入编码后的内容
    - 选择目标客户端格式（V2Ray、Clash、Quantumult等）
@@ -283,15 +293,20 @@ https://mm.mibei77.com/2025.12/12.2464bafrg.txt
 
 ### 自动化订阅链接
 如果您fork了本项目并启用了GitHub Actions，可以直接使用以下格式的订阅链接：
-```
-# 最新数据（根目录，兼容性）
-https://raw.githubusercontent.com/你的GitHub用户名/free_v2ray_daily/main/result/nodelist.txt
 
-# 指定日期数据
-https://raw.githubusercontent.com/你的GitHub用户名/free_v2ray_daily/main/result/20251224/nodelist.txt
+**推荐订阅链接（最新数据）**：
+```
+https://raw.githubusercontent.com/yafeisun/free_v2ray_daily/refs/heads/main/result/nodelist.txt
 ```
 
-然后在客户端中使用"从URL导入"功能，或通过订阅转换服务转换为标准订阅格式。
+**使用方法**：
+1. 将上述链接复制到您的V2Ray客户端
+2. 使用"从URL导入"功能
+3. 或通过订阅转换服务转换为标准订阅格式
+
+**注意**：
+- 带日期的文件夹不会提交到GitHub，请使用根目录的 `nodelist.txt` 获取最新数据
+- 如果您fork了本项目，请将链接中的 `yafeisun` 替换为您的GitHub用户名
 
 ## 配置说明
 

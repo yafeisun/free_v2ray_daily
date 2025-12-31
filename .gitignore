@@ -54,3 +54,6 @@ logs/
 # Temporary files
 *.tmp
 *.temp
+
+# Date-based result folders (YYYYMMDD format)
+result/[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]/

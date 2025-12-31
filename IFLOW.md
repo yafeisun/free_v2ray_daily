@@ -2,10 +2,10 @@
 
 ## 项目概述
 
-这是一个自动化的V2Ray节点收集和测试系统，每日从多个免费节点网站收集最新的V2Ray节点。项目采用模块化架构，支持7个主流免费V2Ray节点网站，具备自动文章链接收集、订阅链接提取、连通性测试和GitHub自动化部署功能。
+这是一个自动化的V2Ray节点收集和测试系统，每日从多个免费节点网站收集最新的V2Ray节点。项目采用模块化架构，支持9个主流免费V2Ray节点网站，具备自动文章链接收集、订阅链接提取、连通性测试和GitHub自动化部署功能。
 
 ### 主要特性
-- 🌐 **多网站支持**: 支持7个主流免费V2Ray节点网站（FreeClashNode、米贝77、ClashNodeV2Ray、ProxyQueen、玩转迷、CFMem、ClashNodeCC）
+- 🌐 **多网站支持**: 支持9个主流免费V2Ray节点网站
 - 📰 **文章链接收集**: 自动获取每个网站最新发布的文章链接
 - 🔗 **订阅链接提取**: 自动提取V2Ray订阅链接，支持Base64解码
 - 🧪 **连通性测试**: 自动测试节点可用性，丢弃超时节点
@@ -29,17 +29,11 @@
 free_v2ray_daily/
 ├── config/                 # 配置文件
 │   ├── settings.py        # 项目设置和路径配置
-│   └── websites.py        # 网站配置信息（7个网站）
+│   └── websites.py        # 网站配置信息（9个网站）
 ├── src/                    # 源代码
-│   ├── collectors/        # 网站收集器（7个专用收集器）
+│   ├── collectors/        # 网站收集器（9个专用收集器）
 │   │   ├── base_collector.py      # 基础收集器抽象类
-│   │   ├── freeclashnode.py       # FreeClashNode收集器
-│   │   ├── mibei77.py             # 米贝77收集器
-│   │   ├── clashnodev2ray.py      # ClashNodeV2Ray收集器
-│   │   ├── proxyqueen.py          # ProxyQueen收集器
-│   │   ├── wanzhuanmi.py          # 玩转迷收集器
-│   │   ├── cfmem.py               # CFMem收集器
-│   │   └── clashnodecc.py         # ClashNodeCC收集器
+│   │   └── {网站名称}.py          # 各网站专用收集器
 │   ├── parsers/           # 解析器模块
 │   ├── testers/           # 测试工具
 │   │   └── connectivity_tester.py  # 连通性测试器
@@ -48,17 +42,9 @@ free_v2ray_daily/
 │       ├── file_handler.py # 文件处理工具
 │       └── region_detector.py # 区域检测工具
 ├── scripts/               # 独立脚本
-│   ├── freeclashnode.py   # FreeClashNode独立脚本
-│   ├── mibei77.py         # 米贝77独立脚本
-│   ├── clashnodev2ray.py  # ClashNodeV2Ray独立脚本
-│   ├── proxyqueen.py      # ProxyQueen独立脚本
-│   ├── wanzhuanmi.py      # 玩转迷独立脚本
-│   ├── cfmem.py           # CFMem独立脚本
-│   ├── clashnodecc.py     # ClashNodeCC独立脚本
+│   ├── {网站名称}.py      # 各网站独立脚本
 │   └── run_all_sites.py   # 批量运行脚本
 ├── result/                # 结果文件
-│   ├── webpage.txt        # 最新文章链接
-│   ├── subscription.txt   # V2Ray订阅链接
 │   └── nodelist.txt       # 所有有效节点
 ├── tests/                 # 测试文件
 ├── docs/                  # 文档
@@ -141,7 +127,7 @@ python3 run.py
 
 #### 2. 运行指定网站
 ```bash
-python3 run.py --sites freeclashnode mibei77 clashnodecc
+python3 run.py --sites {网站名称1} {网站名称2}
 ```
 
 #### 3. 跳过连通性测试
@@ -152,7 +138,7 @@ python3 run.py --no-test
 #### 4. 运行独立脚本
 ```bash
 # 运行单个网站脚本
-python3 scripts/freeclashnode.py
+python3 scripts/{网站名称}.py
 
 # 批量运行所有网站
 python3 scripts/run_all_sites.py
@@ -227,7 +213,7 @@ python3 run.py --update-github
 - 性能参数
 
 #### `config/websites.py`
-- 7个目标网站的详细配置
+- 9个目标网站的详细配置
 - 每个网站的URL、选择器、匹配模式
 - 节点解析模式
 - 订阅链接过滤规则

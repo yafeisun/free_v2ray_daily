@@ -13,12 +13,14 @@ from datetime import datetime
 # 网站列表
 WEBSITES = [
     'freeclashnode',
-    'mibei77', 
+    'mibei77',
     'clashnodev2ray',
     'proxyqueen',
     'wanzhuanmi',
     'cfmem',
-    'clashnodecc'
+    'clashnodecc',
+    'datiya',
+    'telegeam'
 ]
 
 def main():

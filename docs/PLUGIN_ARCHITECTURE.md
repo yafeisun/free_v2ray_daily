@@ -101,7 +101,7 @@ python3 scripts/universal_collector.py --list
 
 ### 2. 运行指定网站
 ```bash
-python3 scripts/universal_collector.py cfmem
+python3 scripts/universal_collector.py {网站名称}
 ```
 
 ### 3. 运行所有网站
@@ -118,7 +118,7 @@ python3 scripts/universal_collector.py --all --exclude example_site
 ```bash
 python3 src/main_plugin.py --plugin-info
 python3 src/main_plugin.py --list-sites
-python3 src/main_plugin.py --sites cfmem mibei77
+python3 src/main_plugin.py --sites {网站名称1} {网站名称2}
 ```
 
 ## 架构对比

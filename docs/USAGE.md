@@ -27,6 +27,15 @@ python3 src/main.py --update-github
 python3 scripts/run_collector.py
 ```
 
+### 4. 批量运行所有网站
+```bash
+python3 scripts/run_all_sites.py
+```
+
+## 支持的网站
+
+项目支持多个免费V2Ray节点网站，具体配置可在 `config/websites.py` 中查看和调整。
+
 ## 项目结构
 
 ```
@@ -71,3 +80,11 @@ free_v2ray_daily/
 ```bash
 python3 tests/test_basic.py
 ```
+
+## 代理配置
+
+某些网站需要通过代理才能访问，详细配置请参考：[代理配置故障排除指南](PROXY_TROUBLESHOOTING.md)
+
+## 架构说明
+
+项目采用可插拔架构，详细说明请参考：[可插拔架构使用指南](PLUGIN_ARCHITECTURE.md)

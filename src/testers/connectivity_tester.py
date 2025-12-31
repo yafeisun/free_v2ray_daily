@@ -167,10 +167,14 @@ class ConnectivityTester:
         try:
             import urllib.parse
             import base64
+            import re
             
             # 解析SS节点
             if '#' in node:
                 node = node.split('#')[0]
+            
+            # 清理节点字符串
+            node = node.strip()
             
             parsed = urllib.parse.urlparse(node)
             
@@ -185,9 +189,26 @@ class ConnectivityTester:
                 # 尝试base64解码格式
                 try:
                     data = node[5:]  # 去掉 ss://
+                    
+                    # 清理数据：移除可能的空白字符
+                    data = data.strip()
+                    
+                    # 尝试URL解码
+                    try:
+                        data = urllib.parse.unquote(data)
+                    except:
+                        pass
+                    
                     # 修复base64填充
                     data += '=' * (-len(data) % 4)
-                    decoded = base64.b64decode(data).decode('utf-8')
+                    
+                    # 尝试base64解码
+                    try:
+                        decoded = base64.b64decode(data).decode('utf-8')
+                    except Exception as e:
+                        # 如果base64解码失败，尝试直接解析
+                        self.logger.debug(f"SS节点base64解码失败: {str(e)}，尝试直接解析")
+                        decoded = data
                     
                     # 解析格式: method:password@server:port
                     if '@' in decoded:
@@ -195,7 +216,11 @@ class ConnectivityTester:
                         if ':' in server_part:
                             server, port_str = server_part.rsplit(':', 1)
                             host = server
-                            port = int(port_str)
+                            try:
+                                port = int(port_str)
+                            except ValueError:
+                                self.logger.warning(f"SS节点端口无效: {port_str}")
+                                return False
                         else:
                             self.logger.warning(f"无法解析SS节点服务器部分: {server_part}")
                             return False
@@ -203,8 +228,12 @@ class ConnectivityTester:
                         # 格式: method:password:server:port
                         parts = decoded.split(':')
                         if len(parts) >= 3:
-                            host = parts[-2]
-                            port = int(parts[-1])
+                            try:
+                                host = parts[-2]
+                                port = int(parts[-1])
+                            except (IndexError, ValueError) as e:
+                                self.logger.warning(f"无法解析SS节点格式: {decoded}, 错误: {str(e)}")
+                                return False
                         else:
                             self.logger.warning(f"无法解析SS节点格式: {decoded}")
                             return False
@@ -368,21 +397,37 @@ class ConnectivityTester:
                 if '#' in node:
                     node = node.split('#')[0]
                 
+                node = node.strip()
                 parsed = urllib.parse.urlparse(node)
                 
                 if parsed.hostname and parsed.port:
                     return parsed.hostname, parsed.port
                 else:
                     data = node[5:]
+                    data = data.strip()
+                    
+                    # 尝试URL解码
+                    try:
+                        data = urllib.parse.unquote(data)
+                    except:
+                        pass
+                    
                     data += '=' * (-len(data) % 4)
-                    decoded = base64.b64decode(data).decode('utf-8')
+                    
+                    try:
+                        decoded = base64.b64decode(data).decode('utf-8')
+                    except:
+                        decoded = data
                     
                     if ':' in decoded:
                         parts = decoded.split(':')
                         if len(parts) >= 2:
                             host = parts[0]
                             port_str = parts[1].split('@')[0] if '@' in parts[1] else parts[1]
-                            return host, int(port_str)
+                            try:
+                                return host, int(port_str)
+                            except ValueError:
+                                pass
             
             return None, None
             
@@ -461,7 +506,14 @@ class ConnectivityTester:
         except ValueError:
             pass
         
-        # 检查是否为有效域名
+        # 检查是否为有效域名（使用简化的验证）
         import re
-        domain_pattern = r'^(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$'
-        return bool(re.match(domain_pattern, host))
+        # 简化域名验证：只检查基本格式，避免复杂的正则表达式
+        if len(host) > 255:
+            return False
+        if not re.match(r'^[a-zA-Z0-9][a-zA-Z0-9.-]*[a-zA-Z0-9]$', host):
+            return False
+        # 检查不能以点开头或结尾，不能有连续的点
+        if host.startswith('.') or host.endswith('.') or '..' in host:
+            return False
+        return True

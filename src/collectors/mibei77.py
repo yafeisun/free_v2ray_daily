@@ -12,6 +12,16 @@ from .base_collector import BaseCollector
 class Mibei77Collector(BaseCollector):
     """米贝节点专用爬虫"""
     
+    def __init__(self, site_config):
+        super().__init__(site_config)
+        # 添加额外的请求头以适配米贝77
+        self.session.headers.update({
+            'Referer': 'https://www.mibei77.com/',
+            'Origin': 'https://www.mibei77.com',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+            'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
+        })
+    
     def get_latest_article_url(self, target_date=None):
         """重写获取最新文章URL的方法"""
         # 如果指定了日期，使用基类的日期匹配逻辑

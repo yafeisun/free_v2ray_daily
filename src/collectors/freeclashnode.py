@@ -6,11 +6,36 @@ FreeClashNode 爬虫
 
 import re
 import base64
+import time
+import random
 from bs4 import BeautifulSoup
 from .base_collector import BaseCollector
 
 class FreeClashNodeCollector(BaseCollector):
     """FreeClashNode 专用爬虫"""
+    
+    def __init__(self, site_config):
+        super().__init__(site_config)
+        # 添加额外的请求头以绕过反爬虫
+        self.session.headers.update({
+            'Referer': 'https://www.freeclashnode.com/',
+            'Origin': 'https://www.freeclashnode.com',
+            'Sec-Fetch-Dest': 'document',
+            'Sec-Fetch-Mode': 'navigate',
+            'Sec-Fetch-Site': 'same-origin',
+            'Sec-Fetch-User': '?1',
+        })
+        # freeclashnode 需要禁用代理以避免 SSL 问题
+        self.session.proxies = {'http': None, 'https': None}
+        self.logger.info("freeclashnode: 禁用代理以避免 SSL 问题")
+    
+    def _make_request(self, url, method='GET', **kwargs):
+        """重写请求方法，添加随机延迟"""
+        # 添加随机延迟以模拟人类行为
+        time.sleep(random.uniform(1, 3))
+        
+        # 调用父类方法
+        return super()._make_request(url, method, **kwargs)
     
     def find_subscription_links(self, content):
         """重写订阅链接查找方法，处理特殊的污染格式"""

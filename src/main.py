@@ -23,6 +23,8 @@ from src.collectors.proxyqueen import ProxyQueenCollector
 from src.collectors.wanzhuanmi import WanzhuanmiCollector
 from src.collectors.cfmem import CfmemCollector
 from src.collectors.clashnodecc import ClashNodeCCCollector
+from src.collectors.datiya import DatiyaCollector
+from src.collectors.telegeam import TelegeamCollector
 
 class NodeCollector:
     """节点收集器主类"""
@@ -40,7 +42,9 @@ class NodeCollector:
             "proxyqueen": ProxyQueenCollector(WEBSITES["proxyqueen"]),
             "wanzhuanmi": WanzhuanmiCollector(WEBSITES["wanzhuanmi"]),
             "cfmem": CfmemCollector(WEBSITES["cfmem"]),
-            "clashnodecc": ClashNodeCCCollector(WEBSITES["clashnodecc"])
+            "clashnodecc": ClashNodeCCCollector(WEBSITES["clashnodecc"]),
+            "datiya": DatiyaCollector(WEBSITES["datiya"]),
+            "telegeam": TelegeamCollector(WEBSITES["telegeam"])
         }
         
         self.all_nodes = []

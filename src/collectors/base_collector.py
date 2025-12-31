@@ -36,8 +36,17 @@ class BaseCollector(ABC):
         
         # 创建会话
         self.session = requests.Session()
+        
+        # 添加更真实的请求头以绕过反爬虫
         self.session.headers.update({
-            'User-Agent': USER_AGENT
+            'User-Agent': USER_AGENT,
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+            'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
+            'Accept-Encoding': 'gzip, deflate, br',
+            'Connection': 'keep-alive',
+            'Upgrade-Insecure-Requests': '1',
+            'Cache-Control': 'max-age=0',
+            'DNT': '1'
         })
         
         # 禁用SSL验证（与代理使用保持一致）
@@ -158,25 +167,34 @@ class BaseCollector(ABC):
             
             soup = BeautifulSoup(response.text, 'html.parser')
             
-            # 如果指定了目标日期，优先查找该日期的文章
-            if target_date:
-                date_str = target_date.strftime('%Y-%m-%d')
-                date_str_alt = target_date.strftime('%Y/%m/%d')
-                date_str_month_day = target_date.strftime('%m-%d')
+            # 默认使用今天作为目标日期
+            if target_date is None:
+                target_date = datetime.now()
+            
+            # 生成多种日期格式用于匹配
+            date_str = target_date.strftime('%Y-%m-%d')
+            date_str_alt = target_date.strftime('%Y/%m/%d')
+            date_str_month_day_cn = f'{target_date.month}月{target_date.day}日'
+            date_str_month_day = target_date.strftime('%m-%d')
+            date_str_year_month = target_date.strftime('%Y-%m')
+            
+            # 优先通过日期匹配查找文章（最准确的方法）
+            all_links = soup.find_all('a', href=True)
+            for link in all_links:
+                href = link.get('href')
+                text = link.get_text(strip=True)
                 
-                # 查找包含目标日期的链接
-                all_links = soup.find_all('a', href=True)
-                for link in all_links:
-                    href = link.get('href')
-                    text = link.get_text(strip=True)
-                    
-                    if href and (date_str in href or date_str_alt in href or 
-                               date_str_month_day in text or date_str in text):
+                # 检查链接文本或URL中是否包含今天的日期
+                if href and (date_str in href or date_str_alt in href or 
+                           date_str_month_day_cn in text or date_str in text or
+                           date_str_month_day in text or date_str_year_month in href):
+                    # 排除导航链接（只选择文章链接）
+                    if href and not any(x in href for x in ['category', 'tag', 'page', 'search', 'about', 'feed']):
                         article_url = self._process_url(href)
                         self.logger.info(f"通过日期匹配找到文章: {article_url}")
                         return article_url
             
-            # 尝试特定选择器
+            # 如果日期匹配失败，尝试特定选择器
             selectors = self.site_config.get("selectors", [])
             links = []
             
@@ -434,7 +452,53 @@ class BaseCollector(ABC):
             except Exception as e:
                 self.logger.warning(f"节点解析失败: {pattern} - {str(e)}")
         
+        # 修复被错误标记为ss://的VMess节点
+        nodes = self._fix_misidentified_nodes(nodes)
+        
         return list(set(nodes))  # 去重
+    
+    def _fix_misidentified_nodes(self, nodes):
+        """修复被错误标记为ss://的VMess节点"""
+        fixed_nodes = []
+        
+        for node in nodes:
+            if node.startswith('ss://'):
+                # 尝试解码并检查是否为VMess节点
+                try:
+                    import base64
+                    import json
+                    
+                    # 去掉 ss://
+                    data = node[5:]
+                    # 补齐base64
+                    data += '=' * (-len(data) % 4)
+                    # URL解码
+                    try:
+                        from urllib.parse import unquote
+                        data = unquote(data)
+                    except:
+                        pass
+                    
+                    decoded = base64.b64decode(data).decode('utf-8', errors='ignore')
+                    
+                    # 检查是否为VMess JSON格式
+                    if decoded.startswith('{') and decoded.endswith('}'):
+                        try:
+                            config = json.loads(decoded)
+                            if config.get('v') == '2':
+                                # 这是VMess节点，转换为正确的格式
+                                self.logger.debug(f"检测到被错误标记为ss://的VMess节点，已修复")
+                                fixed_nodes.append(f"vmess://{base64.b64encode(decoded.encode()).decode()}")
+                                continue
+                        except:
+                            pass
+                except:
+                    pass
+            
+            # 保持原样
+            fixed_nodes.append(node)
+        
+        return fixed_nodes
     
     def save_raw_data(self, article_url):
         """保存原始数据"""

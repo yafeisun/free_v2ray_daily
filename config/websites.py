@@ -30,11 +30,14 @@ WEBSITES = {
             '.post h2 a',
             '.entry-title a',
             'h1 a',
-            '.post-title a'
+            '.post-title a',
+            'a[href*="/2025"]',
+            'a[href*="/2025/12"]'
         ],
         "patterns": [
             r'https?://[^\s\'"]*?/sub[^\s\'"]*?',
-            r'https?://[^\s\'"]*?/subscribe[^\s\'"]*?'
+            r'https?://[^\s\'"]*?/subscribe[^\s\'"]*?',
+            r'https?://[^\s\'"]*\.txt[^\s\'"]*'
         ]
     },
     "clashnodev2ray": {
@@ -43,16 +46,18 @@ WEBSITES = {
         "enabled": True,
         "collector_key": "clashnodev2ray",  # 对应收集器插件的关键字
         "selectors": [
-            'a[href*="/2025/12/23/"]',
             'h1 a',
             '.post-title a',
             'article h1 a',
-            'h2 a'
+            'h2 a',
+            'a[href*="/2025"]',
+            'a[href*="/2025/12"]'
         ],
         "patterns": [
             r'vmess://[^\s\n\r]+',
             r'vless://[^\s\n\r]+',
-            r'trojan://[^\s\n\r]+'
+            r'trojan://[^\s\n\r]+',
+            r'https?://[^\s\'"]*\.txt[^\s\'"]*'
         ]
     },
     "proxyqueen": {
@@ -76,7 +81,6 @@ WEBSITES = {
         "enabled": True,
         "collector_key": "wanzhuanmi",  # 对应收集器插件的关键字
         "selectors": [
-            'a[href*="/archives/1259"]',
             'a[href*="/archives/"]',
             '.post-title a',
             'h2 a',
@@ -133,19 +137,47 @@ WEBSITES = {
             r'https?://[^\s\'"]*\.txt'
         ]
     },
-    "example_site": {
-        "name": "示例网站",
-        "url": "https://example.com/",
-        "enabled": False,  # 默认禁用，仅用于演示
-        "collector_key": "example_site",  # 对应收集器插件的关键字
+    "datiya": {
+        "name": "Datiya",
+        "url": "https://free.datiya.com/",
+        "enabled": True,
+        "collector_key": "datiya",  # 对应收集器插件的关键字
         "selectors": [
-            'article:first-child a',
             '.post-title a',
-            'h2 a'
+            'h2 a',
+            '.entry-title a',
+            'article h2 a',
+            'a[href*="/node"]',
+            'a[href*="/free"]'
         ],
         "patterns": [
-            r'example://[^\s\n\r]+',
-            r'https?://example\.com/[^\s\'"]*\.txt'
+            r'https?://[^\s\'"]*\.txt[^\s\'"]*',
+            r'https?://[^\s\'"]*(?:sub|subscribe|link|api|node)[^\s\'"]*',
+            r'vmess://[^\s\n\r]+',
+            r'vless://[^\s\n\r]+',
+            r'trojan://[^\s\n\r]+'
+        ]
+    },
+    "telegeam": {
+        "name": "Telegeam",
+        "url": "https://telegeam.github.io/clashv2rayshare/",
+        "enabled": True,
+        "collector_key": "telegeam",  # 对应收集器插件的关键字
+        "selectors": [
+            'h1 a',
+            '.post-title a',
+            'article h1 a',
+            'h2 a',
+            'a[href*="/202"]',
+            'a[href*="/2025/12"]'
+        ],
+        "patterns": [
+            r'vmess://[^\s\n\r]+',
+            r'vless://[^\s\n\r]+',
+            r'trojan://[^\s\n\r]+',
+            r'hysteria://[^\s\n\r]+',
+            r'ss://[^\s\n\r]+',
+            r'https?://[^\s\'"]*\.txt[^\s\'"]*'
         ]
     }
 }

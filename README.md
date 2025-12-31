@@ -16,7 +16,17 @@
 
 ## 支持的网站
 
-项目支持多个免费V2Ray节点网站，具体配置可在 `config/websites.py` 中查看和调整。
+项目支持以下免费V2Ray节点网站（具体配置可在 `config/websites.py` 中查看和调整）：
+
+1. FreeClashNode - https://www.freeclashnode.com/free-node/
+2. 米贝节点 - https://www.mibei77.com/
+3. ClashNodeV2Ray - https://clashnodev2ray.github.io/
+4. ProxyQueen - https://www.proxyqueen.top/
+5. 玩转迷 - https://wanzhuanmi.com/
+6. CFMem - https://www.cfmem.com/
+7. ClashNodeCC - https://clashnode.cc/
+8. Datiya - https://free.datiya.com/
+9. Telegeam - https://telegeam.github.io/clashv2rayshare/
 
 ## 项目结构
 

@@ -175,8 +175,10 @@ class BaseCollector(ABC):
             date_str = target_date.strftime('%Y-%m-%d')
             date_str_alt = target_date.strftime('%Y/%m/%d')
             date_str_month_day_cn = f'{target_date.month}月{target_date.day}日'
+            date_str_month_day_cn_alt = f'{target_date.month:02d}月{target_date.day:02d}日'  # 带前导零的中文格式
             date_str_month_day = target_date.strftime('%m-%d')
             date_str_year_month = target_date.strftime('%Y-%m')
+            date_str_year_month_cn = f'{target_date.year}年{target_date.month:02d}月{target_date.day:02d}日'  # 完整中文日期
             
             # 优先通过日期匹配查找文章（最准确的方法）
             all_links = soup.find_all('a', href=True)
@@ -185,8 +187,9 @@ class BaseCollector(ABC):
                 text = link.get_text(strip=True)
                 
                 # 检查链接文本或URL中是否包含今天的日期
-                if href and (date_str in href or date_str_alt in href or 
-                           date_str_month_day_cn in text or date_str in text or
+                if href and (date_str in href or date_str_alt in href or
+                           date_str_month_day_cn in text or date_str_month_day_cn_alt in text or
+                           date_str_year_month_cn in text or date_str in text or
                            date_str_month_day in text or date_str_year_month in href):
                     # 排除导航链接（只选择文章链接）
                     if href and not any(x in href for x in ['category', 'tag', 'page', 'search', 'about', 'feed']):

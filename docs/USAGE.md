@@ -9,11 +9,11 @@ pip install -r requirements.txt
 
 ### 2. 运行收集器
 ```bash
-# 完整运行（收集+测速+保存）
+# 完整运行（收集+保存）
 python3 src/main.py
 
-# 跳过测速
-python3 src/main.py --no-test
+# 启用测速
+python3 src/main.py --test
 
 # 只收集特定网站
 python3 src/main.py --sites freeclashnode mibei77

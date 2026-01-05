@@ -138,7 +138,7 @@ def main():
     parser.add_argument("--all", action="store_true", help="运行所有网站")
     parser.add_argument("--list", action="store_true", help="列出所有可用网站")
     parser.add_argument("--exclude", nargs="+", help="排除的网站（与--all一起使用）")
-    parser.add_argument("--no-test", action="store_true", help="跳过连通性测试")
+    parser.add_argument("--test", action="store_true", help="启用连通性测试")
     
     args = parser.parse_args()
     

@@ -195,7 +195,7 @@ def main():
     import argparse
     
     parser = argparse.ArgumentParser(description="插件化免费V2Ray节点收集器")
-    parser.add_argument("--no-test", action="store_true", help="跳过连通性测试")
+    parser.add_argument("--test", action="store_true", help="启用连通性测试")
     parser.add_argument("--update-github", action="store_true", help="更新GitHub仓库")
     parser.add_argument("--sites", nargs="+", help="指定要收集的网站")
     parser.add_argument("--list-sites", action="store_true", help="列出所有可用网站")
@@ -234,7 +234,7 @@ def main():
                 collector.logger.info(f"禁用网站: {site_name}")
     
     # 运行收集
-    success = collector.run(test_connectivity=not args.no_test)
+    success = collector.run(test_connectivity=args.test)
     
     # 更新GitHub
     if success and args.update_github:

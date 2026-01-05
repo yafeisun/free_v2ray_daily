@@ -341,7 +341,7 @@ class NodeCollector:
             self.logger.error(f"更新GitHub失败: {str(e)}")
             return False
     
-    def run(self, test_connectivity=True, target_dates=None):
+    def run(self, test_connectivity=False, target_dates=None):
         """运行完整的收集流程"""
         if target_dates is None:
             target_dates = [datetime.now()]
@@ -354,38 +354,42 @@ class NodeCollector:
                 self.logger.warning("未收集到任何节点")
                 return False
             
-            # 2. 测试节点连通性
+            # 2. 同步所有节点到根目录（测速前保存）
+            date_suffix = datetime.now().strftime('%Y%m%d')
+            sync_success = self.file_handler.sync_latest_to_root(date_suffix)
+            
+            if sync_success:
+                self.logger.info(f"所有节点已同步到根目录: result/nodetotal.txt ({len(all_nodes)} 个)")
+            else:
+                self.logger.warning("同步节点到根目录失败")
+            
+            # 3. 测试节点连通性（可选）
             if test_connectivity:
                 self.logger.info("开始测试节点连通性...")
                 valid_nodes = self.connectivity_tester.test_nodes(all_nodes)
                 self.logger.info(f"连通性测试完成，有效节点: {len(valid_nodes)}")
+                
+                # 保存测速后的节点
+                success = self.save_results(valid_nodes)
+                if not success:
+                    return False
+                
+                # 同步测速后的节点到根目录
+                nodelist_src = os.path.join(f"result/{date_suffix}", "nodelist.txt")
+                nodelist_dst = "result/nodelist.txt"
+                import shutil
+                if os.path.exists(nodelist_src):
+                    shutil.copy2(nodelist_src, nodelist_dst)
+                    self.logger.info(f"测速后有效节点已同步到根目录: result/nodelist.txt ({len(valid_nodes)} 个)")
             else:
                 valid_nodes = all_nodes
                 self.logger.info("跳过连通性测试")
             
-            # 3. 保存结果（新策略：保存测速结果并同步到根目录）
-            success = self.save_results(valid_nodes)
-            if not success:
-                return False
-            
-            # 9. 同步最新节点到根目录并清理临时文件
-            date_suffix = datetime.now().strftime('%Y%m%d')
-            # 同步最新数据到根目录
-            sync_success = self.file_handler.sync_latest_to_root(date_suffix)
-            
-            # 清理根目录临时文件
+            # 4. 清理临时文件
             clean_success = self.file_handler.clean_root_temp_files()
             
-            if sync_success:
-                self.logger.info(f"节点保存完成:")
-                self.logger.info(f"  - 测速前节点: {len(all_nodes)} 个 -> result/nodetotal.txt")
-                self.logger.info(f"  - 测速后有效节点: {len(valid_nodes)} 个 -> result/nodelist.txt")
-                self.logger.info(f"  - 已同步到根目录")
-                if clean_success:
-                    self.logger.info(f"  - 已清理临时文件")
-            else:
-                self.logger.error("节点保存或同步失败")
-                return False
+            if clean_success:
+                self.logger.info(f"已清理临时文件")
             
             self.logger.info("收集流程完成")
             return True
@@ -495,7 +499,7 @@ def main():
     import argparse
     
     parser = argparse.ArgumentParser(description="免费V2Ray节点收集器")
-    parser.add_argument("--no-test", action="store_true", help="跳过连通性测试")
+    parser.add_argument("--test", action="store_true", help="启用连通性测试")
     parser.add_argument("--update-github", action="store_true", help="更新GitHub仓库")
     parser.add_argument("--sites", nargs="+", help="指定要收集的网站", choices=list(WEBSITES.keys()))
     parser.add_argument("--date", help="指定日期，格式: YYYY-MM-DD (默认: 今天)")
@@ -541,7 +545,7 @@ def main():
     
     # 运行收集
     success = collector.run(
-        test_connectivity=not args.no_test,
+        test_connectivity=args.test,
         target_dates=target_dates
     )
     

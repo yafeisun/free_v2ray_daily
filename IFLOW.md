@@ -130,9 +130,9 @@ python3 run.py
 python3 run.py --sites {网站名称1} {网站名称2}
 ```
 
-#### 3. 跳过连通性测试
+#### 3. 启用连通性测试
 ```bash
-python3 run.py --no-test
+python3 run.py --test
 ```
 
 #### 4. 运行独立脚本
@@ -151,7 +151,7 @@ python3 run.py --update-github
 
 ### 命令行参数
 - `--sites`: 指定要运行的网站（多个网站用空格分隔）
-- `--no-test`: 跳过连通性测试
+- `--test`: 启用连通性测试（默认不测试）
 - `--update-github`: 自动更新GitHub仓库
 - `--date`: 指定日期（格式：YYYY-MM-DD）
 - `--days`: 获取最近N天的数据

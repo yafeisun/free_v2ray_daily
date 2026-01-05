@@ -51,9 +51,9 @@ python3 run.py
 python3 run.py --sites telegeam wanzhuanmi
 ```
 
-**跳过连通性测试**
+**启用连通性测试**
 ```bash
-python3 run.py --no-test
+python3 run.py --test
 ```
 
 **自动提交到GitHub**

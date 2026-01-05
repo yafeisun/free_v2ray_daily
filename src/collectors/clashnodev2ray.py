@@ -91,21 +91,31 @@ class ClashNodeV2RayCollector(BaseCollector):
         for pattern in clashnodev2ray_patterns:
             try:
                 matches = re.findall(pattern, content, re.IGNORECASE)
-                for match in matches:
-                    clean_link = self._clean_link(match)
-                    if clean_link and self._is_valid_url(clean_link):
-                        # 验证链接是否有效
-                        if self._is_valid_subscription_link(clean_link):
-                            links.append(clean_link)
-                            self.logger.info(f"找到ClashNodeV2Ray订阅链接: {clean_link}")
+                links.extend(matches)
             except Exception as e:
                 self.logger.warning(f"ClashNodeV2Ray链接匹配失败: {pattern} - {str(e)}")
         
-        # 去重
-        unique_links = list(set(links))
-        self.logger.info(f"ClashNodeV2Ray找到 {len(unique_links)} 个订阅链接")
+        # 清理和去重 - 使用改进的逻辑
+        cleaned_links = []
+        seen = set()
         
-        return unique_links
+        for link in links:
+            # 先从原始链接中提取所有独立的.txt URL（避免先清理导致URL合并）
+            url_matches = re.findall(r'https?://[^\s<>"\']+\.(?:txt|TXT)', link)
+            
+            for url_match in url_matches:
+                # 然后对每个提取的URL进行清理
+                clean_link = self._clean_link(url_match)
+                if (clean_link and clean_link not in seen and 
+                    self._is_valid_url(clean_link) and 
+                    self._is_valid_subscription_link(clean_link)):
+                    cleaned_links.append(clean_link)
+                    seen.add(clean_link)
+                    self.logger.info(f"找到ClashNodeV2Ray订阅链接: {clean_link}")
+        
+        self.logger.info(f"ClashNodeV2Ray找到 {len(cleaned_links)} 个订阅链接")
+        
+        return cleaned_links
     
     def _is_valid_subscription_link(self, link):
         """验证是否为有效的V2Ray订阅链接"""

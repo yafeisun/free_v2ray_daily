@@ -7,3 +7,9 @@ from .freeclashnode import FreeClashNodeCollector
 from .mibei77 import Mibei77Collector
 from .proxyqueen import ProxyQueenCollector
 from .wanzhuanmi import WanzhuanmiCollector
+from .datiya import DatiyaCollector
+from .telegeam import TelegeamCollector
+from .clashgithub import ClashGithubCollector
+from .freev2raynode import FreeV2rayNodeCollector
+from .eighty_five_la import EightyFiveLaCollector
+from .oneclash import OneClashCollector

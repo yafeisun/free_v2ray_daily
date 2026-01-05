@@ -25,6 +25,10 @@ from src.collectors.cfmem import CfmemCollector
 from src.collectors.clashnodecc import ClashNodeCCCollector
 from src.collectors.datiya import DatiyaCollector
 from src.collectors.telegeam import TelegeamCollector
+from src.collectors.clashgithub import ClashGithubCollector
+from src.collectors.freev2raynode import FreeV2rayNodeCollector
+from src.collectors.eighty_five_la import EightyFiveLaCollector
+from src.collectors.oneclash import OneClashCollector
 
 class NodeCollector:
     """节点收集器主类"""
@@ -44,7 +48,11 @@ class NodeCollector:
             "cfmem": CfmemCollector(WEBSITES["cfmem"]),
             "clashnodecc": ClashNodeCCCollector(WEBSITES["clashnodecc"]),
             "datiya": DatiyaCollector(WEBSITES["datiya"]),
-            "telegeam": TelegeamCollector(WEBSITES["telegeam"])
+            "telegeam": TelegeamCollector(WEBSITES["telegeam"]),
+            "clashgithub": ClashGithubCollector(WEBSITES["clashgithub"]),
+            "freev2raynode": FreeV2rayNodeCollector(WEBSITES["freev2raynode"]),
+            "85la": EightyFiveLaCollector(WEBSITES["85la"]),
+            "oneclash": OneClashCollector(WEBSITES["oneclash"])
         }
         
         self.all_nodes = []

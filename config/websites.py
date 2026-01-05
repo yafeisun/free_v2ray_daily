@@ -179,6 +179,93 @@ WEBSITES = {
             r'ss://[^\s\n\r]+',
             r'https?://[^\s\'"]*\.txt[^\s\'"]*'
         ]
+    },
+    "clashgithub": {
+        "name": "ClashGithub",
+        "url": "https://clashgithub.com/",
+        "enabled": True,
+        "collector_key": "clashgithub",  # 对应收集器插件的关键字
+        "selectors": [
+            'h3 a',
+            '.post-title a',
+            'article h3 a',
+            'h2 a',
+            'h1 a',
+            'a[href*="/202"]',
+            'a[href*="/2025"]'
+        ],
+        "patterns": [
+            r'vmess://[^\s\n\r]+',
+            r'vless://[^\s\n\r]+',
+            r'trojan://[^\s\n\r]+',
+            r'hysteria://[^\s\n\r]+',
+            r'hysteria2://[^\s\n\r]+',
+            r'ss://[^\s\n\r]+',
+            r'ssr://[^\s\n\r]+',
+            r'https?://[^\s\'"]*\.txt[^\s\'"]*',
+            r'https?://[^\s\'"]*(?:sub|subscribe|link|api|node)[^\s\'"]*\.txt[^\s\'"]*'
+        ]
+    },
+    "oneclash": {
+        "name": "OneClash",
+        "url": "https://oneclash.cc/freenode",
+        "enabled": True,
+        "collector_key": "oneclash",  # 对应收集器插件的关键字
+        "selectors": [
+            '.post-title a',
+            'h2 a',
+            '.entry-title a',
+            'article h2 a',
+            'a[href*="/202"]',
+            'a[href*="/2025"]'
+        ],
+        "patterns": [
+            r'https?://[^\s\'"]*\.txt[^\s\'"]*',
+            r'https?://[^\s\'"]*(?:sub|subscribe|link|api|node)[^\s\'"]*',
+            r'vmess://[^\s\n\r]+',
+            r'vless://[^\s\n\r]+',
+            r'trojan://[^\s\n\r]+'
+        ]
+    },
+    "freev2raynode": {
+        "name": "FreeV2rayNode",
+        "url": "https://www.freev2raynode.com/free-node-subscription/",
+        "enabled": True,
+        "collector_key": "freev2raynode",  # 对应收集器插件的关键字
+        "selectors": [
+            '.post-title a',
+            'h2 a',
+            '.entry-title a',
+            'article h2 a'
+        ],
+        "patterns": [
+            r'https?://[^\s\'"]*\.txt[^\s\'"]*',
+            r'https?://[^\s\'"]*(?:sub|subscribe|link|api|node)[^\s\'"]*',
+            r'vmess://[^\s\n\r]+',
+            r'vless://[^\s\n\r]+',
+            r'trojan://[^\s\n\r]+'
+        ]
+    },
+    "85la": {
+        "name": "85LA",
+        "url": "https://www.85la.com/internet-access/free-network-nodes",
+        "enabled": True,
+        "collector_key": "85la",  # 对应收集器插件的关键字
+        "selectors": [
+            '.post-title a',
+            'h2 a',
+            '.entry-title a',
+            'article h2 a',
+            'a[href*="/202"]',
+            'a[href*="/2025"]'
+        ],
+        "patterns": [
+            r'https?://[^\s\'"]*\.txt[^\s\'"]*',
+            r'https?://[^\s\'"]*(?:sub|subscribe|link|api|node)[^\s\'"]*',
+            r'vmess://[^\s\n\r]+',
+            r'vless://[^\s\n\r]+',
+            r'trojan://[^\s\n\r]+'
+        ]
     }
 }
 
@@ -223,8 +310,8 @@ SUBSCRIPTION_PATTERNS = [
 
 # 非节点订阅链接排除模式（排除明显不是V2Ray节点的链接）
 EXCLUDED_SUBSCRIPTION_PATTERNS = [
-    # 排除Clash相关订阅
-    r'.*(?:clash|Clash|CLASH).*\.txt',
+    # 排除Clash相关订阅（只排除路径中包含clash的文件，不影响域名）
+    r'https?://[^/]+/[^/]*(?:clash|Clash|CLASH)[^/]*\.txt',
     r'.*(?:sing-?box|singbox|Sing-?Box|SINGBOX).*\.txt',
     r'.*(?:yaml|yml).*\.txt',
     r'.*(?:config|Config).*\.txt',
@@ -249,8 +336,8 @@ EXCLUDED_SUBSCRIPTION_PATTERNS = [
     r'.*(?:demo|Demo|DEMO).*\.txt',
     r'.*(?:example|Example|EXAMPLE).*\.txt',
     
-    # 排除过长的路径（通常不是节点订阅）
-    r'https?://[^/]+/[^/]+/[^/]+/[^/]+/[^/]+/.*',
+    # 排除过长的路径（通常不是节点订阅，超过6层）
+    r'https?://[^/]+/[^/]+/[^/]+/[^/]+/[^/]+/[^/]+/',
 ]
 
 # 节点协议模式

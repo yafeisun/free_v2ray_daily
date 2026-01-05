@@ -73,13 +73,7 @@ class CfmemCollector(BaseCollector):
         for pattern in v2ray_patterns:
             try:
                 matches = re.findall(pattern, content, re.IGNORECASE)
-                for match in matches:
-                    # 确保是.txt结尾的链接
-                    if match.endswith('.txt') or '.txt' in match:
-                        clean_link = self._clean_link(match)
-                        if clean_link and self._is_valid_url(clean_link):
-                            links.append(clean_link)
-                            self.logger.info(f"找到V2Ray订阅链接: {clean_link}")
+                links.extend(matches)
             except Exception as e:
                 self.logger.warning(f"V2Ray链接匹配失败: {pattern} - {str(e)}")
         
@@ -89,11 +83,7 @@ class CfmemCollector(BaseCollector):
             try:
                 pattern = rf'{keyword}[^:]*[:：]\s*(https?://[^\s\n\r]+\.txt)'
                 matches = re.findall(pattern, content, re.IGNORECASE)
-                for match in matches:
-                    clean_link = self._clean_link(match)
-                    if clean_link and self._is_valid_url(clean_link):
-                        links.append(clean_link)
-                        self.logger.info(f"通过关键词找到V2Ray订阅链接: {clean_link}")
+                links.extend(matches)
             except:
                 pass
         
@@ -111,18 +101,31 @@ class CfmemCollector(BaseCollector):
                     # 在区域内查找.txt链接
                     txt_pattern = r'(https?://[^\s\'"]*\.txt)'
                     txt_matches = re.findall(txt_pattern, match, re.IGNORECASE)
-                    for txt_match in txt_matches:
-                        clean_link = self._clean_link(txt_match)
-                        if clean_link and self._is_valid_url(clean_link):
-                            links.append(clean_link)
+                    links.extend(txt_matches)
             except Exception as e:
                 self.logger.warning(f"V2Ray区域匹配失败: {pattern} - {str(e)}")
         
-        # 去重
-        unique_links = list(set(links))
-        self.logger.info(f"CFMem找到 {len(unique_links)} 个V2Ray订阅链接")
+        # 清理和去重 - 使用改进的逻辑
+        cleaned_links = []
+        seen = set()
         
-        return unique_links
+        for link in links:
+            # 先从原始链接中提取所有独立的.txt URL（避免先清理导致URL合并）
+            url_matches = re.findall(r'https?://[^\s<>"\']+\.(?:txt|TXT)', link)
+            
+            for url_match in url_matches:
+                # 然后对每个提取的URL进行清理
+                clean_link = self._clean_link(url_match)
+                if (clean_link and clean_link not in seen and 
+                    self._is_valid_url(clean_link) and 
+                    self._is_valid_subscription_link(clean_link)):
+                    cleaned_links.append(clean_link)
+                    seen.add(clean_link)
+                    self.logger.info(f"找到V2Ray订阅链接: {clean_link}")
+        
+        self.logger.info(f"CFMem找到 {len(cleaned_links)} 个V2Ray订阅链接")
+        
+        return cleaned_links
     
     def get_nodes_from_subscription(self, subscription_url):
         """重写订阅链接处理，支持base64解码"""

@@ -312,12 +312,18 @@ class BaseCollector(ABC):
         seen = set()
         
         for link in links:
-            clean_link = self._clean_link(link)
-            if (clean_link and clean_link not in seen and 
-                self._is_valid_url(clean_link) and 
-                self._is_valid_subscription_link(clean_link)):
-                cleaned_links.append(clean_link)
-                seen.add(clean_link)
+            # 先从原始链接中提取所有独立的.txt URL（避免先清理导致URL合并）
+            # 使用正则表达式直接提取所有URL，不先移除HTML标签
+            url_matches = re.findall(r'https?://[^\s<>"\']+\.(?:txt|TXT)', link)
+            
+            for url_match in url_matches:
+                # 然后对每个提取的URL进行清理
+                clean_link = self._clean_link(url_match)
+                if (clean_link and clean_link not in seen and 
+                    self._is_valid_url(clean_link) and 
+                    self._is_valid_subscription_link(clean_link)):
+                    cleaned_links.append(clean_link)
+                    seen.add(clean_link)
         
         return cleaned_links
     
@@ -371,6 +377,7 @@ class BaseCollector(ABC):
             from urllib.parse import urlparse
             parsed = urlparse(url)
             path_part = parsed.path.lower()
+            domain = parsed.netloc.lower()
             
             # 必须以.txt结尾（V2Ray格式）
             if not path_part.endswith('.txt'):
@@ -580,21 +587,13 @@ class BaseCollector(ABC):
             return None
     
     def _clean_link(self, link):
-        """清理链接"""
+        """清理链接 - 现在接收的已经是独立的URL"""
         if not link:
             return ""
         
-        # 移除HTML标签和无效字符
-        clean_link = re.sub(r'<[^>]+>', '', link)
-        clean_link = re.sub(r'["\'`<>]', '', clean_link).strip()
+        clean_link = link.strip()
         
-        # 如果字符串中包含URL，提取URL部分（更严格的匹配）
-        # 匹配完整的URL，直到遇到空白字符、引号或HTML标签开始
-        url_match = re.search(r'(https?://[^\s\'"<>&]+)', clean_link)
-        if url_match:
-            clean_link = url_match.group(1)
-        
-        # 移除URL中的HTML实体编码
+        # 移除HTML实体编码
         clean_link = clean_link.replace('%3C', '').replace('%3E', '').replace('%20', ' ')
         clean_link = clean_link.replace('&lt;', '').replace('&gt;', '').replace('&nbsp;', ' ')
         
@@ -651,13 +650,13 @@ class BaseCollector(ABC):
             parsed = urlparse(url)
             path_part = parsed.path.lower()
             
-            # 首先排除明显的非V2Ray文件（基于文件名模式）
+            # 首先排除明显的非V2Ray文件（基于文件名模式，只检查路径部分）
             non_v2ray_patterns = [
-                r'.*clash.*\.txt',
-                r'.*sing.*box.*\.txt',
-                r'.*config.*\.txt',
-                r'.*yaml.*\.txt',
-                r'.*yml.*\.txt'
+                r'.*/[^/]*clash[^/]*\.txt$',
+                r'.*/[^/]*sing.*box[^/]*\.txt$',
+                r'.*/[^/]*config[^/]*\.txt$',
+                r'.*/[^/]*yaml[^/]*\.txt$',
+                r'.*/[^/]*yml[^/]*\.txt$'
             ]
             
             for pattern in non_v2ray_patterns:

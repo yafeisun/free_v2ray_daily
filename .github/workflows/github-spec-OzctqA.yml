@@ -1,0 +1,58 @@
+name: GitHub Spec - OzctqA
+
+on:
+  workflow_dispatch:  # 允许手动触发
+    inputs:
+      action:
+        description: '执行的操作'
+        required: true
+        default: 'test'
+        type: choice
+        options:
+          - test
+          - deploy
+          - verify
+
+jobs:
+  spec-job:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+
+    - name: Execute action
+      run: |
+        echo "执行操作: ${{ github.event.inputs.action }}"
+        case "${{ github.event.inputs.action }}" in
+          test)
+            echo "运行测试..."
+            python -m pytest tests/ -v
+            ;;
+          deploy)
+            echo "部署..."
+            python run.py --update-github
+            ;;
+          verify)
+            echo "验证..."
+            python run.py --sites telegeam wanzhuanmi clashnodev2ray
+            ;;
+        esac
+
+    - name: Create summary
+      if: always()
+      run: |
+        echo "## 执行摘要" >> $GITHUB_STEP_SUMMARY
+        echo "- **操作**: ${{ github.event.inputs.action }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **状态**: ${{ job.status }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **执行时间**: $(date '+%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_STEP_SUMMARY

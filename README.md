@@ -1,10 +1,26 @@
 # Free V2Ray Daily Node Collector
 
-每日自动收集9个主流免费V2Ray节点的脚本，支持GitHub Actions自动更新。
+每日自动收集13个主流免费V2Ray节点的脚本，支持GitHub Actions自动更新。
+
+## 📋 支持的网站
+
+- FreeClashNode
+- 米贝节点 (mibei77)
+- ClashNodeV2Ray
+- ProxyQueen
+- 玩转迷 (wanzhuanmi)
+- CFMem
+- ClashNodeCC
+- Datiya
+- Telegeam
+- ClashGithub
+- OneClash
+- FreeV2rayNode
+- 85LA
 
 ## 🎯 快速使用
 
-### 订阅链接（每日更新）
+### 订阅链接
 
 ```
 https://raw.githubusercontent.com/yafeisun/free_v2ray_daily/refs/heads/main/result/nodelist.txt
@@ -15,16 +31,6 @@ https://raw.githubusercontent.com/yafeisun/free_v2ray_daily/refs/heads/main/resu
 **方法1：直接导入节点文件**
 - 下载 `nodelist.txt` 文件
 - 在V2Ray客户端中直接导入
-
-**方法2：转换为订阅链接**
-1. 下载 `nodelist.txt` 文件内容
-2. 使用Base64编码工具进行编码
-3. 通过订阅转换服务（如 sub.xeton.dev）生成订阅链接
-
-**方法3：在线获取**
-```bash
-curl https://raw.githubusercontent.com/yafeisun/free_v2ray_daily/refs/heads/main/result/nodelist.txt
-```
 
 ## 📦 安装与运行
 
@@ -67,18 +73,6 @@ export https_proxy=http://127.0.0.1:10808/
 # 重新加载
 source ~/.zshrc
 ```
-
-## 📋 支持的网站
-
-- FreeClashNode
-- 米贝节点 (mibei77)
-- ClashNodeV2Ray
-- ProxyQueen
-- 玩转迷 (wanzhuanmi)
-- CFMem
-- ClashNodeCC
-- Datiya
-- Telegeam
 
 ## ❓ 常见问题
 

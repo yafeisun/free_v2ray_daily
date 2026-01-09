@@ -23,7 +23,7 @@
 ### 订阅链接
 
 ```
-https://raw.githubusercontent.com/yafeisun/free_v2ray_daily/refs/heads/main/result/nodelist.txt
+https://raw.githubusercontent.com/yafeisun/v2raynode/refs/heads/main/result/nodelist.txt
 ```
 
 ### 使用方法

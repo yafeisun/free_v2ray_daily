@@ -105,35 +105,39 @@ class EightyFiveLaCollector(BaseCollector):
             return None
     
     def find_subscription_links(self, content):
-        """查找订阅链接 - 只提取第一个note区域内的链接"""
+        """查找订阅链接 - 提取所有note区域内的.txt链接"""
         soup = BeautifulSoup(content, 'html.parser')
         links = []
         
         # 85LA网站的订阅链接都在class为note的div内
-        # 第一个note区域包含当前文章的订阅链接
+        # 需要检查所有note区域，订阅链接可能在第4或第5个区域
         note_divs = soup.find_all('div', class_='note')
         
         if note_divs:
-            # 只提取第一个note区域（当前文章的订阅链接）
-            first_note = note_divs[0]
-            self.logger.info("找到第一个note区域，提取订阅链接")
+            self.logger.info(f"找到 {len(note_divs)} 个note区域，开始提取订阅链接")
             
-            # 在note区域内查找所有.txt链接
-            all_links = first_note.find_all('a', href=lambda x: x and '.txt' in x)
-            
-            for link in all_links:
-                href = link.get('href')
-                if href:
-                    # 清理链接
-                    clean_link = self._clean_link(href)
+            # 遍历所有note区域
+            for idx, note_div in enumerate(note_divs, 1):
+                # 在note区域内查找所有.txt链接
+                txt_links = note_div.find_all('a', href=lambda x: x and '.txt' in x)
+                
+                if txt_links:
+                    self.logger.info(f"Note区域 {idx} 找到 {len(txt_links)} 个.txt链接")
                     
-                    # 验证链接
-                    if (clean_link and clean_link not in links and
-                        self._is_valid_url(clean_link) and
-                        self._is_valid_subscription_link(clean_link)):
-                        links.append(clean_link)
+                    for link in txt_links:
+                        href = link.get('href')
+                        if href:
+                            # 清理链接
+                            clean_link = self._clean_link(href)
+                            
+                            # 验证链接并去重
+                            if (clean_link and clean_link not in links and
+                                self._is_valid_url(clean_link) and
+                                self._is_valid_subscription_link(clean_link)):
+                                links.append(clean_link)
+                                self.logger.debug(f"添加订阅链接: {clean_link}")
             
-            self.logger.info(f"在第一个note区域找到 {len(links)} 个订阅链接")
+            self.logger.info(f"总共找到 {len(links)} 个订阅链接")
         else:
             self.logger.warning("未找到note区域")
         

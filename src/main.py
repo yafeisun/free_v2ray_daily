@@ -262,9 +262,11 @@ class NodeCollector:
                 # 生成详细的提交信息
                 date_str = datetime.now().strftime('%Y-%m-%d')
                 date_dir = f"result/{date_str}"
+                update_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
                 
-                commit_lines = [f"更新节点列表 - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"]
+                commit_lines = [f"更新节点列表 - {update_time}"]
                 commit_lines.append("=" * 60)
+                commit_lines.append(f"更新时间: {update_time}")
                 
                 # 汇总网站收集情况
                 commit_lines.append("\n网站收集情况:")

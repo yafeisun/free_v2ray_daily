@@ -37,6 +37,7 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install -r requirements.txt
+        pip install pysocks  # 支持 SOCKS5 代理
     
     - name: Install Cloudflare WARP
       run: |
@@ -73,19 +74,6 @@ jobs:
         # 获取 WARP 代理端口（通常是 40000）
         echo "WARP 代理已启用，SOCKS5 端口: 40000"
     
-    - name: Set proxy environment variables
-      run: |
-        # 设置代理环境变量（使用 WARP 的 SOCKS5 代理）
-        echo "http_proxy=socks5://127.0.0.1:40000/" >> $GITHUB_ENV
-        echo "https_proxy=socks5://127.0.0.1:40000/" >> $GITHUB_ENV
-        echo "HTTP_PROXY=socks5://127.0.0.1:40000/" >> $GITHUB_ENV
-        echo "HTTPS_PROXY=socks5://127.0.0.1:40000/" >> $GITHUB_ENV
-        echo "ALL_PROXY=socks5://127.0.0.1:40000/" >> $GITHUB_ENV
-        
-        # 验证代理设置
-        echo "代理环境变量已设置"
-        env | grep -i proxy
-    
     - name: Run node collector
       id: collector
       run: |
@@ -96,6 +84,11 @@ jobs:
         GIT_EMAIL: ${{ secrets.GIT_EMAIL || 'action@github.com' }}
         GIT_NAME: ${{ secrets.GIT_NAME || 'GitHub Action' }}
         FORCE_UPDATE: ${{ github.event.inputs.force_update || 'false' }}
+        http_proxy: socks5://127.0.0.1:40000/
+        https_proxy: socks5://127.0.0.1:40000/
+        HTTP_PROXY: socks5://127.0.0.1:40000/
+        HTTPS_PROXY: socks5://127.0.0.1:40000/
+        ALL_PROXY: socks5://127.0.0.1:40000/
       continue-on-error: true
     
     - name: Check for changes

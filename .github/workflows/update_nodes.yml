@@ -39,7 +39,7 @@ jobs:
       id: collector
       run: |
         echo "开始节点收集..."
-        python src/main.py --update-github
+        python -m src.main --update-github
         echo "节点收集完成"
       env:
         GIT_EMAIL: ${{ secrets.GIT_EMAIL || 'action@github.com' }}

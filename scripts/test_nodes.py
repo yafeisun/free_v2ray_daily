@@ -73,6 +73,50 @@ class NodeTester:
             self.logger.error(f"提取主机端口失败: {str(e)}")
             return None, None
     
+    def get_node_type(self, node):
+        """从节点中提取传输类型"""
+        try:
+            node_type = None
+            
+            if node.startswith('vmess://'):
+                # vmess节点需要Base64解码
+                import base64
+                import json
+                data = node[8:]
+                data += '=' * (-len(data) % 4)
+                decoded = base64.b64decode(data).decode('utf-8')
+                config = json.loads(decoded)
+                node_type = config.get('net', 'tcp')  # 默认为tcp
+                
+            elif node.startswith('vless://') or node.startswith('trojan://') or node.startswith('ss://'):
+                # 从URL查询参数中提取type
+                parsed = urlparse(node)
+                if parsed.query:
+                    # 解析查询参数
+                    params = {}
+                    for param in parsed.query.split('&'):
+                        if '=' in param:
+                            key, value = param.split('=', 1)
+                            params[key] = value
+                    
+                    node_type = params.get('type', 'tcp')  # 默认为tcp
+                    
+            # 如果没有获取到类型，默认为tcp
+            if not node_type:
+                node_type = 'tcp'
+            
+            return node_type.lower()
+            
+        except Exception as e:
+            self.logger.error(f"提取节点类型失败: {str(e)}")
+            return 'tcp'  # 出错时默认为tcp
+    
+    def is_http_proxy_supported(self, node_type):
+        """判断节点类型是否支持HTTP代理"""
+        # 不支持HTTP代理的节点类型
+        unsupported_types = ['ws', 'websocket', 'grpc', 'quic', 'http', 'h2']
+        return node_type not in unsupported_types
+    
     def test_tcp_connectivity(self, host, port):
         """测试TCP连接"""
         try:
@@ -94,14 +138,20 @@ class NodeTester:
             # 提取主机和端口
             host, port = self.extract_host_port(node)
             if not host or not port:
-                return False, 0, []
+                return False, 0, [], False
             
-            self.logger.debug(f"开始测试节点: {host}:{port}")
+            # 检查节点类型
+            node_type = self.get_node_type(node)
+            if not self.is_http_proxy_supported(node_type):
+                self.logger.info(f"✗ 跳过测试: 节点类型 [{node_type}] 不支持HTTP代理 - {host}:{port}")
+                return False, 0, [], True  # 最后一个参数表示是跳过
+            
+            self.logger.info(f"开始测试节点: {host}:{port} (类型: {node_type})")
             
             # 先测试TCP连接
             if not self.test_tcp_connectivity(host, port):
                 self.logger.debug(f"TCP连接失败: {host}:{port}")
-                return False, 0, []
+                return False, 0, [], False
             
             self.logger.debug(f"TCP连接成功，开始测试网站: {host}:{port}")
             
@@ -144,11 +194,11 @@ class NodeTester:
             
             self.logger.debug(f"节点测试完成: {host}:{port}, 有效: {is_valid}, 成功: {len(success_sites)}/{len(TEST_SITES)}")
             
-            return is_valid, len(success_sites), success_sites
+            return is_valid, len(success_sites), success_sites, False
             
         except Exception as e:
             self.logger.error(f"测试节点失败: {str(e)}")
-            return False, 0, []
+            return False, 0, [], False
     
     def test_all_nodes(self, nodes, min_success_sites=None):
         """批量测试所有节点"""
@@ -166,13 +216,14 @@ class NodeTester:
         
         valid_nodes = []
         test_results = []
+        skipped_count = 0  # 跳过的节点数量
         
         start_time = time.time()
         
         with concurrent.futures.ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
             # 提交所有任务
             future_to_node = {
-                executor.submit(self.test_node, node, min_success_sites): node 
+                executor.submit(self.test_node, node, min_success_sites): node
                 for node in nodes
             }
             
@@ -184,7 +235,12 @@ class NodeTester:
                 
                 try:
                     # 设置超时保护
-                    is_valid, success_count, success_sites = future.result(timeout=TIMEOUT * 5 + 10)
+                    is_valid, success_count, success_sites, is_skipped = future.result(timeout=TIMEOUT * 5 + 10)
+                    
+                    if is_skipped:
+                        skipped_count += 1
+                        # 不记录跳过的节点
+                        continue
                     
                     if is_valid:
                         valid_nodes.append(node)
@@ -212,13 +268,20 @@ class NodeTester:
         
         end_time = time.time()
         duration = end_time - start_time
+        tested_count = len(nodes) - skipped_count
         
         self.logger.info("=" * 50)
         self.logger.info("测试完成！")
         self.logger.info(f"总节点数: {len(nodes)}")
+        self.logger.info(f"跳过节点: {skipped_count} (不支持HTTP代理)")
+        self.logger.info(f"实际测试: {tested_count}")
         self.logger.info(f"有效节点: {len(valid_nodes)}")
-        self.logger.info(f"无效节点: {len(nodes) - len(valid_nodes)}")
-        self.logger.info(f"成功率: {len(valid_nodes)/len(nodes)*100:.1f}%")
+        self.logger.info(f"无效节点: {tested_count - len(valid_nodes)}")
+        if tested_count > 0:
+            self.logger.info(f"测试成功率: {len(valid_nodes)/tested_count*100:.1f}%")
+        else:
+            self.logger.info(f"测试成功率: N/A (无节点被测试)")
+        self.logger.info(f"整体通过率: {len(valid_nodes)/len(nodes)*100:.1f}%")
         self.logger.info(f"测试耗时: {duration:.2f}秒")
         self.logger.info("=" * 50)
         
@@ -232,6 +295,7 @@ def main():
     parser.add_argument("--input", default="result/nodetotal.txt", help="输入节点文件")
     parser.add_argument("--output", default="result/nodelist.txt", help="输出节点文件")
     parser.add_argument("--min-sites", type=int, default=MIN_SUCCESS_SITES, help="至少需要成功访问的网站数量")
+    parser.add_argument("--skip-test", action="store_true", help="跳过HTTP代理测试，直接保存所有节点")
     
     args = parser.parse_args()
     
@@ -248,6 +312,21 @@ def main():
         nodes = [line.strip() for line in f if line.strip()]
     
     logger.info(f"读取到 {len(nodes)} 个节点")
+    
+    # 如果跳过测试，直接保存所有节点
+    if args.skip_test:
+        logger.info("跳过HTTP代理测试，直接保存所有节点")
+        logger.info("注意: V2Ray/Trojan节点不是HTTP代理服务器，无法通过HTTP代理方式测试")
+        logger.info("建议使用V2Ray客户端测试节点的可用性")
+        
+        os.makedirs(os.path.dirname(args.output), exist_ok=True)
+        with open(args.output, 'w', encoding='utf-8') as f:
+            for node in nodes:
+                f.write(f"{node}\n")
+        
+        logger.info(f"所有 {len(nodes)} 个节点已保存到: {args.output}")
+        logger.info("✓ 完成")
+        sys.exit(0)
     
     # 测试节点
     tester = NodeTester()

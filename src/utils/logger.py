@@ -20,11 +20,17 @@ def setup_logging():
     logging.basicConfig(
         level=getattr(logging, LOG_LEVEL.upper()),
         format=LOG_FORMAT,
+        force=True,
         handlers=[
-            logging.FileHandler(LOG_FILE, encoding='utf-8'),
-            logging.StreamHandler()
+            logging.FileHandler(LOG_FILE, encoding='utf-8')
         ]
     )
+    
+    # 添加控制台处理器，并设置 flush=True
+    console_handler = logging.StreamHandler()
+    console_handler.setFormatter(logging.Formatter(LOG_FORMAT))
+    console_handler.flush = True  # 确保日志立即输出
+    logging.getLogger().addHandler(console_handler)
 
 def get_logger(name):
     """获取指定名称的日志器"""

@@ -27,8 +27,8 @@ TEST_SITES = [
 ]
 
 # 测试配置
-TIMEOUT = 10  # 每个请求的超时时间（秒）
-MAX_WORKERS = 50  # 最大并发数（提高并发数以加快测速速度）
+TIMEOUT = 5  # 每个请求的超时时间（秒）
+MAX_WORKERS = 10  # 最大并发数（降低并发数以避免网络拥堵）
 MIN_SUCCESS_SITES = 5  # 至少需要成功访问的网站数量（所有网站都要能访问）
 
 class NodeTester:
@@ -96,15 +96,22 @@ class NodeTester:
             if not host or not port:
                 return False, 0, []
             
+            self.logger.debug(f"开始测试节点: {host}:{port}")
+            
             # 先测试TCP连接
             if not self.test_tcp_connectivity(host, port):
+                self.logger.debug(f"TCP连接失败: {host}:{port}")
                 return False, 0, []
+            
+            self.logger.debug(f"TCP连接成功，开始测试网站: {host}:{port}")
             
             # 测试目标网站
             success_sites = []
             
             for site in TEST_SITES:
                 try:
+                    self.logger.debug(f"正在测试 {site['name']}...")
+                    
                     # 使用代理请求
                     proxies = {
                         'http': f'http://{host}:{port}',
@@ -135,6 +142,8 @@ class NodeTester:
             # 判断是否通过测试
             is_valid = len(success_sites) >= min_success_sites
             
+            self.logger.debug(f"节点测试完成: {host}:{port}, 有效: {is_valid}, 成功: {len(success_sites)}/{len(TEST_SITES)}")
+            
             return is_valid, len(success_sites), success_sites
             
         except Exception as e:
@@ -153,6 +162,7 @@ class NodeTester:
         self.logger.info(f"开始测试 {len(nodes)} 个节点...")
         self.logger.info(f"测试目标: {', '.join([site['name'] for site in TEST_SITES])}")
         self.logger.info(f"通过标准: 至少成功访问 {min_success_sites} 个网站")
+        self.logger.info(f"并发数: {MAX_WORKERS}, 超时时间: {TIMEOUT}秒")
         
         valid_nodes = []
         test_results = []
@@ -166,18 +176,21 @@ class NodeTester:
                 for node in nodes
             }
             
+            self.logger.info(f"已提交 {len(future_to_node)} 个测试任务")
+            
             # 处理完成的任务
             for i, future in enumerate(concurrent.futures.as_completed(future_to_node)):
                 node = future_to_node[future]
                 
                 try:
-                    is_valid, success_count, success_sites = future.result()
+                    # 设置超时保护
+                    is_valid, success_count, success_sites = future.result(timeout=TIMEOUT * 5 + 10)
                     
                     if is_valid:
                         valid_nodes.append(node)
-                        self.logger.info(f"✓ 节点有效 ({len(valid_nodes)}): 成功访问 {success_count} 个网站 - {', '.join(success_sites)}")
+                        self.logger.info(f"✓ 节点有效 ({len(valid_nodes)}/{i+1}): 成功访问 {success_count} 个网站 - {', '.join(success_sites)}")
                     else:
-                        self.logger.debug(f"✗ 节点无效: 成功访问 {success_count} 个网站")
+                        self.logger.info(f"✗ 节点无效 ({i+1}/{len(nodes)}): 成功访问 {success_count} 个网站")
                     
                     test_results.append({
                         'node': node[:50] + '...',
@@ -186,13 +199,16 @@ class NodeTester:
                         'success_sites': success_sites
                     })
                     
+                except concurrent.futures.TimeoutError:
+                    self.logger.error(f"✗ 测试节点超时 ({i+1}/{len(nodes)}): {node[:50]}...")
                 except Exception as e:
-                    self.logger.error(f"✗ 测试节点失败: {node[:50]}... - {str(e)}")
+                    self.logger.error(f"✗ 测试节点失败 ({i+1}/{len(nodes)}): {node[:50]}... - {str(e)}")
                 
                 # 显示进度
                 if (i + 1) % 10 == 0 or (i + 1) == len(nodes):
                     progress = (i + 1) / len(nodes) * 100
-                    self.logger.info(f"测试进度: {i + 1}/{len(nodes)} ({progress:.1f}%)")
+                    elapsed = time.time() - start_time
+                    self.logger.info(f"测试进度: {i + 1}/{len(nodes)} ({progress:.1f}%), 已用时间: {elapsed:.1f}秒")
         
         end_time = time.time()
         duration = end_time - start_time

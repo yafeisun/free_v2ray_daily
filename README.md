@@ -61,47 +61,6 @@ python3 run.py --test
 python3 run.py --update-github
 ```
 
-## 🔧 代理配置（可选）
-
-### 本地运行
-
-如果某些网站无法访问，配置代理：
-
-```bash
-# 添加到 ~/.zshrc 或 ~/.bashrc
-export http_proxy=http://127.0.0.1:10808/
-export https_proxy=http://127.0.0.1:10808/
-
-# 重新加载
-source ~/.zshrc
-```
-
-### GitHub Actions
-
-GitHub Actions 自动使用 Cloudflare WARP 代理，无需额外配置。
-
-## ❓ 常见问题
-
-**Q: 节点无法使用？**
-A: 免费节点时效性强，建议每日更新。如果全部失效，请等待下一批次更新。
-
-**Q: 如何查看收集日志？**
-A: 查看 `data/logs/` 目录下的日志文件。
-
-**Q: 网站访问失败？**
-A: 检查网络连接，必要时配置代理（见上方代理配置）。
-
-**Q: GitHub Actions自动更新时间？**
-A: 每日北京时间下午3点自动运行。
-
-## 📝 更新日志
-
-- **v2.3.0**: 集成 Cloudflare WARP 代理，提高节点收集成功率
-- **v2.2.1**: 修复日期匹配问题，支持中文日期格式
-- **v2.2.0**: 优化代理配置，支持自动回退
-- **v2.1.0**: 新增ClashNodeCC支持
-- **v2.0.0**: 重构项目结构，添加文章链接收集
-
 ## 📄 许可证
 
 MIT License

@@ -26,10 +26,9 @@ def setup_logging():
         ]
     )
     
-    # 添加控制台处理器，并设置 flush=True
+    # 添加控制台处理器
     console_handler = logging.StreamHandler()
     console_handler.setFormatter(logging.Formatter(LOG_FORMAT))
-    console_handler.flush = True  # 确保日志立即输出
     logging.getLogger().addHandler(console_handler)
 
 def get_logger(name):

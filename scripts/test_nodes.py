@@ -85,8 +85,11 @@ class NodeTester:
         except Exception:
             return False
     
-    def test_node(self, node):
+    def test_node(self, node, min_success_sites=None):
         """测试单个节点能否访问目标网站"""
+        if min_success_sites is None:
+            min_success_sites = MIN_SUCCESS_SITES
+            
         try:
             # 提取主机和端口
             host, port = self.extract_host_port(node)
@@ -130,7 +133,7 @@ class NodeTester:
                     self.logger.debug(f"✗ {site['name']} 测试异常: {str(e)}")
             
             # 判断是否通过测试
-            is_valid = len(success_sites) >= MIN_SUCCESS_SITES
+            is_valid = len(success_sites) >= min_success_sites
             
             return is_valid, len(success_sites), success_sites
             
@@ -138,15 +141,18 @@ class NodeTester:
             self.logger.error(f"测试节点失败: {str(e)}")
             return False, 0, []
     
-    def test_all_nodes(self, nodes):
+    def test_all_nodes(self, nodes, min_success_sites=None):
         """批量测试所有节点"""
+        if min_success_sites is None:
+            min_success_sites = MIN_SUCCESS_SITES
+            
         if not nodes:
             self.logger.warning("没有节点需要测试")
             return []
         
         self.logger.info(f"开始测试 {len(nodes)} 个节点...")
         self.logger.info(f"测试目标: {', '.join([site['name'] for site in TEST_SITES])}")
-        self.logger.info(f"通过标准: 至少成功访问 {MIN_SUCCESS_SITES} 个网站")
+        self.logger.info(f"通过标准: 至少成功访问 {min_success_sites} 个网站")
         
         valid_nodes = []
         test_results = []
@@ -156,7 +162,7 @@ class NodeTester:
         with concurrent.futures.ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
             # 提交所有任务
             future_to_node = {
-                executor.submit(self.test_node, node): node 
+                executor.submit(self.test_node, node, min_success_sites): node 
                 for node in nodes
             }
             
@@ -213,10 +219,6 @@ def main():
     
     args = parser.parse_args()
     
-    # 更新全局配置
-    global MIN_SUCCESS_SITES
-    MIN_SUCCESS_SITES = args.min_sites
-    
     logger = get_logger("main")
     
     # 检查输入文件是否存在
@@ -233,7 +235,7 @@ def main():
     
     # 测试节点
     tester = NodeTester()
-    valid_nodes = tester.test_all_nodes(nodes)
+    valid_nodes = tester.test_all_nodes(nodes, min_success_sites=args.min_sites)
     
     # 保存结果
     if valid_nodes:

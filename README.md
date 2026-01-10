@@ -65,10 +65,7 @@ https://raw.githubusercontent.com/yafeisun/v2raynode/refs/heads/main/result/node
 
 ### 测试结果
 
-- **总节点数**: 2301个（来自13个节点网站）
-- **有效节点**: 约1300-1800个（通过TCP连通性测试）
-- **通过率**: 约57%-78%
-- **更新频率**: 每日自动更新
+测试结果会自动提交到GitHub，可以通过Git提交历史查看最新的测试统计信息。
 
 ## 📦 安装与运行
 

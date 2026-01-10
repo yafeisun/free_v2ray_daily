@@ -138,9 +138,18 @@ jobs:
         fi
         
         # 生成详细的提交信息
-        commit_msg="节点测试 - $(date '+%Y-%m-%d %H:%M:%S')"$'\n'"============================================================"$'\n'"$'\n'"测试结果:"$'\n'"节点总数: ${total_count}"$'\n'"有效节点: ${valid_count}"$'\n'"成功率: $(echo "scale=1; ${valid_count} * 100 / ${total_count}" | bc)%"$'\n'"$'\n'"测试策略:"$'\n'"- 所有V2Ray节点进行TCP连通性测试"$'\n'"- 不进行HTTP代理测试（V2Ray节点不支持）"
-        
-        git commit -m "$commit_msg"
+        git commit -m "节点测试 - $(date '+%Y-%m-%d %H:%M:%S')
+
+============================================================
+
+测试结果:
+节点总数: ${total_count}
+有效节点: ${valid_count}
+成功率: $(echo "scale=1; ${valid_count} * 100 / ${total_count}" | bc)%
+
+测试策略:
+- 所有V2Ray节点进行TCP连通性测试
+- 不进行HTTP代理测试（V2Ray节点不支持）"
         git push
         
         echo "测速结果已提交并推送到仓库"

@@ -45,7 +45,8 @@ https://raw.githubusercontent.com/yafeisun/v2raynode/refs/heads/main/result/node
 
 ### 测试策略
 
-所有V2Ray节点都进行TCP连通性测试，验证节点服务器是否可达。
+- **支持HTTP代理的节点**：测试5个目标网站，至少成功访问3个才算有效
+- **不支持HTTP代理的节点**：仅测试TCP连通性，能建立连接就算有效
 
 ### 测试目标网站
 
@@ -58,9 +59,11 @@ https://raw.githubusercontent.com/yafeisun/v2raynode/refs/heads/main/result/node
 
 ### 测试说明
 
-- **测试方法**: TCP连通性测试
-- **测试标准**: 节点服务器能够建立TCP连接
-- **测试原因**: V2Ray节点不是HTTP代理服务器，无法通过HTTP代理方式测试
+- **测试方法**: TCP连通性测试 + HTTP代理测试（适用于支持HTTP代理的节点）
+- **测试标准**: 
+  - 支持HTTP代理的节点：5个网站中至少成功访问3个
+  - 不支持HTTP代理的节点：能够建立TCP连接
+- **测试原因**: V2Ray节点类型多样，需要根据节点类型采用不同的测试方法
 - **建议**: 使用V2Ray客户端（如V2RayN、Qv2ray等）测试节点的实际可用性
 
 ### 测试结果

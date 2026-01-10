@@ -322,9 +322,7 @@ class NodeCollector:
                 repo.index.add(['result/nodelist.txt', 'result/nodetotal.txt'])
                 
                 node_count = len(self.all_nodes)
-                valid_count = len([n for n in self.all_nodes if n in self.connectivity_tester.test_nodes(self.all_nodes)])
-                
-                commit_message = f"更新节点列表 - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} ({valid_count}/{node_count} 有效)"
+                commit_message = f"更新节点列表 - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} ({node_count} 个节点)"
                 
                 repo.index.commit(commit_message)
                 

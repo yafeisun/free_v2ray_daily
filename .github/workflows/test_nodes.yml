@@ -1,0 +1,165 @@
+name: Test Nodes
+
+on:
+  workflow_run:
+    workflows: ["Update Free Nodes"]
+    types:
+      - completed
+    branches: [main]
+  
+  workflow_dispatch:  # 允许手动触发
+
+jobs:
+  test-nodes:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    
+    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        fetch-depth: 0
+        persist-credentials: true
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+        cache: 'pip'
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+    
+    - name: Install Cloudflare WARP
+      run: |
+        # 添加 Cloudflare GPG 密钥
+        curl -fsSL https://pkg.cloudflareclient.com/pubkey.gpg | sudo gpg --yes --dearmor --output /usr/share/keyrings/cloudflare-warp-archive-keyring.gpg
+        
+        # 添加 Cloudflare 仓库
+        echo 'deb [signed-by=/usr/share/keyrings/cloudflare-warp-archive-keyring.gpg] https://pkg.cloudflareclient.com/ jammy main' | sudo tee /etc/apt/sources.list.d/cloudflare-client.list
+        
+        # 更新包列表并安装 warp-cli
+        sudo apt-get update
+        sudo apt-get install -y cloudflare-warp
+    
+    - name: Connect to Cloudflare WARP
+      run: |
+        # 启动 WARP 服务
+        sudo systemctl enable --now warp-svc
+        
+        # 等待服务启动
+        sleep 10
+        
+        # 检查服务状态
+        sudo systemctl status warp-svc --no-pager || true
+        
+        # 注册 WARP（使用匿名模式）
+        warp-cli --accept-tos registration new
+        
+        # 连接 WARP
+        warp-cli --accept-tos connect
+        
+        # 验证连接状态
+        warp-cli --accept-tos status
+        
+        # 获取 WARP 代理端口（通常是 40000）
+        echo "WARP 代理已启用，SOCKS5 端口: 40000"
+    
+    - name: Test nodes
+      id: tester
+      run: |
+        echo "开始节点测速..."
+        python3 scripts/test_nodes.py --input result/nodetotal.txt --output result/nodelist.txt
+        echo "节点测速完成"
+      env:
+        http_proxy: socks5://127.0.0.1:40000/
+        https_proxy: socks5://127.0.0.1:40000/
+        all_proxy: socks5://127.0.0.1:40000/
+      continue-on-error: true
+    
+    - name: Check for changes
+      id: changes
+      run: |
+        echo "检查文件状态..."
+        
+        # 检查文件是否存在
+        if [ -f result/nodelist.txt ]; then
+          echo "result/nodelist.txt 存在"
+          node_count=$(wc -l < result/nodelist.txt)
+          echo "有效节点数: $node_count"
+        else
+          echo "result/nodelist.txt 不存在"
+          node_count=0
+        fi
+        
+        echo ""
+        echo "Git 状态:"
+        git status
+        
+        echo ""
+        echo "检查文件变更..."
+        if git diff --quiet HEAD -- result/nodelist.txt; then
+          echo "has_changes=false" >> $GITHUB_OUTPUT
+          echo "没有检测到节点更新"
+        else
+          echo "has_changes=true" >> $GITHUB_OUTPUT
+          echo "检测到节点更新"
+        fi
+    
+    - name: Commit and push changes
+      if: steps.changes.outputs.has_changes == 'true'
+      run: |
+        git config --global user.email "action@github.com"
+        git config --global user.name "GitHub Action"
+        
+        # 添加文件到暂存区
+        git add result/nodelist.txt
+        
+        # 获取节点数量用于提交信息
+        if [ -f result/nodelist.txt ]; then
+          node_count=$(wc -l < result/nodelist.txt)
+          commit_msg="Test nodes - $(date '+%Y-%m-%d %H:%M:%S') ($node_count valid nodes)"
+        else
+          commit_msg="Test nodes - $(date '+%Y-%m-%d %H:%M:%S')"
+        fi
+        
+        git commit -m "$commit_msg"
+        git push
+        
+        echo "测速结果已提交并推送到仓库"
+    
+    - name: Create summary
+      if: always()
+      run: |
+        echo "## 节点测速摘要" >> $GITHUB_STEP_SUMMARY
+        echo "- **运行时间**: $(date '+%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_STEP_SUMMARY
+        echo "- **触发方式**: ${{ github.event_name }}" >> $GITHUB_STEP_SUMMARY
+        
+        if [ "${{ steps.changes.outputs.has_changes }}" == "true" ]; then
+          echo "- **更新状态**: ✅ 成功更新" >> $GITHUB_STEP_SUMMARY
+          if [ -f result/nodelist.txt ]; then
+            node_count=$(wc -l < result/nodelist.txt)
+            echo "- **有效节点数**: $node_count" >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "- **测试标准**: 至少成功访问 2 个主流网站" >> $GITHUB_STEP_SUMMARY
+          echo "- **测试目标**: ChatGPT, Gemini, YouTube, X.com, Reddit" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "- **更新状态**: ℹ️ 无更新" >> $GITHUB_STEP_SUMMARY
+        fi
+        
+        if [ "${{ steps.tester.outcome }}" != "success" ]; then
+          echo "- **测速状态**: ⚠️ 测速过程中出现错误" >> $GITHUB_STEP_SUMMARY
+        fi
+    
+    - name: Notify on failure
+      if: failure()
+      run: |
+        echo "❌ 节点测速失败"
+        echo "请检查日志以获取详细信息"
+        exit 1

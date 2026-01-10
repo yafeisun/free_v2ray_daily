@@ -38,6 +38,43 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r requirements.txt
     
+    - name: Install Cloudflare WARP
+      run: |
+        # 添加 Cloudflare GPG 密钥
+        curl -fsSL https://pkg.cloudflareclient.com/pubkey.gpg | sudo gpg --yes --dearmor --output /usr/share/keyrings/cloudflare-warp-archive-keyring.gpg
+        
+        # 添加 Cloudflare 仓库
+        echo 'deb [signed-by=/usr/share/keyrings/cloudflare-warp-archive-keyring.gpg] https://pkg.cloudflareclient.com/ jammy main' | sudo tee /etc/apt/sources.list.d/cloudflare-client.list
+        
+        # 更新包列表并安装 warp-cli
+        sudo apt-get update
+        sudo apt-get install -y cloudflare-warp
+    
+    - name: Connect to Cloudflare WARP
+      run: |
+        # 注册并连接 WARP
+        warp-cli register
+        warp-cli connect
+        
+        # 验证连接状态
+        warp-cli status
+        
+        # 获取 WARP 代理端口（通常是 40000）
+        echo "WARP 代理已启用"
+    
+    - name: Set proxy environment variables
+      run: |
+        # 设置代理环境变量
+        echo "http_proxy=http://127.0.0.1:40000/" >> $GITHUB_ENV
+        echo "https_proxy=http://127.0.0.1:40000/" >> $GITHUB_ENV
+        echo "HTTP_PROXY=http://127.0.0.1:40000/" >> $GITHUB_ENV
+        echo "HTTPS_PROXY=http://127.0.0.1:40000/" >> $GITHUB_ENV
+        echo "ALL_PROXY=socks5://127.0.0.1:40000/" >> $GITHUB_ENV
+        
+        # 验证代理设置
+        echo "代理环境变量已设置"
+        env | grep -i proxy
+    
     - name: Run node collector
       id: collector
       run: |

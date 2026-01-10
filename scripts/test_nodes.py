@@ -28,7 +28,7 @@ TEST_SITES = [
 
 # 测试配置
 TIMEOUT = 30  # 每个请求的超时时间（秒）
-MAX_WORKERS = 5  # 最大并发数
+MAX_WORKERS = 50  # 最大并发数（提高并发数以加快测速速度）
 MIN_SUCCESS_SITES = 5  # 至少需要成功访问的网站数量（所有网站都要能访问）
 
 class NodeTester:

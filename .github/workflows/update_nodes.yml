@@ -56,19 +56,19 @@ jobs:
         sudo systemctl enable --now warp-svc
         
         # 等待服务启动
-        sleep 5
+        sleep 10
         
         # 检查服务状态
-        sudo systemctl status warp-svc
+        sudo systemctl status warp-svc --no-pager || true
+        
+        # 注册 WARP（使用匿名模式）
+        warp-cli --accept-tos registration new
         
         # 连接 WARP
         warp-cli --accept-tos connect
         
         # 验证连接状态
         warp-cli --accept-tos status
-        
-        # 启用 SOCKS5 代理
-        warp-cli --accept-tos settings allow-socks5 true
         
         # 获取 WARP 代理端口（通常是 40000）
         echo "WARP 代理已启用，SOCKS5 端口: 40000"

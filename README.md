@@ -56,10 +56,11 @@ https://raw.githubusercontent.com/yafeisun/v2raynode/refs/heads/main/result/node
 - [X.com](https://x.com)
 - [Reddit](https://www.reddit.com)
 
-### 测试说明
+### 测试标准
 
 - **测试方法**: TCP连通性测试
-- **测试标准**: 节点服务器能够建立TCP连接
+- **判定标准**: 节点服务器能够建立TCP连接
+- **设计标准**: 5个目标网站中至少成功访问3个（当前实现：TCP连通性测试）
 - **测试原因**: V2Ray节点不是HTTP代理服务器，无法通过HTTP代理方式测试
 - **建议**: 使用V2Ray客户端（如V2RayN、Qv2ray等）测试节点的实际可用性
 

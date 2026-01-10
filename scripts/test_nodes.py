@@ -29,7 +29,7 @@ TEST_SITES = [
 # 测试配置
 TIMEOUT = 5  # 每个请求的超时时间（秒）
 MAX_WORKERS = 10  # 最大并发数（降低并发数以避免网络拥堵）
-MIN_SUCCESS_SITES = 5  # 至少需要成功访问的网站数量（所有网站都要能访问）
+MIN_SUCCESS_SITES = 3  # 至少需要成功访问的网站数量（降低标准以提高通过率）
 
 class NodeTester:
     """节点测速器"""

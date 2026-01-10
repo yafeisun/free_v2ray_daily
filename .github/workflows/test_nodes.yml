@@ -74,11 +74,12 @@ jobs:
     - name: Test nodes
       id: tester
       run: |
-        echo "开始节点处理..."
-        echo "注意: V2Ray/Trojan节点不是HTTP代理服务器，无法通过HTTP代理方式测试"
-        echo "直接保存所有节点，用户可以使用V2Ray客户端测试节点的可用性"
-        python3 scripts/test_nodes.py --input result/nodetotal.txt --output result/nodelist.txt --skip-test
-        echo "节点处理完成"
+        echo "开始节点测试..."
+        echo "测试策略:"
+        echo "  - 支持HTTP代理的节点: 测试网站访问能力"
+        echo "  - 不支持HTTP代理的节点: 仅测试TCP连通性"
+        python3 scripts/test_nodes.py --input result/nodetotal.txt --output result/nodelist.txt
+        echo "节点测试完成"
       continue-on-error: true
     
     - name: Check for changes
@@ -137,16 +138,17 @@ jobs:
         fi
         
         # 生成详细的提交信息
-        commit_lines=["节点更新 - $(date '+%Y-%m-%d %H:%M:%S')"]
+        commit_lines=["节点测试 - $(date '+%Y-%m-%d %H:%M:%S')"]
         commit_lines.append("=" * 60)
         commit_lines.append("")
-        commit_lines.append("更新结果:")
+        commit_lines.append("测试结果:")
         commit_lines.append("节点总数: $total_count")
+        commit_lines.append("有效节点: $valid_count")
+        commit_lines.append("成功率: $(echo "scale=1; $valid_count * 100 / $total_count" | bc)%")
         commit_lines.append("")
-        commit_lines.append("说明:")
-        commit_lines.append("- V2Ray/Trojan节点不是HTTP代理服务器")
-        commit_lines.append("- 无法通过HTTP代理方式测试节点可用性")
-        commit_lines.append("- 建议使用V2Ray客户端测试节点的可用性")
+        commit_lines.append("测试策略:")
+        commit_lines.append("- 支持HTTP代理的节点: 测试网站访问能力")
+        commit_lines.append("- 不支持HTTP代理的节点: 仅测试TCP连通性")
         
         # 组合提交信息
         commit_msg=$(printf '%s\n' "${commit_lines[@]}")
@@ -166,14 +168,21 @@ jobs:
         if [ "${{ steps.changes.outputs.has_changes }}" == "true" ]; then
           echo "- **更新状态**: ✅ 成功更新" >> $GITHUB_STEP_SUMMARY
           if [ -f result/nodelist.txt ]; then
-            node_count=$(wc -l < result/nodelist.txt)
-            echo "- **节点总数**: $node_count" >> $GITHUB_STEP_SUMMARY
+            valid_count=$(wc -l < result/nodelist.txt)
+            echo "- **有效节点数**: $valid_count" >> $GITHUB_STEP_SUMMARY
+          fi
+          if [ -f result/nodetotal.txt ]; then
+            total_count=$(wc -l < result/nodetotal.txt)
+            echo "- **原始节点数**: $total_count" >> $GITHUB_STEP_SUMMARY
+            if [ -f result/nodelist.txt ]; then
+              success_rate=$(echo "scale=1; $valid_count * 100 / $total_count" | bc)
+              echo "- **成功率**: $success_rate%" >> $GITHUB_STEP_SUMMARY
+            fi
           fi
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**说明**:" >> $GITHUB_STEP_SUMMARY
-          echo "- V2Ray/Trojan节点不是HTTP代理服务器" >> $GITHUB_STEP_SUMMARY
-          echo "- 无法通过HTTP代理方式测试节点可用性" >> $GITHUB_STEP_SUMMARY
-          echo "- 建议使用V2Ray客户端测试节点的可用性" >> $GITHUB_STEP_SUMMARY
+          echo "**测试策略**:" >> $GITHUB_STEP_SUMMARY
+          echo "- 支持HTTP代理的节点: 测试网站访问能力" >> $GITHUB_STEP_SUMMARY
+          echo "- 不支持HTTP代理的节点: 仅测试TCP连通性" >> $GITHUB_STEP_SUMMARY
         else
           echo "- **更新状态**: ℹ️ 无更新" >> $GITHUB_STEP_SUMMARY
         fi

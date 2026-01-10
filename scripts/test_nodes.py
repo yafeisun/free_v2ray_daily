@@ -133,41 +133,47 @@ class NodeTester:
         """测试单个节点能否访问目标网站"""
         if min_success_sites is None:
             min_success_sites = MIN_SUCCESS_SITES
-            
+
         try:
             # 提取主机和端口
             host, port = self.extract_host_port(node)
             if not host or not port:
-                return False, 0, [], False
-            
+                return False, 0, [], False, False
+
             # 检查节点类型
             node_type = self.get_node_type(node)
-            if not self.is_http_proxy_supported(node_type):
-                self.logger.info(f"✗ 跳过测试: 节点类型 [{node_type}] 不支持HTTP代理 - {host}:{port}")
-                return False, 0, [], True  # 最后一个参数表示是跳过
-            
+            supports_http_proxy = self.is_http_proxy_supported(node_type)
+
             self.logger.info(f"开始测试节点: {host}:{port} (类型: {node_type})")
-            
+
             # 先测试TCP连接
             if not self.test_tcp_connectivity(host, port):
-                self.logger.debug(f"TCP连接失败: {host}:{port}")
-                return False, 0, [], False
-            
-            self.logger.debug(f"TCP连接成功，开始测试网站: {host}:{port}")
-            
+                self.logger.info(f"✗ TCP连接失败: {host}:{port}")
+                return False, 0, [], False, False
+
+            self.logger.debug(f"TCP连接成功")
+
+            # 如果不支持HTTP代理，只测试TCP连通性
+            if not supports_http_proxy:
+                self.logger.info(f"✓ 节点有效 (仅TCP连通): {host}:{port}")
+                return True, 0, [], True, False  # 第3个参数为空列表，第4个参数表示仅TCP测试
+
+            # 支持HTTP代理，进行网站访问测试
+            self.logger.debug(f"开始测试网站访问: {host}:{port}")
+
             # 测试目标网站
             success_sites = []
-            
+
             for site in TEST_SITES:
                 try:
                     self.logger.debug(f"正在测试 {site['name']}...")
-                    
+
                     # 使用代理请求
                     proxies = {
                         'http': f'http://{host}:{port}',
                         'https': f'http://{host}:{port}',
                     }
-                    
+
                     response = requests.get(
                         site['url'],
                         proxies=proxies,
@@ -177,28 +183,28 @@ class NodeTester:
                             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
                         }
                     )
-                    
+
                     if response.status_code == site['expected_status']:
                         success_sites.append(site['name'])
                         self.logger.debug(f"✓ {site['name']} 访问成功")
                     else:
                         self.logger.debug(f"✗ {site['name']} 访问失败: {response.status_code}")
-                        
+
                 except RequestException as e:
                     self.logger.debug(f"✗ {site['name']} 访问异常: {str(e)}")
                 except Exception as e:
                     self.logger.debug(f"✗ {site['name']} 测试异常: {str(e)}")
-            
+
             # 判断是否通过测试
             is_valid = len(success_sites) >= min_success_sites
-            
+
             self.logger.debug(f"节点测试完成: {host}:{port}, 有效: {is_valid}, 成功: {len(success_sites)}/{len(TEST_SITES)}")
-            
-            return is_valid, len(success_sites), success_sites, False
-            
+
+            return is_valid, len(success_sites), success_sites, False, False
+
         except Exception as e:
             self.logger.error(f"测试节点失败: {str(e)}")
-            return False, 0, [], False
+            return False, 0, [], False, False
     
     def test_all_nodes(self, nodes, min_success_sites=None):
         """批量测试所有节点"""
@@ -216,7 +222,8 @@ class NodeTester:
         
         valid_nodes = []
         test_results = []
-        skipped_count = 0  # 跳过的节点数量
+        tcp_only_count = 0  # 仅通过TCP测试的节点数量
+        http_proxy_count = 0  # 通过HTTP代理测试的节点数量
         
         start_time = time.time()
         
@@ -235,24 +242,32 @@ class NodeTester:
                 
                 try:
                     # 设置超时保护
-                    is_valid, success_count, success_sites, is_skipped = future.result(timeout=TIMEOUT * 5 + 10)
+                    is_valid, success_count, success_sites, tcp_only, is_skipped = future.result(timeout=TIMEOUT * 5 + 10)
                     
                     if is_skipped:
-                        skipped_count += 1
-                        # 不记录跳过的节点
+                        # 不应该跳过任何节点
                         continue
                     
                     if is_valid:
                         valid_nodes.append(node)
-                        self.logger.info(f"✓ 节点有效 ({len(valid_nodes)}/{i+1}): 成功访问 {success_count} 个网站 - {', '.join(success_sites)}")
+                        if tcp_only:
+                            tcp_only_count += 1
+                            self.logger.info(f"✓ 节点有效 (TCP连通) ({len(valid_nodes)}/{i+1})")
+                        else:
+                            http_proxy_count += 1
+                            self.logger.info(f"✓ 节点有效 (HTTP代理) ({len(valid_nodes)}/{i+1}): 成功访问 {success_count} 个网站 - {', '.join(success_sites)}")
                     else:
-                        self.logger.info(f"✗ 节点无效 ({i+1}/{len(nodes)}): 成功访问 {success_count} 个网站")
+                        if tcp_only:
+                            self.logger.info(f"✗ 节点无效 (TCP失败) ({i+1}/{len(nodes)})")
+                        else:
+                            self.logger.info(f"✗ 节点无效 (HTTP代理失败) ({i+1}/{len(nodes)}): 成功访问 {success_count} 个网站")
                     
                     test_results.append({
                         'node': node[:50] + '...',
                         'is_valid': is_valid,
                         'success_count': success_count,
-                        'success_sites': success_sites
+                        'success_sites': success_sites,
+                        'tcp_only': tcp_only
                     })
                     
                 except concurrent.futures.TimeoutError:
@@ -268,20 +283,17 @@ class NodeTester:
         
         end_time = time.time()
         duration = end_time - start_time
-        tested_count = len(nodes) - skipped_count
         
         self.logger.info("=" * 50)
         self.logger.info("测试完成！")
         self.logger.info(f"总节点数: {len(nodes)}")
-        self.logger.info(f"跳过节点: {skipped_count} (不支持HTTP代理)")
-        self.logger.info(f"实际测试: {tested_count}")
         self.logger.info(f"有效节点: {len(valid_nodes)}")
-        self.logger.info(f"无效节点: {tested_count - len(valid_nodes)}")
-        if tested_count > 0:
-            self.logger.info(f"测试成功率: {len(valid_nodes)/tested_count*100:.1f}%")
-        else:
-            self.logger.info(f"测试成功率: N/A (无节点被测试)")
+        self.logger.info(f"  - TCP连通测试: {tcp_only_count}")
+        self.logger.info(f"  - HTTP代理测试: {http_proxy_count}")
+        self.logger.info(f"无效节点: {len(nodes) - len(valid_nodes)}")
         self.logger.info(f"整体通过率: {len(valid_nodes)/len(nodes)*100:.1f}%")
+        if http_proxy_count > 0:
+            self.logger.info(f"HTTP代理成功率: {http_proxy_count/(http_proxy_count + (len(nodes) - len(valid_nodes) - tcp_only_count))*100:.1f}%")
         self.logger.info(f"测试耗时: {duration:.2f}秒")
         self.logger.info("=" * 50)
         

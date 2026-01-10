@@ -259,15 +259,74 @@ class NodeCollector:
             if repo.is_dirty(untracked_files=True):
                 repo.index.add(['result/nodelist.txt', 'result/nodetotal.txt'])
                 
+                # 生成详细的提交信息
+                date_str = datetime.now().strftime('%Y-%m-%d')
+                date_dir = f"result/{date_str}"
+                
+                commit_lines = [f"更新节点列表 - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"]
+                commit_lines.append("=" * 60)
+                
+                # 汇总网站收集情况
+                commit_lines.append("\n网站收集情况:")
+                success_sites = []
+                failed_sites = []
+                
+                for site_name in self.collectors.keys():
+                    info_file = os.path.join(date_dir, f"{site_name}_info.txt")
+                    if os.path.exists(info_file):
+                        success_sites.append(site_name)
+                        # 读取 info 文件内容
+                        with open(info_file, 'r', encoding='utf-8') as f:
+                            content = f.read()
+                            # 提取文章链接
+                            article_url = None
+                            for line in content.split('\n'):
+                                if line.startswith('## 文章链接\n'):
+                                    next_line = content.split('## 文章链接\n')[1].split('\n')[1] if '## 文章链接\n' in content else ''
+                                    if next_line and not next_line.startswith('#'):
+                                        article_url = next_line.strip()
+                                    break
+                            
+                            # 提取订阅链接数量
+                            subscription_count = 0
+                            for line in content.split('\n'):
+                                if line.startswith('## 订阅链接\n'):
+                                    subscription_section = content.split('## 订阅链接\n')[1].split('\n')[1:] if '## 订阅链接\n' in content else []
+                                    subscription_count = len([l for l in subscription_section if l.strip() and not l.startswith('#')])
+                                    break
+                            
+                            commit_lines.append(f"\n✓ {site_name}:")
+                            if article_url:
+                                commit_lines.append(f"  文章: {article_url}")
+                            if subscription_count > 0:
+                                commit_lines.append(f"  订阅链接: {subscription_count} 个")
+                            else:
+                                commit_lines.append(f"  订阅链接: 无")
+                    else:
+                        failed_sites.append(site_name)
+                        commit_lines.append(f"\n✗ {site_name}: 未获取到数据")
+                
+                # 汇总统计
+                commit_lines.append("\n" + "=" * 60)
+                commit_lines.append(f"成功: {len(success_sites)} 个网站")
+                commit_lines.append(f"失败: {len(failed_sites)} 个网站")
+                if failed_sites:
+                    commit_lines.append(f"失败网站: {', '.join(failed_sites)}")
+                
+                # 节点统计
                 node_count = len(self.all_nodes)
-                commit_message = f"更新节点列表 - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} ({node_count} 个节点)"
+                commit_lines.append(f"\n总节点数: {node_count}")
+                
+                # 组合提交信息
+                commit_message = '\n'.join(commit_lines)
                 
                 repo.index.commit(commit_message)
                 
                 origin = repo.remote(name='origin')
                 origin.push()
                 
-                self.logger.info(f"成功推送到GitHub: {commit_message}")
+                self.logger.info(f"成功推送到GitHub")
+                self.logger.info(f"提交信息:\n{commit_message}")
             else:
                 self.logger.info("没有变化需要提交")
             

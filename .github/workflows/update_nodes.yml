@@ -2,8 +2,8 @@ name: Update Free Nodes
 
 on:
   schedule:
-    # 每天北京时间早上8点 (UTC时间0点) 运行
-    - cron: '0 0 * * *'
+    # 每天北京时间下午3点 (UTC时间7点) 运行
+    - cron: '0 7 * * *'
   
   workflow_dispatch:  # 允许手动触发
     inputs:

@@ -1,107 +1,50 @@
-name: Publish Nodes to Public Repo
-
+# 每日把 result/nodetotal.txt 覆盖推送到 yafeisun/v2ray-nodes/node.txt
 on:
   schedule:
-    # 每天北京时间早上8点 (UTC时间0点) 运行
+    # ���天 00:00 UTC 执行；按需调整 cron 表达式（这是 UTC）
     - cron: '0 0 * * *'
-  
-  workflow_dispatch:  # 允许手动触发
+  workflow_dispatch:
 
 jobs:
-  publish-nodes:
+  build-and-sync:
     runs-on: ubuntu-latest
-    
     steps:
-    - name: Checkout private repo
-      uses: actions/checkout@v4
-      with:
-        token: ${{ secrets.GITHUB_TOKEN }}
-    
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.11'
-        cache: 'pip'
-    
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install -r requirements.txt
-    
-    - name: Run node collector
-      run: |
-        echo "开始节点收集..."
-        python src/main.py
-        echo "节点收集完成"
-    
-    - name: Checkout public repo
-      uses: actions/checkout@v4
-      with:
-        repository: ${{ github.repository_owner }}/v2ray-nodes
-        token: ${{ secrets.PUBLISH_TOKEN }}
-        path: public_repo
-    
-    - name: Copy node files to public repo
-      run: |
-        # 复制节点文件到公开库
-        cp result/nodelist.txt public_repo/ 2>/dev/null || echo "nodelist.txt 不存在"
-        cp result/nodetotal.txt public_repo/ 2>/dev/null || echo "nodetotal.txt 不存在"
-        cp result/webpage.txt public_repo/ 2>/dev/null || echo "webpage.txt 不存在"
-        cp result/subscription.txt public_repo/ 2>/dev/null || echo "subscription.txt 不存在"
-        
-        # 复制README文件
-        cp public_repo_README.md public_repo/README.md
-        
-        # 复制日期目录
-        today=$(date +%Y%m%d)
-        if [ -d "result/$today" ]; then
-          mkdir -p "public_repo/$today"
-          cp result/$today/*.txt public_repo/$today/ 2>/dev/null || true
-        fi
-        
-        echo "节点文件已复制到公开库"
-    
-    - name: Commit and push to public repo
-      working-directory: public_repo
-      run: |
-        git config --global user.email "action@github.com"
-        git config --global user.name "GitHub Action"
-        
-        # 检查是否有变更
-        if git diff --quiet HEAD; then
-          echo "没有检测到节点更新，跳过提交"
-        else
-          echo "检测到节点更新，开始提交..."
-          
-          # 添加所有文件
-          git add .
-          
-          # 获取节点数量
-          node_count=0
-          if [ -f nodelist.txt ]; then
-            node_count=$(wc -l < nodelist.txt)
+      - name: Checkout source repo (this)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Run your build/script to produce result/nodetotal.txt
+        # 把下面的命令替换为你仓库中实际运行生成 nodetotal 的步骤
+        run: |
+          # 示例：如果你有脚本 build.sh
+          chmod +x ./build.sh || true
+          ./build.sh || true
+          # 确保生成文件路径存在
+          ls -la ./result || true
+
+      - name: Checkout target repo (yafeisun/v2ray-nodes)
+        uses: actions/checkout@v4
+        with:
+          repository: yafeisun/v2ray-nodes
+          token: ${{ secrets.TARGET_PAT }}
+          path: target
+          fetch-depth: 0
+
+      - name: Copy nodetotal.txt to target repo as node.txt
+        run: |
+          cp -f ./result/nodetotal.txt target/node.txt
+          ls -la target
+
+      - name: Commit & push to target repo
+        run: |
+          cd target
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add node.txt
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "Update node.txt from v2raynode [skip ci]"
+            git push origin HEAD:main
           fi
-          
-          # 提交
-          commit_msg="Auto update nodes - $(date '+%Y-%m-%d %H:%M:%S') ($node_count nodes)"
-          git commit -m "$commit_msg"
-          
-          # 推送
-          git push
-          
-          echo "节点已成功推送到公开库"
-        fi
-    
-    - name: Create summary
-      if: always()
-      run: |
-        echo "## 节点发布摘要" >> $GITHUB_STEP_SUMMARY
-        echo "- **运行时间**: $(date '+%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_STEP_SUMMARY
-        echo "- **触发方式**: ${{ github.event_name }}" >> $GITHUB_STEP_SUMMARY
-        
-        if [ -f result/nodelist.txt ]; then
-          node_count=$(wc -l < result/nodelist.txt)
-          echo "- **节点数量**: $node_count" >> $GITHUB_STEP_SUMMARY
-        fi
-        
-        echo "- **公开仓库**: https://github.com/${{ github.repository_owner }}/v2ray-nodes" >> $GITHUB_STEP_SUMMARY

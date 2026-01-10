@@ -319,7 +319,7 @@ class NodeCollector:
                 cw.set_value('user', 'name', GIT_NAME)
             
             if repo.is_dirty(untracked_files=True):
-                repo.index.add(['nodelist.txt', 'data/'])
+                repo.index.add(['result/nodelist.txt', 'result/nodetotal.txt'])
                 
                 node_count = len(self.all_nodes)
                 valid_count = len([n for n in self.all_nodes if n in self.connectivity_tester.test_nodes(self.all_nodes)])

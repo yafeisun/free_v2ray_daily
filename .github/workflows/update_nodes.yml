@@ -50,16 +50,20 @@ jobs:
     - name: Check for changes
       id: changes
       run: |
-        if git diff --quiet HEAD -- nodelist.txt; then
+        if git diff --quiet HEAD -- result/nodelist.txt result/nodetotal.txt; then
           echo "has_changes=false" >> $GITHUB_OUTPUT
           echo "没有检测到节点更新"
         else
           echo "has_changes=true" >> $GITHUB_OUTPUT
           echo "检测到节点更新"
           # 显示更新统计
-          if [ -f nodelist.txt ]; then
-            node_count=$(wc -l < nodelist.txt)
+          if [ -f result/nodelist.txt ]; then
+            node_count=$(wc -l < result/nodelist.txt)
             echo "节点总数: $node_count"
+          fi
+          if [ -f result/nodetotal.txt ]; then
+            total_count=$(wc -l < result/nodetotal.txt)
+            echo "总节点数: $total_count"
           fi
         fi
     
@@ -70,11 +74,11 @@ jobs:
         git config --global user.name "${{ secrets.GIT_NAME || 'GitHub Action' }}"
         
         # 添加文件到暂存区
-        git add nodelist.txt
+        git add result/nodelist.txt result/nodetotal.txt
         
         # 获取节点数量用于提交信息
-        if [ -f nodelist.txt ]; then
-          node_count=$(wc -l < nodelist.txt)
+        if [ -f result/nodelist.txt ]; then
+          node_count=$(wc -l < result/nodelist.txt)
           commit_msg="Auto update nodes - $(date '+%Y-%m-%d %H:%M:%S') ($node_count nodes)"
         else
           commit_msg="Auto update nodes - $(date '+%Y-%m-%d %H:%M:%S')"
@@ -94,9 +98,13 @@ jobs:
         
         if [ "${{ steps.changes.outputs.has_changes }}" == "true" ]; then
           echo "- **更新状态**: ✅ 成功更新" >> $GITHUB_STEP_SUMMARY
-          if [ -f nodelist.txt ]; then
-            node_count=$(wc -l < nodelist.txt)
+          if [ -f result/nodelist.txt ]; then
+            node_count=$(wc -l < result/nodelist.txt)
             echo "- **节点数量**: $node_count" >> $GITHUB_STEP_SUMMARY
+          fi
+          if [ -f result/nodetotal.txt ]; then
+            total_count=$(wc -l < result/nodetotal.txt)
+            echo "- **总节点数**: $total_count" >> $GITHUB_STEP_SUMMARY
           fi
         else
           echo "- **更新状态**: ℹ️ 无更新" >> $GITHUB_STEP_SUMMARY

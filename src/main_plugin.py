@@ -15,7 +15,6 @@ sys.path.insert(0, project_root)
 
 from src.utils.logger import get_logger
 from src.utils.file_handler import FileHandler
-from src.testers.connectivity_tester import ConnectivityTester
 from src.core.plugin_registry import get_registry
 from config.settings import *
 from config.websites import WEBSITES
@@ -27,7 +26,6 @@ class PluginNodeCollector:
     def __init__(self):
         self.logger = get_logger("plugin_main")
         self.file_handler = FileHandler()
-        self.connectivity_tester = ConnectivityTester()
         
         # 获取插件注册器
         self.registry = get_registry()
@@ -195,7 +193,6 @@ def main():
     import argparse
     
     parser = argparse.ArgumentParser(description="插件化免费V2Ray节点收集器")
-    parser.add_argument("--test", action="store_true", help="启用连通性测试")
     parser.add_argument("--update-github", action="store_true", help="更新GitHub仓库")
     parser.add_argument("--sites", nargs="+", help="指定要收集的网站")
     parser.add_argument("--list-sites", action="store_true", help="列出所有可用网站")
@@ -234,7 +231,8 @@ def main():
                 collector.logger.info(f"禁用网站: {site_name}")
     
     # 运行收集
-    success = collector.run(test_connectivity=args.test)
+    all_nodes = collector.collect_all_nodes()
+    success = len(all_nodes) > 0
     
     # 更新GitHub
     if success and args.update_github:

@@ -61,9 +61,9 @@ jobs:
         # 检查服务状态
         sudo systemctl status warp-svc
         
-        # 设置为代理模式并获取许可证
-        warp-cli --accept-tos new-mode proxy
-        warp-cli --accept-tos registration new
+        # 使用 warp-cli 设置代理模式
+        warp-cli --accept-tos settings mode proxy
+        warp-cli --accept-tos settings license
         
         # 连接 WARP
         warp-cli --accept-tos connect

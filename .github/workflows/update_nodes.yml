@@ -81,8 +81,6 @@ jobs:
         FORCE_UPDATE: ${{ github.event.inputs.force_update || 'false' }}
         GIT_EMAIL: ${{ secrets.GIT_EMAIL || 'action@github.com' }}
         GIT_NAME: ${{ secrets.GIT_NAME || 'GitHub Action' }}
-        HTTP_PROXY: socks5://127.0.0.1:40000/
-        HTTPS_PROXY: socks5://127.0.0.1:40000/
         http_proxy: socks5://127.0.0.1:40000/
         https_proxy: socks5://127.0.0.1:40000/
       run: |

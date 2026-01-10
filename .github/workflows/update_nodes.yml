@@ -16,6 +16,8 @@ on:
 jobs:
   update-nodes:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     
     steps:
     - name: Checkout repository
@@ -23,6 +25,7 @@ jobs:
       with:
         token: ${{ secrets.GITHUB_TOKEN }}
         fetch-depth: 0
+        persist-credentials: true
     
     - name: Set up Python
       uses: actions/setup-python@v4
@@ -50,6 +53,35 @@ jobs:
     - name: Check for changes
       id: changes
       run: |
+        echo "检查文件状态..."
+        echo "当前目录内容:"
+        ls -la
+        echo ""
+        echo "result 目录内容:"
+        ls -la result/ || echo "result 目录不存在"
+        echo ""
+        
+        # 检查文件是否存在
+        if [ -f result/nodetotal.txt ]; then
+          echo "result/nodetotal.txt 存在"
+          wc -l result/nodetotal.txt
+        else
+          echo "result/nodetotal.txt 不存在"
+        fi
+        
+        if [ -f result/nodelist.txt ]; then
+          echo "result/nodelist.txt 存在"
+          wc -l result/nodelist.txt
+        else
+          echo "result/nodelist.txt 不存在"
+        fi
+        
+        echo ""
+        echo "Git 状态:"
+        git status
+        
+        echo ""
+        echo "检查文件变更..."
         if git diff --quiet HEAD -- result/nodelist.txt result/nodetotal.txt; then
           echo "has_changes=false" >> $GITHUB_OUTPUT
           echo "没有检测到节点更新"

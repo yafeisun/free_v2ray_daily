@@ -158,8 +158,10 @@ class SubsCheckTester:
                 'sub-urls-retry': 3,
                 'sub-urls-get-ua': 'clash.meta (https://github.com/beck-8/subs-check)',
                 
-                # 使用本地文件
-                'local-path': subscription_file
+                # 使用本地文件（使用绝对路径）
+                import os
+                abs_path = os.path.abspath(subscription_file)
+                config['local-path'] = abs_path
             }
             
             # 保存配置

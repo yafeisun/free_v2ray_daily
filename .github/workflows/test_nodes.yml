@@ -112,7 +112,10 @@ jobs:
         echo "  - 使用subs-check进行真实的代理测试"
         echo "  - 测试节点连通性、速度和流媒体解锁能力"
         echo "  - 支持的流媒体平台: YouTube, Netflix, OpenAI, Gemini"
-        python3 scripts/test_nodes_with_subscheck.py --input result/nodetotal.txt --output result/nodelist.txt --timeout 1800
+        
+        # 使用stdbuf禁用所有缓冲，确保实时输出
+        stdbuf -o0 -e0 python3 scripts/test_nodes_with_subscheck.py --input result/nodetotal.txt --output result/nodelist.txt --timeout 1800 2>&1 | stdbuf -o0 -e0 tee test_output.log
+        
         echo "节点测试完成"
       continue-on-error: true
     

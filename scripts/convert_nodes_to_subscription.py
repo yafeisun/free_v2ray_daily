@@ -87,6 +87,9 @@ def parse_vless(vless_uri: str) -> Dict[str, Any]:
         else:
             name = 'VLESS'
         
+        # 清理端口字符串（移除可能的斜杠等）
+        port = port.strip().rstrip('/')
+        
         # 解析参数
         params = parse_qs(params_part)
         
@@ -162,6 +165,9 @@ def parse_trojan(trojan_uri: str) -> Dict[str, Any]:
             params_part = ''
         
         params = parse_qs(params_part)
+        
+        # 清理端口字符串（移除可能的斜杠等）
+        port = port.strip().rstrip('/')
         
         proxy = {
             'name': name,
@@ -322,6 +328,9 @@ def parse_ss(ss_uri: str) -> Dict[str, Any]:
         else:
             return None
         
+        # 清理端口字符串（移除可能的斜杠等）
+        port = port.strip().rstrip('/')
+        
         proxy = {
             'name': name,
             'type': 'ss',
@@ -394,6 +403,9 @@ def parse_hysteria2(hysteria2_uri: str) -> Dict[str, Any]:
             params_part = ''
         
         params = parse_qs(params_part)
+        
+        # 清理端口字符串（移除可能的斜杠等）
+        port = port.strip().rstrip('/')
         
         proxy = {
             'name': name,

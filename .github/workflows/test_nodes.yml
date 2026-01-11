@@ -71,14 +71,22 @@ jobs:
         # 获取 WARP 代理端口（通常是 40000）
         echo "WARP 代理已启用，SOCKS5 端口: 40000"
     
-    - name: Test nodes
+    - name: Install subs-check
+      run: |
+        echo "安装subs-check工具..."
+        chmod +x scripts/convert_nodes_to_subscription.py
+        chmod +x scripts/test_nodes_with_subscheck.py
+        echo "subs-check将在测试时自动下载"
+    
+    - name: Test nodes with subs-check
       id: tester
       run: |
         echo "开始节点测试..."
         echo "测试策略:"
-        echo "  - 支持HTTP代理的节点: 测试网站访问能力"
-        echo "  - 不支持HTTP代理的节点: 仅测试TCP连通性"
-        python3 scripts/test_nodes.py --input result/nodetotal.txt --output result/nodelist.txt
+        echo "  - 使用subs-check进行真实的代理测试"
+        echo "  - 测试节点连通性、速度和流媒体解锁能力"
+        echo "  - 支持的流媒体平台: YouTube, Netflix, OpenAI, Gemini"
+        python3 scripts/test_nodes_with_subscheck.py --input result/nodetotal.txt --output result/nodelist.txt --timeout 1800
         echo "节点测试完成"
       continue-on-error: true
     
@@ -167,8 +175,9 @@ jobs:
           fi
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**测试策略**:" >> $GITHUB_STEP_SUMMARY
-          echo "- 所有V2Ray节点进行TCP连通性测试" >> $GITHUB_STEP_SUMMARY
-          echo "- 不进行HTTP代理测试（V2Ray节点不支持）" >> $GITHUB_STEP_SUMMARY
+          echo "- 使用subs-check工具进行真实的代理测试" >> $GITHUB_STEP_SUMMARY
+          echo "- 测试节点连通性、速度和流媒体解锁能力" >> $GITHUB_STEP_SUMMARY
+          echo "- 支持的流媒体平台: YouTube, Netflix, OpenAI, Gemini" >> $GITHUB_STEP_SUMMARY
         else
           echo "- **更新状态**: ℹ️ 无更新" >> $GITHUB_STEP_SUMMARY
         fi

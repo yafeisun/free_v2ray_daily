@@ -201,6 +201,40 @@ python3 run.py --update-github
 - 检查`result/`目录下的输出文件
 - 验证节点数量和格式正确性
 
+### 节点测试
+
+#### 测试工具
+使用 `subs-check` 工具进行真实的代理测试。
+
+#### 测试内容
+- **连通性测试**: 测试节点服务器是否可达
+- **速度测试**: 测试节点的实际下载速度
+- **流媒体解锁测试**: 测试节点能否访问流媒体服务
+  - YouTube
+  - Netflix
+  - OpenAI (ChatGPT)
+  - Gemini
+
+#### 测试标准
+- **测试方法**: 使用 subs-check 进行真实代理测试
+- **最小速度**: 512 KB/s
+- **并发测试**: 同时测试20个节点
+- **测试超时**: 单个节点测试超时5秒
+
+#### 测试脚本
+```bash
+# 转换节点为Clash格式
+python3 scripts/convert_nodes_to_subscription.py \
+  --input result/nodetotal.txt \
+  --output result/clash_subscription.yaml
+
+# 运行测试
+python3 scripts/test_nodes_with_subscheck.py \
+  --input result/nodetotal.txt \
+  --output result/nodelist.txt \
+  --timeout 1800
+```
+
 ## 配置管理
 
 ### 主要配置文件

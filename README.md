@@ -45,28 +45,33 @@ https://raw.githubusercontent.com/yafeisun/v2raynode/refs/heads/main/result/node
 
 ### 测试策略
 
-所有V2Ray节点都进行TCP连通性测试，验证节点服务器是否可达。
+使用 `subs-check` 工具进行真实的代理测试，验证节点的实际可用性。
 
-### 测试目标网站
+### 测试内容
 
-节点测试通过以下主流网站的连通性来验证：
-- [ChatGPT](https://chatgpt.com)
-- [Gemini](https://gemini.google.com)
-- [YouTube](https://www.youtube.com)
-- [X.com](https://x.com)
-- [Reddit](https://www.reddit.com)
+- **连通性测试**: 测试节点服务器是否可达
+- **速度测试**: 测试节点的实际下载速度
+- **流媒体解锁测试**: 测试节点能否访问流媒体服务
+  - YouTube
+  - Netflix
+  - OpenAI (ChatGPT)
+  - Gemini
 
 ### 测试标准
 
-- **测试方法**: TCP连通性测试
-- **判定标准**: 节点服务器能够建立TCP连接
-- **设计标准**: 5个目标网站中至少成功访问3个（当前实现：TCP连通性测试）
-- **测试原因**: V2Ray节点不是HTTP代理服务器，无法通过HTTP代理方式测试
-- **建议**: 使用V2Ray客户端（如V2RayN、Qv2ray等）测试节点的实际可用性
+- **测试方法**: 使用 subs-check 进行真实代理测试
+- **最小速度**: 512 KB/s
+- **并发测试**: 同时测试20个节点
+- **测试超时**: 单个节点测试超时5秒
 
 ### 测试结果
 
 测试结果会自动提交到GitHub，可以通过Git提交历史查看最新的测试统计信息。
+
+**已测速节点链接**:
+```
+https://raw.githubusercontent.com/yafeisun/v2raynode/refs/heads/main/result/nodelist.txt
+```
 
 ## 📦 安装与运行
 

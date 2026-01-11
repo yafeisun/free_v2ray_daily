@@ -39,6 +39,55 @@ class SubsCheckTester:
         
         # 进程
         self.process = None
+        
+        # HTTP服务器
+        self.http_server = None
+        self.http_server_port = 8888
+        self.http_server_process = None
+    
+    def start_http_server(self) -> bool:
+        """启动HTTP服务器"""
+        try:
+            self.logger.info(f"启动HTTP服务器，端口: {self.http_server_port}")
+            
+            # 启动HTTP服务器
+            self.http_server_process = subprocess.Popen(
+                ['python3', '-m', 'http.server', str(self.http_server_port), '--directory', self.project_root],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL
+            )
+            
+            # 等待服务器启动
+            import time
+            time.sleep(2)
+            
+            # 检查服务器是否成功启动
+            if self.http_server_process.poll() is None:
+                self.logger.info(f"HTTP服务器启动成功: http://127.0.0.1:{self.http_server_port}")
+                return True
+            else:
+                self.logger.error("HTTP服务器启动失败")
+                return False
+                
+        except Exception as e:
+            self.logger.error(f"启动HTTP服务器失败: {str(e)}")
+            return False
+    
+    def stop_http_server(self):
+        """停止HTTP服务器"""
+        if self.http_server_process:
+            try:
+                self.http_server_process.terminate()
+                self.http_server_process.wait(timeout=5)
+                self.logger.info("HTTP服务器已停止")
+            except:
+                self.http_server_process.kill()
+            self.http_server_process = None
+        
+        # HTTP服务器
+        self.http_server = None
+        self.http_server_port = 8888
+        self.http_server_process = None
     
     def install_subscheck(self) -> bool:
         """安装subs-check工具"""
@@ -158,8 +207,10 @@ class SubsCheckTester:
                 'sub-urls-retry': 3,
                 'sub-urls-get-ua': 'clash.meta (https://github.com/beck-8/subs-check)',
                 
-                # 使用本地文件
-                'local-path': subscription_file
+                # 使用HTTP服务器提供本地文件
+                'sub-urls': [
+                    f'http://127.0.0.1:{self.http_server_port}/result/clash_subscription.yaml'
+                ]
             }
             
             # 保存配置
@@ -178,6 +229,10 @@ class SubsCheckTester:
     def run_test(self, timeout: int = 1800) -> Tuple[bool, str]:
         """运行测试"""
         try:
+            # 启动HTTP服务器
+            if not self.start_http_server():
+                return False, "HTTP服务器启动失败"
+            
             self.logger.info("开始运行subs-check测试...")
             
             # 检查二进制文件
@@ -247,6 +302,9 @@ class SubsCheckTester:
             # 等待进程结束
             return_code = self.process.wait()
             
+            # 停止HTTP服务器
+            self.stop_http_server()
+            
             if return_code == 0:
                 self.logger.info("测试成功完成")
                 return True, "测试成功"
@@ -258,6 +316,8 @@ class SubsCheckTester:
                 return False, error_msg
             
         except Exception as e:
+            # 确保停止HTTP服务器
+            self.stop_http_server()
             self.logger.error(f"运行测试失败: {str(e)}")
             return False, str(e)
     

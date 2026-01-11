@@ -111,7 +111,7 @@ class SubsCheckTester:
                 'print-progress': True,
                 'concurrent': 20,
                 'check-interval': 120,
-                'timeout': 5000,
+                'timeout': 3000,
                 
                 # 测速配置
                 'alive-test-url': 'http://gstatic.com/generate_204',

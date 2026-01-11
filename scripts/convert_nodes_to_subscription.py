@@ -209,17 +209,62 @@ def parse_ss(ss_uri: str) -> Dict[str, Any]:
         # 尝试多种解码方式
         decoded = None
         
-        # 方法1: 标准 Base64 解码
-        try:
-            # 修复 Base64 填充
-            padding = 4 - len(encoded) % 4
-            if padding != 4:
-                encoded += '=' * padding
-            decoded = base64.b64decode(encoded).decode('utf-8')
-        except:
-            pass
+        # 方法1: UUID 格式 (ss://uuid@server:port)
+        if not decoded and '@' in encoded and '-' in encoded.split('@')[0]:
+            try:
+                uuid_part, server_port = encoded.split('@', 1)
+                # 检查是否是 UUID 格式
+                if len(uuid_part) == 36 and uuid_part.count('-') == 4:
+                    # 这是 UUID 格式，使用默认配置
+                    if ':' in server_port:
+                        server, port = server_port.split(':', 1)
+                        proxy = {
+                            'name': name,
+                            'type': 'ss',
+                            'server': server,
+                            'port': int(port),
+                            'cipher': 'aes-256-gcm',
+                            'password': uuid_part,
+                            'udp': True
+                        }
+                        return proxy
+            except:
+                pass
         
-        # 方法2: 尝试 URL 解码后再 Base64
+        # 方法2: JSON 格式 (ss://base64({"add":"...","ps":"...",...}))
+        if not decoded:
+            try:
+                padding = 4 - len(encoded) % 4
+                if padding != 4:
+                    encoded += '=' * padding
+                decoded = base64.b64decode(encoded).decode('utf-8')
+                if decoded.startswith('{'):
+                    # JSON 格式
+                    config = json.loads(decoded)
+                    proxy = {
+                        'name': config.get('ps', name),
+                        'type': 'ss',
+                        'server': config.get('add', ''),
+                        'port': int(config.get('port', 8388)),
+                        'cipher': config.get('method', 'aes-256-gcm'),
+                        'password': config.get('password', ''),
+                        'udp': True
+                    }
+                    return proxy
+            except:
+                decoded = None
+        
+        # 方法3: 标准 Base64 解码
+        if not decoded:
+            try:
+                padding = 4 - len(encoded) % 4
+                if padding != 4:
+                    encoded += '=' * padding
+                decoded = base64.b64decode(encoded).decode('utf-8')
+            except:
+                pass
+        
+        # 方法4: 尝试 URL 解码后再 Base64
         if not decoded:
             try:
                 url_decoded = unquote(encoded)
@@ -230,11 +275,10 @@ def parse_ss(ss_uri: str) -> Dict[str, Any]:
             except:
                 pass
         
-        # 方法3: 尝试直接解析（URL 格式: base64(method:password)@server:port）
+        # 方法5: 尝试直接解析（URL 格式: base64(method:password)@server:port）
         if not decoded and '@' in encoded:
             try:
                 credentials, server_port = encoded.split('@', 1)
-                # 修复 Base64 填充
                 padding = 4 - len(credentials) % 4
                 if padding != 4:
                     credentials += '=' * padding
@@ -245,7 +289,7 @@ def parse_ss(ss_uri: str) -> Dict[str, Any]:
             except:
                 pass
         
-        # 方法4: 尝试旧格式 (server:port:method:password)
+        # 方法6: 尝试旧格式 (server:port:method:password)
         if not decoded:
             try:
                 padding = 4 - len(encoded) % 4
@@ -260,7 +304,6 @@ def parse_ss(ss_uri: str) -> Dict[str, Any]:
                 pass
         
         if not decoded:
-            print(f"解码 ss 节点失败: 无法解析 Base64")
             return None
         
         # 解析解码后的内容
@@ -313,7 +356,6 @@ def parse_ss(ss_uri: str) -> Dict[str, Any]:
         
         return proxy
     except Exception as e:
-        print(f"解析 ss 节点失败: {e}")
         return None
 
 
@@ -381,6 +423,7 @@ def convert_nodes_to_clash(nodes: List[str]) -> Dict[str, Any]:
         clash_config: Clash配置字典
     """
     proxies = []
+    failed_count = 0
     
     for i, node in enumerate(nodes):
         node = node.strip()
@@ -404,7 +447,11 @@ def convert_nodes_to_clash(nodes: List[str]) -> Dict[str, Any]:
         if proxy:
             proxies.append(proxy)
         else:
-            print(f"无法解析节点: {node[:50]}...")
+            failed_count += 1
+    
+    # 每100个失败打印一次统计
+    if failed_count > 0 and failed_count % 100 == 0:
+        print(f"已处理 {len(nodes)} 个节点，成功 {len(proxies)} 个，失败 {failed_count} 个")
     
     # 创建 Clash 配置
     clash_config = {

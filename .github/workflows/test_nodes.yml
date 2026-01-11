@@ -71,12 +71,38 @@ jobs:
         # 获取 WARP 代理端口（通常是 40000）
         echo "WARP 代理已启用，SOCKS5 端口: 40000"
     
+    - name: Cache subs-check binary
+      id: cache-subscheck
+      uses: actions/cache@v3
+      with:
+        path: subscheck/bin/subs-check
+        key: subs-check-${{ runner.os }}-${{ runner.arch }}-v1
+    
     - name: Install subs-check
+      if: steps.cache-subscheck.outputs.cache-hit != 'true'
       run: |
         echo "安装subs-check工具..."
         chmod +x scripts/convert_nodes_to_subscription.py
         chmod +x scripts/test_nodes_with_subscheck.py
-        echo "subs-check将在测试时自动下载"
+        
+        # 手动下载subs-check
+        mkdir -p subscheck/bin
+        cd subscheck/bin
+        
+        echo "下载subs-check..."
+        wget --timeout=300 --tries=3 https://github.com/beck-8/subs-check/releases/latest/download/subs-check_Linux_x86_64.tar.gz -O subs-check.tar.gz
+        
+        echo "解压subs-check..."
+        tar -xzf subs-check.tar.gz
+        
+        echo "设置执行权限..."
+        chmod +x subs-check
+        
+        echo "清理临时文件..."
+        rm -f subs-check.tar.gz
+        
+        echo "subs-check安装完成"
+        ls -lh subs-check
     
     - name: Test nodes with subs-check
       id: tester

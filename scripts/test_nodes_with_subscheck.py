@@ -158,10 +158,8 @@ class SubsCheckTester:
                 'sub-urls-retry': 3,
                 'sub-urls-get-ua': 'clash.meta (https://github.com/beck-8/subs-check)',
                 
-                # 使用本地文件（使用绝对路径）
-                import os
-                abs_path = os.path.abspath(subscription_file)
-                config['local-path'] = abs_path
+                # 使用本地文件
+                'local-path': subscription_file
             }
             
             # 保存配置
@@ -197,7 +195,7 @@ class SubsCheckTester:
                 cmd,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
-                cwd=self.subscheck_dir,
+                cwd=self.project_root,  # 使用项目根目录作为工作目录
                 universal_newlines=True,
                 bufsize=1  # 行缓冲
             )

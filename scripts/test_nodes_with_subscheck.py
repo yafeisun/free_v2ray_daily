@@ -137,7 +137,7 @@ class SubsCheckTester:
                 
                 # 输出配置
                 'output-dir': self.output_dir,
-                'listen-port': ':8199',
+                'listen-port': 8199,
                 'save-method': 'local',
                 
                 # Web UI
@@ -145,7 +145,7 @@ class SubsCheckTester:
                 'api-key': '',
                 
                 # Sub-Store
-                'sub-store-port': ':8299',
+                'sub-store-port': 8299,
                 'sub-store-path': '',
                 'mihomo-overwrite-url': 'http://127.0.0.1:8199/sub/ACL4SSR_Online_Full.yaml',
                 

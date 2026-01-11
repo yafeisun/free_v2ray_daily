@@ -16,12 +16,10 @@ TEST_SITES = [
     {'name': 'ChatGPT', 'url': 'https://chatgpt.com', 'expected_status': 200, 'priority': 'high'},
     {'name': 'Gemini', 'url': 'https://gemini.google.com', 'expected_status': 200, 'priority': 'high'},
     {'name': 'YouTube', 'url': 'https://www.youtube.com', 'expected_status': 200, 'priority': 'normal'},
-    {'name': 'X.com', 'url': 'https://x.com', 'expected_status': 200, 'priority': 'normal'},
-    {'name': 'Reddit', 'url': 'https://www.reddit.com', 'expected_status': 200, 'priority': 'normal'},
 ]
 
 # 测试配置
-MIN_SUCCESS_SITES = 3  # 至少需要成功访问的网站数量
+MIN_SUCCESS_SITES = 2  # 至少需要成功访问的网站数量
 MIN_AI_SITES = 1      # 至少需要成功访问的AI服务数量（ChatGPT或Gemini）
 
 
@@ -114,7 +112,7 @@ class MediaTester(BaseTester):
                 self.logger.info(f"  ✗ {site_name} 不可访问")
         
         # 判断是否满足条件
-        # 条件1: 5个网站中至少3个可访问
+        # 条件1: 3个网站中至少2个可访问
         condition1 = len(success_sites) >= MIN_SUCCESS_SITES
         
         # 条件2: ChatGPT和Gemini中至少1个可访问
@@ -131,7 +129,7 @@ class MediaTester(BaseTester):
             'total_sites': len(TEST_SITES),
             'success_count': len(success_sites),
             'ai_success_count': len(ai_success_sites),
-            'condition1_met': condition1,  # 5个网站中至少3个可访问
+            'condition1_met': condition1,  # 3个网站中至少2个可访问
             'condition2_met': condition2,  # ChatGPT/Gemini至少1个可访问
             'is_valid': is_valid
         }
@@ -159,7 +157,7 @@ class MediaTester(BaseTester):
         
         self.logger.info(f"开始流媒体访问测试 {len(nodes)} 个节点...")
         self.logger.info(f"测试规则:")
-        self.logger.info(f"  1. 5个网站中至少{MIN_SUCCESS_SITES}个可访问")
+        self.logger.info(f"  1. 3个网站中至少{MIN_SUCCESS_SITES}个可访问")
         self.logger.info(f"  2. ChatGPT和Gemini中至少{MIN_AI_SITES}个可访问")
         self.logger.info(f"测试目标: {', '.join([site['name'] for site in TEST_SITES])}")
         
@@ -215,7 +213,7 @@ class MediaTester(BaseTester):
         self.logger.info(f"无效节点: {len(nodes) - len(valid_nodes)}")
         self.logger.info(f"通过率: {len(valid_nodes)/len(nodes)*100:.1f}%")
         self.logger.info(f"测试耗时: {duration:.2f}秒")
-        self.logger.info(f"满足条件1 (5个网站中至少{MIN_SUCCESS_SITES}个): {condition1_count} 个节点")
+        self.logger.info(f"满足条件1 (3个网站中至少{MIN_SUCCESS_SITES}个): {condition1_count} 个节点")
         self.logger.info(f"满足条件2 (ChatGPT/Gemini至少{MIN_AI_SITES}个): {condition2_count} 个节点")
         self.logger.info(f"同时满足两个条件: {both_conditions_count} 个节点")
         self.logger.info("=" * 50)

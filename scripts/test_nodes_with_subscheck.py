@@ -9,7 +9,7 @@ import os
 import subprocess
 import time
 import yaml
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Tuple
 
 # 添加项目根目录到路径
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -165,6 +165,8 @@ class SubsCheckTester:
             }
             
             # 保存配置
+            # 确保目录存在
+            os.makedirs(os.path.dirname(self.config_file), exist_ok=True)
             with open(self.config_file, 'w', encoding='utf-8') as f:
                 yaml.dump(config, f, allow_unicode=True, default_flow_style=False)
             
@@ -347,14 +349,12 @@ def main():
     
     # 转换为Clash格式
     logger.info("转换为Clash订阅格式...")
-    import convert_nodes_to_subscription
     subscription_file = os.path.join(os.path.dirname(args.output), 'clash_subscription.yaml')
     
     # 导入转换函数
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-    from convert_nodes_to_subscription import convert_nodes_to_clash
-    
-    clash_config = convert_nodes_to_clash(nodes)
+    import convert_nodes_to_subscription
+    clash_config = convert_nodes_to_subscription.convert_nodes_to_clash(nodes)
     
     # 保存Clash配置
     os.makedirs(os.path.dirname(subscription_file), exist_ok=True)

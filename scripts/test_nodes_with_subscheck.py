@@ -187,7 +187,7 @@ class SubsCheckTester:
                     return False, "subs-check安装失败"
             
             # 运行subs-check
-            cmd = [self.binary_path, '-f', self.config_file, '--verbose']
+            cmd = [self.binary_path, '-f', self.config_file]
             
             self.logger.info(f"执行命令: {' '.join(cmd)}")
             

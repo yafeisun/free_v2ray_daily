@@ -115,19 +115,17 @@ class SubsCheckTester:
                 
                 # 测速配置
                 'alive-test-url': 'http://gstatic.com/generate_204',
-                'speed-test-url': 'https://github.com/AaronFeng753/Waifu2x-Extension-GUI/releases/download/v2.21.12/Waifu2x-Extension-GUI-v2.21.12-Portable.7z',
-                'min-speed': 512,
-                'download-timeout': 10,
-                'download-mb': 20,
+                'speed-test-url': '',
+                'min-speed': 0,
+                'download-timeout': 1,
+                'download-mb': 0,
                 'total-speed-limit': 0,
                 
                 # 流媒体检测
                 'media-check': True,
                 'media-check-timeout': 10,
                 'platforms': [
-                    'iprisk',
                     'youtube',
-                    'netflix',
                     'openai',
                     'gemini'
                 ],

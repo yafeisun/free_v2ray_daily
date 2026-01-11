@@ -189,7 +189,7 @@ def parse_ss(ss_uri: str) -> Dict[str, Any]:
         # 移除 ss:// 前缀
         uri = ss_uri[5:]
         
-        # 尝试解析（格式: ss://base64(method:password@server:port#name）
+        # 分离名称
         if '#' in uri:
             encoded, name = uri.rsplit('#', 1)
             name = unquote(name)
@@ -197,65 +197,121 @@ def parse_ss(ss_uri: str) -> Dict[str, Any]:
             encoded = uri
             name = 'SS'
         
-        # 解码 Base64
+        # 分离参数
+        if '?' in encoded:
+            encoded, params_part = encoded.split('?', 1)
+        else:
+            params_part = ''
+        
+        # 解析参数
+        params = parse_qs(params_part)
+        
+        # 尝试多种解码方式
+        decoded = None
+        
+        # 方法1: 标准 Base64 解码
         try:
+            # 修复 Base64 填充
+            padding = 4 - len(encoded) % 4
+            if padding != 4:
+                encoded += '=' * padding
             decoded = base64.b64decode(encoded).decode('utf-8')
-            
-            if '@' in decoded:
-                method_password, server_port = decoded.rsplit('@', 1)
-            else:
-                return None
-            
-            method, password = method_password.split(':', 1)
-            
-            if ':' in server_port:
-                server, port = server_port.rsplit(':', 1)
-            else:
-                return None
-            
-            # 解析参数
-            if '?' in port:
-                port, params_part = port.split('?', 1)
-                params = parse_qs(params_part)
-            else:
-                params = {}
-            
-            proxy = {
-                'name': name,
-                'type': 'ss',
-                'server': server,
-                'port': int(port),
-                'cipher': method,
-                'password': password,
-                'udp': True
-            }
-            
-            # 添加插件配置
-            if 'plugin' in params:
-                proxy['plugin'] = params['plugin'][0]
-                if 'plugin-opts' in params:
-                    proxy['plugin-opts'] = params['plugin-opts'][0]
-            
-            # 添加 TLS 配置
-            if 'security' in params and params['security'][0] == 'tls':
-                proxy['udp'] = True
-                proxy['tls'] = True
-                proxy['skip-cert-verify'] = params.get('insecure', ['0'])[0] == '1'
-                proxy['sni'] = params.get('sni', [''])[0]
-                
-                if params.get('type', [''])[0] == 'ws':
-                    proxy['network'] = 'ws'
-                    proxy['ws-opts'] = {
-                        'path': params.get('path', [''])[0],
-                        'headers': {
-                            'Host': params.get('host', [''])[0]
-                        }
-                    }
-            
-            return proxy
-        except Exception as e:
-            print(f"解码 ss 节点失败: {e}")
+        except:
+            pass
+        
+        # 方法2: 尝试 URL 解码后再 Base64
+        if not decoded:
+            try:
+                url_decoded = unquote(encoded)
+                padding = 4 - len(url_decoded) % 4
+                if padding != 4:
+                    url_decoded += '=' * padding
+                decoded = base64.b64decode(url_decoded).decode('utf-8')
+            except:
+                pass
+        
+        # 方法3: 尝试直接解析（URL 格式: base64(method:password)@server:port）
+        if not decoded and '@' in encoded:
+            try:
+                credentials, server_port = encoded.split('@', 1)
+                # 修复 Base64 填充
+                padding = 4 - len(credentials) % 4
+                if padding != 4:
+                    credentials += '=' * padding
+                method_password = base64.b64decode(credentials).decode('utf-8')
+                if ':' in method_password:
+                    method, password = method_password.split(':', 1)
+                    decoded = f"{method}:{password}@{server_port}"
+            except:
+                pass
+        
+        # 方法4: 尝试旧格式 (server:port:method:password)
+        if not decoded:
+            try:
+                padding = 4 - len(encoded) % 4
+                if padding != 4:
+                    encoded += '=' * padding
+                decoded = base64.b64decode(encoded).decode('utf-8')
+                parts = decoded.split(':')
+                if len(parts) == 4:
+                    server, port, method, password = parts
+                    decoded = f"{method}:{password}@{server}:{port}"
+            except:
+                pass
+        
+        if not decoded:
+            print(f"解码 ss 节点失败: 无法解析 Base64")
             return None
+        
+        # 解析解码后的内容
+        if '@' in decoded:
+            method_password, server_port = decoded.rsplit('@', 1)
+        else:
+            return None
+        
+        if ':' in method_password:
+            method, password = method_password.split(':', 1)
+        else:
+            return None
+        
+        if ':' in server_port:
+            server, port = server_port.rsplit(':', 1)
+        else:
+            return None
+        
+        proxy = {
+            'name': name,
+            'type': 'ss',
+            'server': server,
+            'port': int(port),
+            'cipher': method,
+            'password': password,
+            'udp': True
+        }
+        
+        # 添加插件配置
+        if 'plugin' in params:
+            proxy['plugin'] = params['plugin'][0]
+            if 'plugin-opts' in params:
+                proxy['plugin-opts'] = params['plugin-opts'][0]
+        
+        # 添加 TLS 配置
+        if 'security' in params and params['security'][0] == 'tls':
+            proxy['udp'] = True
+            proxy['tls'] = True
+            proxy['skip-cert-verify'] = params.get('insecure', ['0'])[0] == '1'
+            proxy['sni'] = params.get('sni', [''])[0]
+            
+            if params.get('type', [''])[0] == 'ws':
+                proxy['network'] = 'ws'
+                proxy['ws-opts'] = {
+                    'path': params.get('path', [''])[0],
+                    'headers': {
+                        'Host': params.get('host', [''])[0]
+                    }
+                }
+        
+        return proxy
     except Exception as e:
         print(f"解析 ss 节点失败: {e}")
         return None

@@ -249,17 +249,17 @@ class SubsCheckTester:
             self.process = subprocess.Popen(
                 cmd,
                 stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
+                stderr=subprocess.STDOUT,  # 合并 stderr 到 stdout
                 cwd=self.project_root,  # 使用项目根目录作为工作目录
-                universal_newlines=True,
-                bufsize=1  # 行缓冲
+                universal_newlines=False,  # 使用二进制模式避免缓冲
+                bufsize=0  # 完全无缓冲
             )
             
             # 实时输出日志
             start_time = time.time()
             last_progress_time = start_time
             line_count = 0
-            stderr_lines = []
+            last_line = ""
             
             while True:
                 # 检查超时
@@ -270,26 +270,29 @@ class SubsCheckTester:
                     self.process.wait(timeout=10)
                     return False, "测试超时"
                 
-                # 读取stdout
+                # 读取输出（按字符读取以避免行缓冲）
                 try:
-                    line = self.process.stdout.readline()
-                    if line:
-                        line_count += 1
-                        print(line.strip(), flush=True)
+                    char = self.process.stdout.read(1)
+                    if char:
+                        if char == '\n':
+                            # 打印完整行
+                            if last_line.strip():
+                                print(last_line.strip(), flush=True)
+                                line_count += 1
+                            last_line = ""
+                        else:
+                            last_line += char
+                            # 定期刷新输出（每100个字符）
+                            if len(last_line) >= 100:
+                                print(last_line, end='', flush=True)
+                                last_line = ""
                 except:
-                    pass
-                
-                # 读取stderr
-                try:
-                    err_line = self.process.stderr.readline()
-                    if err_line:
-                        stderr_lines.append(err_line.strip())
-                        print(f"[ERROR] {err_line.strip()}", flush=True)
-                except:
-                    pass
+                    break
                 
                 # 定期打印进度（每30秒）
                 if time.time() - last_progress_time >= 30:
+                    if last_line.strip():
+                        print(last_line.strip(), flush=True)
                     self.logger.info(f"测试进行中... 已运行 {int(time.time() - start_time)} 秒，已读取 {line_count} 行输出")
                     last_progress_time = time.time()
                 
@@ -297,7 +300,7 @@ class SubsCheckTester:
                 if self.process.poll() is not None:
                     break
                 
-                time.sleep(0.1)
+                time.sleep(0.01)  # 更频繁的检查
             
             # 等待进程结束
             return_code = self.process.wait()

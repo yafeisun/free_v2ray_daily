@@ -189,7 +189,7 @@ class SubsCheckTester:
                     return False, "subs-check安装失败"
             
             # 运行subs-check
-            cmd = [self.binary_path, '-f', self.config_file]
+            cmd = [self.binary_path, '-f', self.config_file, '--verbose']
             
             self.logger.info(f"执行命令: {' '.join(cmd)}")
             
@@ -198,11 +198,14 @@ class SubsCheckTester:
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
                 cwd=self.subscheck_dir,
-                universal_newlines=True
+                universal_newlines=True,
+                bufsize=1  # 行缓冲
             )
             
             # 实时输出日志
             start_time = time.time()
+            last_progress_time = start_time
+            line_count = 0
             
             while True:
                 # 检查超时
@@ -217,9 +220,15 @@ class SubsCheckTester:
                 try:
                     line = self.process.stdout.readline()
                     if line:
-                        print(line.strip())
+                        line_count += 1
+                        print(line.strip(), flush=True)
                 except:
                     break
+                
+                # 定期打印进度（每30秒）
+                if time.time() - last_progress_time >= 30:
+                    self.logger.info(f"测试进行中... 已运行 {int(time.time() - start_time)} 秒，已读取 {line_count} 行输出")
+                    last_progress_time = time.time()
                 
                 # 检查进程是否结束
                 if self.process.poll() is not None:

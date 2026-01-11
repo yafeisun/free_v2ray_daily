@@ -194,7 +194,7 @@ class SubsCheckTester:
             self.process = subprocess.Popen(
                 cmd,
                 stdout=subprocess.PIPE,
-                stderr=subprocess.STDOUT,
+                stderr=subprocess.PIPE,
                 cwd=self.subscheck_dir,
                 universal_newlines=True,
                 bufsize=1  # 行缓冲
@@ -204,6 +204,7 @@ class SubsCheckTester:
             start_time = time.time()
             last_progress_time = start_time
             line_count = 0
+            stderr_lines = []
             
             while True:
                 # 检查超时
@@ -214,14 +215,23 @@ class SubsCheckTester:
                     self.process.wait(timeout=10)
                     return False, "测试超时"
                 
-                # 读取输出
+                # 读取stdout
                 try:
                     line = self.process.stdout.readline()
                     if line:
                         line_count += 1
                         print(line.strip(), flush=True)
                 except:
-                    break
+                    pass
+                
+                # 读取stderr
+                try:
+                    err_line = self.process.stderr.readline()
+                    if err_line:
+                        stderr_lines.append(err_line.strip())
+                        print(f"[ERROR] {err_line.strip()}", flush=True)
+                except:
+                    pass
                 
                 # 定期打印进度（每30秒）
                 if time.time() - last_progress_time >= 30:
@@ -241,8 +251,11 @@ class SubsCheckTester:
                 self.logger.info("测试成功完成")
                 return True, "测试成功"
             else:
-                self.logger.error(f"测试失败，返回码: {return_code}")
-                return False, f"测试失败，返回码: {return_code}"
+                error_msg = f"测试失败，返回码: {return_code}"
+                if stderr_lines:
+                    error_msg += f"\n错误信息:\n" + "\n".join(stderr_lines[-10:])  # 只显示最后10行
+                self.logger.error(error_msg)
+                return False, error_msg
             
         except Exception as e:
             self.logger.error(f"运行测试失败: {str(e)}")

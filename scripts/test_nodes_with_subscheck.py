@@ -657,6 +657,9 @@ class SubsCheckTester:
                             params.append(f"host={ws_opts['headers']['Host']}")
                         if 'path' in ws_opts:
                             path = ws_opts['path']
+                            # 移除path中包含的旧名称（#后面的内容）
+                            if '#' in path:
+                                path = path.split('#')[0]
                             # URL编码path中的#符号，避免URI格式错误
                             if '#' in path:
                                 import urllib.parse

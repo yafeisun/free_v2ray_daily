@@ -281,7 +281,6 @@ class SubsCheckTester:
             start_time = time.time()
             last_progress_time = start_time
             last_output_time = start_time
-            last_file_mtime = 0
             line_count = 0
             last_line = ""
             stderr_lines = []
@@ -300,29 +299,6 @@ class SubsCheckTester:
                 if time.time() - last_output_time > 180:
                     self.logger.info("检测到180秒（3分钟）无新输出，认为测试已完成")
                     break
-                
-                # 检查文件保存状态（改进的检测逻辑）
-                # 只有在以下条件都满足时才认为测试完成：
-                # 1. 输出文件存在
-                # 2. 文件60秒未修改（之前是20秒，太短了）
-                # 3. 进程没有新输出超过60秒
-                # 4. 进程已结束或卡住（通过轮询检测）
-                if os.path.exists(self.output_file):
-                    current_mtime = os.path.getmtime(self.output_file)
-                    if last_file_mtime == 0:
-                        last_file_mtime = current_mtime
-                    elif time.time() - last_file_mtime > 60:
-                        # 文件60秒未修改，同时检查进程状态
-                        time_since_last_output = time.time() - last_output_time
-                        if time_since_last_output > 60:
-                            # 文件和输出都停止更新超过60秒，认为测试完成或卡住
-                            self.logger.info(f"输出文件和输出都停止更新超过60秒（文件最后修改: {time.strftime('%H:%M:%S', time.localtime(last_file_mtime))}），认为测试已完成")
-                            break
-                        else:
-                            # 文件未更新但还有输出，可能是正在写入，继续等待
-                            self.logger.debug(f"文件未更新但还有输出，继续等待...")
-                    else:
-                        last_file_mtime = current_mtime
                 
                 # 使用select检查是否有可读数据（非阻塞）
                 import select

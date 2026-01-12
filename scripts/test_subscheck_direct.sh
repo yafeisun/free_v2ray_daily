@@ -38,13 +38,13 @@ node-prefix: ""
 success-limit: 0
 
 output-dir: /home/geely/Documents/Github/free_v2ray_daily/output
-listen-port: 0
+listen-port: ""
 save-method: local
 
 enable-web-ui: false
 api-key: ""
 
-sub-store-port: 8299
+sub-store-port: ""
 sub-store-path: ""
 
 github-proxy: ""

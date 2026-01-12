@@ -7,7 +7,7 @@ download-timeout: 1
 enable-web-ui: false
 github-proxy: ''
 keep-success-proxies: false
-listen-port: 0
+listen-port: ''
 media-check: true
 media-check-timeout: 10
 min-speed: 0
@@ -23,7 +23,7 @@ rename-node: true
 save-method: local
 speed-test-url: ''
 sub-store-path: ''
-sub-store-port: 8299
+sub-store-port: ''
 sub-urls:
 - http://127.0.0.1:8888/result/clash_subscription.yaml
 sub-urls-get-ua: clash.meta (https://github.com/beck-8/subs-check)

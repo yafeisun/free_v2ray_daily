@@ -186,7 +186,7 @@ class SubsCheckTester:
                 
                 # 输出配置
                 'output-dir': self.output_dir,
-                'listen-port': 0,
+                'listen-port': '',
                 'save-method': 'local',
                 
                 # Web UI
@@ -194,7 +194,7 @@ class SubsCheckTester:
                 'api-key': '',
                 
                 # Sub-Store
-                'sub-store-port': 8299,
+                'sub-store-port': '',
                 'sub-store-path': '',
                 
                 # 代理配置

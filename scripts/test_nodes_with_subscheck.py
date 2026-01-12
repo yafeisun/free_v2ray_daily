@@ -150,15 +150,20 @@ class SubsCheckTester:
             self.logger.error(f"安装subs-check失败: {str(e)}")
             return False
     
-    def create_config(self, subscription_file: str) -> bool:
-        """创建subs-check配置文件"""
+    def create_config(self, subscription_file: str, concurrent: int = 20) -> bool:
+        """创建subs-check配置文件
+        
+        Args:
+            subscription_file: 订阅文件路径
+            concurrent: 并发数
+        """
         try:
             self.logger.info("创建subs-check配置文件...")
             
             config = {
                 # 基本配置
                 'print-progress': True,
-                'concurrent': 20,  # 降低并发数，避免网络过载
+                'concurrent': concurrent,  # 根据CPU核心数动态设置
                 'check-interval': 999999,  # 设置为超大值，避免重复测试
                 'timeout': 5000,  # 连通性测试超时5秒
                 
@@ -234,21 +239,25 @@ class SubsCheckTester:
             
             # 动态计算超时时间
             if timeout is None:
+                # 根据CPU核心数动态设置并发数
+                # 每个核心可以处理10-15个并发连接
+                cpu_count = os.cpu_count() or 2
+                concurrent = max(10, min(cpu_count * 10, 30))  # 最小10，最大30
+                
                 # 每个节点测试3个平台（YouTube、GPT、Gemini）
                 # 每个平台超时8秒
                 # 每个节点最大时间 = 3 × 8 = 24秒
-                # 并发数 = 30
                 # 基础时间 = (节点数 / 并发数) × 每个节点最大时间
-                # 加上3倍缓冲时间
-                concurrent = 20  # 降低并发数，避免网络过载
+                # 缓冲倍数基于实际测试时间调整（实际测试时间约为理论时间的35%）
                 platforms = 3
                 platform_timeout = 8
-                buffer_multiplier = 3
+                buffer_multiplier = 1.2  # 基于实际测试数据调整
                 
                 if node_count > 0:
                     base_time = (node_count / concurrent) * (platforms * platform_timeout)
                     timeout = int(base_time * buffer_multiplier)
-                    self.logger.info(f"节点数: {node_count}, 并发: {concurrent}, 平台数: {platforms}")
+                    self.logger.info(f"系统CPU核心数: {cpu_count}, 动态设置并发数: {concurrent}")
+                    self.logger.info(f"节点数: {node_count}, 平台数: {platforms}")
                     self.logger.info(f"基础测试时间: {base_time:.0f}秒, 缓冲倍数: {buffer_multiplier}x")
                     self.logger.info(f"动态计算超时时间: {timeout}秒 ({timeout/60:.1f}分钟)")
                 else:
@@ -825,8 +834,13 @@ def main():
     # 运行subs-check测试
     tester = SubsCheckTester()
     
+    # 计算并发数（根据CPU核心数）
+    cpu_count = os.cpu_count() or 2
+    concurrent = max(10, min(cpu_count * 10, 30))
+    logger.info(f"系统CPU核心数: {cpu_count}, 动态设置并发数: {concurrent}")
+    
     # 创建配置
-    if not tester.create_config(subscription_file):
+    if not tester.create_config(subscription_file, concurrent):
         logger.error("创建配置文件失败")
         sys.exit(1)
     

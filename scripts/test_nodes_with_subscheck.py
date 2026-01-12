@@ -57,9 +57,9 @@ class SubsCheckTester:
                 stderr=subprocess.DEVNULL
             )
             
-            # 等待服务器启动
+            # 等待服务器启动（增加等待时间确保完全启动）
             import time
-            time.sleep(2)
+            time.sleep(5)
             
             # 检查服务器是否成功启动
             if self.http_server_process.poll() is None:
@@ -276,6 +276,12 @@ class SubsCheckTester:
                     if char:
                         if char == '\n':
                             # 打印完整行
+                            if last_line.strip():
+                                print(last_line.strip(), flush=True)
+                                line_count += 1
+                            last_line = ""
+                        elif char == '\r':
+                            # 处理进度条（\r表示行首，用于更新进度条）
                             if last_line.strip():
                                 print(last_line.strip(), flush=True)
                                 line_count += 1

@@ -7,10 +7,9 @@ download-timeout: 1
 enable-web-ui: false
 github-proxy: ''
 keep-success-proxies: false
-listen-port: 8199
+listen-port: 0
 media-check: true
 media-check-timeout: 10
-mihomo-overwrite-url: http://127.0.0.1:8199/sub/ACL4SSR_Online_Full.yaml
 min-speed: 0
 node-prefix: ''
 output-dir: /home/geely/Documents/Github/free_v2ray_daily/output

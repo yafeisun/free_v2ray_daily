@@ -369,11 +369,34 @@ class SubsCheckTester:
             # 停止HTTP服务器
             self.stop_http_server()
             
+            # 检查输出文件是否存在且有效
+            output_file_exists = os.path.exists(self.output_file)
+            output_file_valid = False
+            
+            if output_file_exists:
+                try:
+                    with open(self.output_file, 'r', encoding='utf-8') as f:
+                        data = yaml.safe_load(f)
+                    if data and 'proxies' in data and len(data['proxies']) > 0:
+                        output_file_valid = True
+                        self.logger.info(f"输出文件有效，包含 {len(data['proxies'])} 个节点")
+                except Exception as e:
+                    self.logger.warning(f"检查输出文件失败: {str(e)}")
+            
+            # 判断测试是否成功
             if return_code == 0:
                 self.logger.info("测试成功完成")
                 return True, "测试成功"
+            elif output_file_valid:
+                # 进程被强制终止，但输出文件有效，认为测试成功
+                self.logger.info(f"进程被终止（返回码: {return_code}），但输出文件有效，认为测试成功")
+                return True, f"测试成功（进程返回码: {return_code}，但结果文件有效）"
             else:
                 error_msg = f"测试失败，返回码: {return_code}"
+                if output_file_exists:
+                    error_msg += "，输出文件无效或为空"
+                else:
+                    error_msg += "，输出文件不存在"
                 if stderr_lines:
                     error_msg += f"\n错误信息:\n" + "\n".join(stderr_lines[-10:])  # 只显示最后10行
                 self.logger.error(error_msg)

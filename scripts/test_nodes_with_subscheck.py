@@ -225,7 +225,7 @@ class SubsCheckTester:
             self.logger.error(f"创建配置文件失败: {str(e)}")
             return False
     
-    def run_test(self, timeout: int = 3600) -> Tuple[bool, str]:
+    def run_test(self, timeout: int = 86400) -> Tuple[bool, str]:  # 24小时超时，实际由静默超时控制
         """运行测试"""
         try:
             # 启动HTTP服务器
@@ -263,15 +263,16 @@ class SubsCheckTester:
             stderr_lines = []
             
             while True:
-                # 检查超时
+                # 检查总超时（24小时，防止无限运行）
                 elapsed = time.time() - start_time
                 if elapsed > timeout:
-                    self.logger.error("测试超时")
+                    self.logger.error(f"测试超过{timeout/3600}小时，强制终止")
                     self.process.terminate()
                     self.process.wait(timeout=10)
                     return False, "测试超时"
                 
                 # 检查静默超时（60秒没有新输出就认为测试完成）
+                # 这是实际的控制机制：只要日志正常输出，就一直运行
                 if time.time() - last_output_time > 60:
                     self.logger.info("检测到60秒无新输出，认为测试已完成")
                     break
@@ -677,7 +678,7 @@ def main():
     parser = argparse.ArgumentParser(description='节点测速脚本 - 使用subs-check')
     parser.add_argument('--input', default='result/nodetotal.txt', help='输入节点文件')
     parser.add_argument('--output', default='result/nodelist.txt', help='输出节点文件')
-    parser.add_argument('--timeout', type=int, default=3600, help='测试超时时间（秒，默认60分钟）')
+    parser.add_argument('--timeout', type=int, default=86400, help='测试超时时间（秒，默认24小时，实际由60秒静默超时控制）')
     
     args = parser.parse_args()
     

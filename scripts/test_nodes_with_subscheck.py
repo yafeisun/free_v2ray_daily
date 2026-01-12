@@ -225,12 +225,35 @@ class SubsCheckTester:
             self.logger.error(f"创建配置文件失败: {str(e)}")
             return False
     
-    def run_test(self, timeout: int = 86400) -> Tuple[bool, str]:  # 24小时超时，实际由静默超时控制
+    def run_test(self, node_count: int = 0, timeout: int = None) -> Tuple[bool, str]:
         """运行测试"""
         try:
             # 启动HTTP服务器
             if not self.start_http_server():
                 return False, "HTTP服务器启动失败"
+            
+            # 动态计算超时时间
+            if timeout is None:
+                # 每个节点测试3个平台（YouTube、GPT、Gemini）
+                # 每个平台超时8秒
+                # 每个节点最大时间 = 3 × 8 = 24秒
+                # 并发数 = 30
+                # 基础时间 = (节点数 / 并发数) × 每个节点最大时间
+                # 加上3倍缓冲时间
+                concurrent = 30
+                platforms = 3
+                platform_timeout = 8
+                buffer_multiplier = 3
+                
+                if node_count > 0:
+                    base_time = (node_count / concurrent) * (platforms * platform_timeout)
+                    timeout = int(base_time * buffer_multiplier)
+                    self.logger.info(f"节点数: {node_count}, 并发: {concurrent}, 平台数: {platforms}")
+                    self.logger.info(f"基础测试时间: {base_time:.0f}秒, 缓冲倍数: {buffer_multiplier}x")
+                    self.logger.info(f"动态计算超时时间: {timeout}秒 ({timeout/60:.1f}分钟)")
+                else:
+                    timeout = 86400  # 默认24小时
+                    self.logger.info(f"未提供节点数，使用默认超时: {timeout}秒")
             
             self.logger.info("开始运行subs-check测试...")
             
@@ -263,10 +286,10 @@ class SubsCheckTester:
             stderr_lines = []
             
             while True:
-                # 检查总超时（24小时，防止无限运行）
+                # 检查总超时（根据节点数量动态计算）
                 elapsed = time.time() - start_time
                 if elapsed > timeout:
-                    self.logger.error(f"测试超过{timeout/3600}小时，强制终止")
+                    self.logger.error(f"测试超过动态计算的超时时间 {timeout}秒 ({timeout/60:.1f}分钟)，强制终止")
                     self.process.terminate()
                     self.process.wait(timeout=10)
                     return False, "测试超时"
@@ -678,7 +701,6 @@ def main():
     parser = argparse.ArgumentParser(description='节点测速脚本 - 使用subs-check')
     parser.add_argument('--input', default='result/nodetotal.txt', help='输入节点文件')
     parser.add_argument('--output', default='result/nodelist.txt', help='输出节点文件')
-    parser.add_argument('--timeout', type=int, default=86400, help='测试超时时间（秒，默认24小时，实际由60秒静默超时控制）')
     
     args = parser.parse_args()
     
@@ -721,7 +743,7 @@ def main():
         sys.exit(1)
     
     # 运行测试
-    success, message = tester.run_test(timeout=args.timeout)
+    success, message = tester.run_test(node_count=len(nodes))
     
     if not success:
         logger.error(f"测试失败: {message}")

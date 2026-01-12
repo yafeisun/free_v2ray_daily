@@ -114,7 +114,7 @@ jobs:
         echo "  - 支持的流媒体平台: YouTube, Netflix, OpenAI, Gemini"
         
         # 使用stdbuf禁用所有缓冲，确保实时输出
-        stdbuf -o0 -e0 python3 scripts/test_nodes_with_subscheck.py --input result/nodetotal.txt --output result/nodelist.txt --timeout 86400 2>&1 | stdbuf -o0 -e0 tee test_output.log
+        stdbuf -o0 -e0 python3 scripts/test_nodes_with_subscheck.py --input result/nodetotal.txt --output result/nodelist.txt 2>&1 | stdbuf -o0 -e0 tee test_output.log
         
         echo "节点测试完成"
       continue-on-error: true

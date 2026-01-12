@@ -276,33 +276,44 @@ class SubsCheckTester:
                     self.logger.info("检测到60秒无新输出，认为测试已完成")
                     break
                 
-                # 读取输出（按字节读取以避免行缓冲）
+                # 使用select检查是否有可读数据（非阻塞）
+                import select
                 try:
-                    byte = self.process.stdout.read(1)
-                    if byte:
-                        # 将字节解码为字符
-                        char = byte.decode('utf-8', errors='ignore')
-                        if char == '\n':
-                            # 打印完整行
-                            if last_line.strip():
-                                print(last_line.strip(), flush=True)
-                                stderr_lines.append(last_line.strip())
-                                line_count += 1
-                            last_line = ""
-                        elif char == '\r':
-                            # 处理进度条（\r表示行首，用于更新进度条）
-                            if last_line.strip():
-                                print(last_line.strip(), flush=True)
-                                stderr_lines.append(last_line.strip())
-                                line_count += 1
-                            last_line = ""
-                        else:
-                            last_line += char
-                            # 定期刷新输出（每100个字符）
-                            if len(last_line) >= 100:
-                                print(last_line, end='', flush=True)
+                    ready, _, _ = select.select([self.process.stdout], [], [], 1.0)  # 1秒超时
+                    if ready:
+                        # 有数据可读
+                        byte = self.process.stdout.read(1)
+                        if byte:
+                            # 更新最后输出时间
+                            last_output_time = time.time()
+                            
+                            # 将字节解码为字符
+                            char = byte.decode('utf-8', errors='ignore')
+                            if char == '\n':
+                                # 打印完整行
+                                if last_line.strip():
+                                    print(last_line.strip(), flush=True)
+                                    stderr_lines.append(last_line.strip())
+                                    line_count += 1
                                 last_line = ""
-                except:
+                            elif char == '\r':
+                                # 处理进度条（\r表示行首，用于更新进度条）
+                                if last_line.strip():
+                                    print(last_line.strip(), flush=True)
+                                    stderr_lines.append(last_line.strip())
+                                    line_count += 1
+                                last_line = ""
+                            else:
+                                last_line += char
+                                # 定期刷新输出（每100个字符）
+                                if len(last_line) >= 100:
+                                    print(last_line, end='', flush=True)
+                                    last_line = ""
+                        else:
+                            # EOF，进程结束
+                            break
+                except (OSError, ValueError):
+                    # 进程已结束
                     break
                 
                 # 定期打印进度（每30秒）

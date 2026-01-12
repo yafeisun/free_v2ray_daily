@@ -257,6 +257,7 @@ class SubsCheckTester:
             # 实时输出日志
             start_time = time.time()
             last_progress_time = start_time
+            last_output_time = start_time
             line_count = 0
             last_line = ""
             stderr_lines = []
@@ -269,6 +270,11 @@ class SubsCheckTester:
                     self.process.terminate()
                     self.process.wait(timeout=10)
                     return False, "测试超时"
+                
+                # 检查静默超时（60秒没有新输出就认为测试完成）
+                if time.time() - last_output_time > 60:
+                    self.logger.info("检测到60秒无新输出，认为测试已完成")
+                    break
                 
                 # 读取输出（按字节读取以避免行缓冲）
                 try:

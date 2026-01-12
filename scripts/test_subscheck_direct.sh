@@ -38,7 +38,7 @@ node-prefix: ""
 success-limit: 0
 
 output-dir: /home/geely/Documents/Github/free_v2ray_daily/output
-listen-port: 8199
+listen-port: 0
 save-method: local
 
 enable-web-ui: false
@@ -46,7 +46,6 @@ api-key: ""
 
 sub-store-port: 8299
 sub-store-path: ""
-mihomo-overwrite-url: http://127.0.0.1:8199/sub/ACL4SSR_Online_Full.yaml
 
 github-proxy: ""
 proxy: ""

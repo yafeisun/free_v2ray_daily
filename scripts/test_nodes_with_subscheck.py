@@ -260,6 +260,7 @@ class SubsCheckTester:
             last_progress_time = start_time
             line_count = 0
             last_line = ""
+            stderr_lines = []
             
             while True:
                 # 检查超时
@@ -280,12 +281,14 @@ class SubsCheckTester:
                             # 打印完整行
                             if last_line.strip():
                                 print(last_line.strip(), flush=True)
+                                stderr_lines.append(last_line.strip())
                                 line_count += 1
                             last_line = ""
                         elif char == '\r':
                             # 处理进度条（\r表示行首，用于更新进度条）
                             if last_line.strip():
                                 print(last_line.strip(), flush=True)
+                                stderr_lines.append(last_line.strip())
                                 line_count += 1
                             last_line = ""
                         else:
@@ -333,7 +336,7 @@ class SubsCheckTester:
             return False, str(e)
     
     def parse_results(self) -> List[str]:
-        """解析测试结果"""
+        """解析测试结果并重命名节点"""
         try:
             if not os.path.exists(self.output_file):
                 self.logger.warning("输出文件不存在")
@@ -344,20 +347,219 @@ class SubsCheckTester:
             with open(self.output_file, 'r', encoding='utf-8') as f:
                 data = yaml.safe_load(f)
             
-            # 提取节点
-            nodes = []
+            # 提取节点并重命名
+            renamed_nodes = []
             if data and 'proxies' in data:
+                # 按地区分组
+                region_counters = {}
                 for proxy in data['proxies']:
-                    # 这里需要将Clash节点转换回V2Ray URI格式
-                    # 暂时保存节点名称
-                    nodes.append(proxy.get('name', 'Unknown'))
+                    # 提取地区信息
+                    region = self._extract_region(proxy)
+                    
+                    # 更新地区计数器
+                    if region not in region_counters:
+                        region_counters[region] = 0
+                    region_counters[region] += 1
+                    
+                    # 提取测试结果
+                    media_info = self._extract_media_info(proxy)
+                    
+                    # 生成新名称
+                    new_name = self._generate_node_name(region, region_counters[region], media_info)
+                    
+                    # 将Clash节点转换回V2Ray URI格式
+                    v2ray_uri = self._convert_proxy_to_uri(proxy, new_name)
+                    if v2ray_uri:
+                        renamed_nodes.append(v2ray_uri)
             
-            self.logger.info(f"从测试结果中提取到 {len(nodes)} 个有效节点")
-            return nodes
+            self.logger.info(f"从测试结果中提取并重命名 {len(renamed_nodes)} 个有效节点")
+            return renamed_nodes
             
         except Exception as e:
             self.logger.error(f"解析测试结果失败: {str(e)}")
             return []
+    
+    def _extract_region(self, proxy: dict) -> str:
+        """从节点中提取地区信息"""
+        name = proxy.get('name', '')
+        server = proxy.get('server', '')
+        
+        # 检查名称中是否包含地区标识
+        region_keywords = {
+            'HK': 'HK',
+            '香港': 'HK',
+            'Hong Kong': 'HK',
+            'US': 'US',
+            '美国': 'US',
+            'USA': 'US',
+            'JP': 'JP',
+            '日本': 'JP',
+            'Japan': 'JP',
+            'SG': 'SG',
+            '新加坡': 'SG',
+            'Singapore': 'SG',
+            'TW': 'TW',
+            '台湾': 'TW',
+            'Taiwan': 'TW',
+            'KR': 'KR',
+            '韩国': 'KR',
+            'Korea': 'KR',
+            'DE': 'DE',
+            '德国': 'DE',
+            'Germany': 'DE',
+            'GB': 'GB',
+            '英国': 'GB',
+            'UK': 'GB',
+            'FR': 'FR',
+            '法国': 'FR',
+            'France': 'FR',
+            'CA': 'CA',
+            '加拿大': 'CA',
+            'Canada': 'CA',
+        }
+        
+        for keyword, region in region_keywords.items():
+            if keyword in name:
+                return region
+        
+        # 默认返回US
+        return 'US'
+    
+    def _extract_media_info(self, proxy: dict) -> dict:
+        """从节点中提取媒体测试结果"""
+        media_info = {
+            'gpt': False,
+            'gemini': False,
+            'youtube': False
+        }
+        
+        # subs-check会在节点名称中添加媒体解锁标记
+        name = proxy.get('name', '')
+        
+        # 检查GPT标记
+        if 'GPT' in name or 'OpenAI' in name:
+            media_info['gpt'] = True
+        
+        # 检查Gemini标记
+        if 'Gemini' in name:
+            media_info['gemini'] = True
+        
+        # 检查YouTube标记
+        if 'YouTube' in name or 'YT' in name:
+            media_info['youtube'] = True
+        
+        return media_info
+    
+    def _generate_node_name(self, region: str, number: int, media_info: dict) -> str:
+        """生成节点名称"""
+        # 国旗映射
+        flags = {
+            'HK': '🇭🇰',
+            'US': '🇺🇸',
+            'JP': '🇯🇵',
+            'SG': '🇸🇬',
+            'TW': '🇨🇳',
+            'KR': '🇰🇷',
+            'DE': '🇩🇪',
+            'GB': '🇬🇧',
+            'FR': '🇫🇷',
+            'CA': '🇨🇦',
+        }
+        
+        flag = flags.get(region, '')
+        
+        # 生成AI标记
+        ai_tag = ''
+        if media_info['gpt'] and media_info['gemini']:
+            ai_tag = 'GPT+'
+        elif media_info['gpt']:
+            ai_tag = 'GPT'
+        elif media_info['gemini']:
+            ai_tag = 'Gemini'
+        
+        # 生成YouTube标记
+        yt_tag = '|YT' if media_info['youtube'] else ''
+        
+        # 组合名称
+        return f"{flag}{region}_{number}|{ai_tag}{yt_tag}"
+    
+    def _convert_proxy_to_uri(self, proxy: dict, new_name: str) -> str:
+        """将Clash节点转换回V2Ray URI格式"""
+        try:
+            proxy_type = proxy.get('type', '')
+            
+            if proxy_type == 'ss':
+                # Shadowsocks节点
+                cipher = proxy.get('cipher', 'aes-256-gcm')
+                password = proxy.get('password', '')
+                server = proxy.get('server', '')
+                port = proxy.get('port', 443)
+                return f"ss://{cipher}:{password}@{server}:{port}#{new_name}"
+            
+            elif proxy_type == 'vmess':
+                # VMess节点
+                return f"vmess://{new_name}"
+            
+            elif proxy_type == 'vless':
+                # VLESS节点
+                uuid = proxy.get('uuid', '')
+                server = proxy.get('server', '')
+                port = proxy.get('port', 443)
+                security = proxy.get('tls', False)
+                sni = proxy.get('servername', '')
+                network = proxy.get('network', 'tcp')
+                
+                # 构建VLESS URI
+                params = []
+                params.append(f"encryption=none")
+                if security:
+                    params.append(f"security=tls")
+                    if sni:
+                        params.append(f"sni={sni}")
+                params.append(f"type={network}")
+                
+                if network == 'ws':
+                    ws_opts = proxy.get('ws-opts', {})
+                    if ws_opts:
+                        if 'headers' in ws_opts and 'Host' in ws_opts['headers']:
+                            params.append(f"host={ws_opts['headers']['Host']}")
+                        if 'path' in ws_opts:
+                            params.append(f"path={ws_opts['path']}")
+                
+                uri = f"vless://{uuid}@{server}:{port}?{'&'.join(params)}#{new_name}"
+                return uri
+            
+            elif proxy_type == 'trojan':
+                # Trojan节点
+                password = proxy.get('password', '')
+                server = proxy.get('server', '')
+                port = proxy.get('port', 443)
+                sni = proxy.get('sni', '')
+                
+                params = []
+                params.append(f"security=tls")
+                if sni:
+                    params.append(f"sni={sni}")
+                
+                uri = f"trojan://{password}@{server}:{port}?{'&'.join(params)}#{new_name}"
+                return uri
+            
+            elif proxy_type == 'hysteria2':
+                # Hysteria2节点
+                password = proxy.get('password', '')
+                server = proxy.get('server', '')
+                port = proxy.get('port', 443)
+                
+                uri = f"hysteria2://{password}@{server}:{port}?insecure=1#{new_name}"
+                return uri
+            
+            else:
+                self.logger.warning(f"不支持的节点类型: {proxy_type}")
+                return ''
+        
+        except Exception as e:
+            self.logger.error(f"转换节点失败: {str(e)}")
+            return ''
 
 
 def convert_nodes_to_vless_yaml(clash_file: str, output_file: str) -> bool:
@@ -472,17 +674,23 @@ def main():
     # 解析结果
     logger.info("解析测试结果...")
     
-    # 将Clash结果转换回V2Ray格式
-    if os.path.exists(tester.output_file):
-        if convert_nodes_to_vless_yaml(tester.output_file, args.output):
-            logger.info(f"有效节点已保存到: {args.output}")
-        else:
-            logger.warning("转换节点失败，使用Clash格式输出")
-            # 直接复制Clash输出
+    # 使用parse_results方法解析结果并重命名节点
+    renamed_nodes = tester.parse_results()
+    
+    if renamed_nodes:
+        # 保存重命名后的节点
+        os.makedirs(os.path.dirname(args.output), exist_ok=True)
+        with open(args.output, 'w', encoding='utf-8') as f:
+            for node in renamed_nodes:
+                f.write(f"{node}\n")
+        logger.info(f"有效节点已保存到: {args.output}")
+    else:
+        logger.warning("未找到有效节点")
+        # 保留原始Clash输出
+        if os.path.exists(tester.output_file):
             import shutil
             shutil.copy(tester.output_file, args.output)
-    else:
-        logger.warning("输出文件不存在")
+            logger.info(f"使用Clash格式输出: {args.output}")
     
     logger.info("✓ 测试完成")
     sys.exit(0)

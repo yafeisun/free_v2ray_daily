@@ -294,10 +294,10 @@ class SubsCheckTester:
                     self.process.wait(timeout=10)
                     return False, "测试超时"
                 
-                # 检查静默超时（60秒没有新输出就认为测试完成）
+                # 检查静默超时（300秒没有新输出就认为测试完成）
                 # 这是实际的控制机制：只要日志正常输出，就一直运行
-                if time.time() - last_output_time > 60:
-                    self.logger.info("检测到60秒无新输出，认为测试已完成")
+                if time.time() - last_output_time > 300:
+                    self.logger.info("检测到300秒（5分钟）无新输出，认为测试已完成")
                     break
                 
                 # 使用select检查是否有可读数据（非阻塞）

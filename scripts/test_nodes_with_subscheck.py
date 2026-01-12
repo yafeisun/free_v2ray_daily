@@ -423,21 +423,11 @@ class SubsCheckTester:
             # 提取节点并重命名
             renamed_nodes = []
             total_count = 0
-            delay_filtered_count = 0
             media_filtered_count = 0
             
             if data and 'proxies' in data:
                 for proxy in data['proxies']:
                     total_count += 1
-                    
-                    # 提取延迟信息（从节点名称中）
-                    name = proxy.get('name', '')
-                    delay_ms = self._extract_delay_from_name(name)
-                    
-                    # 过滤延迟超过1秒的节点
-                    if delay_ms > 1000:
-                        delay_filtered_count += 1
-                        continue
                     
                     # 提取地区信息
                     region = self._extract_region(proxy)
@@ -464,7 +454,7 @@ class SubsCheckTester:
                     if v2ray_uri:
                         renamed_nodes.append(v2ray_uri)
             
-            self.logger.info(f"节点统计: 总数{total_count}, 延迟过滤{delay_filtered_count}, 媒体过滤{media_filtered_count}, 有效{len(renamed_nodes)}")
+            self.logger.info(f"节点统计: 总数{total_count}, 媒体过滤{media_filtered_count}, 有效{len(renamed_nodes)}")
             self.logger.info(f"从测试结果中提取并重命名 {len(renamed_nodes)} 个有效节点")
             return renamed_nodes
             

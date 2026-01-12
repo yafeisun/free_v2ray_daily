@@ -301,14 +301,26 @@ class SubsCheckTester:
                     self.logger.info("检测到180秒（3分钟）无新输出，认为测试已完成")
                     break
                 
-                # 检查文件保存状态（文件20秒未修改，认为测试完成）
+                # 检查文件保存状态（改进的检测逻辑）
+                # 只有在以下条件都满足时才认为测试完成：
+                # 1. 输出文件存在
+                # 2. 文件60秒未修改（之前是20秒，太短了）
+                # 3. 进程没有新输出超过60秒
+                # 4. 进程已结束或卡住（通过轮询检测）
                 if os.path.exists(self.output_file):
                     current_mtime = os.path.getmtime(self.output_file)
                     if last_file_mtime == 0:
                         last_file_mtime = current_mtime
-                    elif time.time() - last_file_mtime > 20:
-                        self.logger.info(f"输出文件20秒未修改（最后修改: {time.strftime('%H:%M:%S', time.localtime(last_file_mtime))}），认为测试已完成")
-                        break
+                    elif time.time() - last_file_mtime > 60:
+                        # 文件60秒未修改，同时检查进程状态
+                        time_since_last_output = time.time() - last_output_time
+                        if time_since_last_output > 60:
+                            # 文件和输出都停止更新超过60秒，认为测试完成或卡住
+                            self.logger.info(f"输出文件和输出都停止更新超过60秒（文件最后修改: {time.strftime('%H:%M:%S', time.localtime(last_file_mtime))}），认为测试已完成")
+                            break
+                        else:
+                            # 文件未更新但还有输出，可能是正在写入，继续等待
+                            self.logger.debug(f"文件未更新但还有输出，继续等待...")
                     else:
                         last_file_mtime = current_mtime
                 
@@ -368,15 +380,22 @@ class SubsCheckTester:
             # 等待进程结束（带超时）
             try:
                 return_code = self.process.wait(timeout=30)  # 30秒超时
+                self.logger.info(f"进程正常退出，返回码: {return_code}")
             except subprocess.TimeoutExpired:
-                self.logger.warning("进程未在30秒内退出，强制终止")
+                self.logger.warning("进程未在30秒内退出，尝试优雅终止...")
                 self.process.terminate()
                 try:
                     return_code = self.process.wait(timeout=10)  # 再等10秒
+                    self.logger.info(f"进程已终止，返回码: {return_code}")
                 except subprocess.TimeoutExpired:
                     self.logger.error("进程无法终止，强制kill")
                     self.process.kill()
-                    return_code = -1
+                    try:
+                        return_code = self.process.wait(timeout=5)  # 等待kill完成
+                        self.logger.info(f"进程已被kill，返回码: {return_code}")
+                    except subprocess.TimeoutExpired:
+                        self.logger.error("进程无法kill，可能已僵死")
+                        return_code = -1
             
             # 停止HTTP服务器
             self.stop_http_server()
@@ -384,29 +403,45 @@ class SubsCheckTester:
             # 检查输出文件是否存在且有效
             output_file_exists = os.path.exists(self.output_file)
             output_file_valid = False
+            tested_node_count = 0
             
             if output_file_exists:
                 try:
                     with open(self.output_file, 'r', encoding='utf-8') as f:
                         data = yaml.safe_load(f)
-                    if data and 'proxies' in data and len(data['proxies']) > 0:
-                        output_file_valid = True
-                        self.logger.info(f"输出文件有效，包含 {len(data['proxies'])} 个节点")
+                    if data and 'proxies' in data:
+                        tested_node_count = len(data['proxies'])
+                        if tested_node_count > 0:
+                            output_file_valid = True
+                            self.logger.info(f"输出文件有效，包含 {tested_node_count} 个节点")
+                        else:
+                            self.logger.warning("输出文件存在但没有节点")
                 except Exception as e:
                     self.logger.warning(f"检查输出文件失败: {str(e)}")
             
             # 判断测试是否成功
+            # 成功条件：
+            # 1. 进程正常退出（return_code == 0）
+            # 2. 或者进程被终止但输出文件有效且节点数量合理（至少完成了30%的测试）
+            
+            success_threshold = max(1, int(node_count * 0.3))  # 至少完成30%的测试
+            
             if return_code == 0:
                 self.logger.info("测试成功完成")
                 return True, "测试成功"
-            elif output_file_valid:
-                # 进程被强制终止，但输出文件有效，认为测试成功
-                self.logger.info(f"进程被终止（返回码: {return_code}），但输出文件有效，认为测试成功")
-                return True, f"测试成功（进程返回码: {return_code}，但结果文件有效）"
+            elif output_file_valid and tested_node_count >= success_threshold:
+                # 进程被强制终止，但输出文件有效且节点数量合理，认为部分成功
+                completion_rate = (tested_node_count / node_count * 100) if node_count > 0 else 0
+                self.logger.info(f"进程被终止（返回码: {return_code}），但输出文件有效，测试了 {tested_node_count}/{node_count} 个节点（{completion_rate:.1f}%），认为测试成功")
+                return True, f"测试成功（进程返回码: {return_code}，测试了 {tested_node_count}/{node_count} 个节点）"
             else:
+                # 测试失败
                 error_msg = f"测试失败，返回码: {return_code}"
                 if output_file_exists:
-                    error_msg += "，输出文件无效或为空"
+                    if output_file_valid:
+                        error_msg += f"，输出文件有效但节点数量不足（{tested_node_count}/{node_count}，需要至少{success_threshold}个）"
+                    else:
+                        error_msg += "，输出文件无效或为空"
                 else:
                     error_msg += "，输出文件不存在"
                 if stderr_lines:

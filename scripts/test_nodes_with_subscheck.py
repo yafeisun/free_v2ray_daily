@@ -225,7 +225,7 @@ class SubsCheckTester:
             self.logger.error(f"创建配置文件失败: {str(e)}")
             return False
     
-    def run_test(self, timeout: int = 1800) -> Tuple[bool, str]:
+    def run_test(self, timeout: int = 3600) -> Tuple[bool, str]:
         """运行测试"""
         try:
             # 启动HTTP服务器
@@ -677,7 +677,7 @@ def main():
     parser = argparse.ArgumentParser(description='节点测速脚本 - 使用subs-check')
     parser.add_argument('--input', default='result/nodetotal.txt', help='输入节点文件')
     parser.add_argument('--output', default='result/nodelist.txt', help='输出节点文件')
-    parser.add_argument('--timeout', type=int, default=1800, help='测试超时时间（秒）')
+    parser.add_argument('--timeout', type=int, default=3600, help='测试超时时间（秒，默认60分钟）')
     
     args = parser.parse_args()
     

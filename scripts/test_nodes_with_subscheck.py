@@ -329,8 +329,18 @@ class SubsCheckTester:
                 
                 time.sleep(0.01)  # 更频繁的检查
             
-            # 等待进程结束
-            return_code = self.process.wait()
+            # 等待进程结束（带超时）
+            try:
+                return_code = self.process.wait(timeout=30)  # 30秒超时
+            except subprocess.TimeoutExpired:
+                self.logger.warning("进程未在30秒内退出，强制终止")
+                self.process.terminate()
+                try:
+                    return_code = self.process.wait(timeout=10)  # 再等10秒
+                except subprocess.TimeoutExpired:
+                    self.logger.error("进程无法终止，强制kill")
+                    self.process.kill()
+                    return_code = -1
             
             # 停止HTTP服务器
             self.stop_http_server()

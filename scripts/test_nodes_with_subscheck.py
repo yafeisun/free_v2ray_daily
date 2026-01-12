@@ -295,19 +295,19 @@ class SubsCheckTester:
                     self.process.wait(timeout=10)
                     return False, "测试超时"
                 
-                # 检查静默超时（300秒没有新输出就认为测试完成）
+                # 检查静默超时（180秒没有新输出就认为测试完成）
                 # 这是实际的控制机制：只要日志正常输出，就一直运行
-                if time.time() - last_output_time > 300:
-                    self.logger.info("检测到300秒（5分钟）无新输出，认为测试已完成")
+                if time.time() - last_output_time > 180:
+                    self.logger.info("检测到180秒（3分钟）无新输出，认为测试已完成")
                     break
                 
-                # 检查文件保存状态（文件30秒未修改，认为测试完成）
+                # 检查文件保存状态（文件20秒未修改，认为测试完成）
                 if os.path.exists(self.output_file):
                     current_mtime = os.path.getmtime(self.output_file)
                     if last_file_mtime == 0:
                         last_file_mtime = current_mtime
-                    elif time.time() - last_file_mtime > 30:
-                        self.logger.info(f"输出文件30秒未修改（最后修改: {time.strftime('%H:%M:%S', time.localtime(last_file_mtime))}），认为测试已完成")
+                    elif time.time() - last_file_mtime > 20:
+                        self.logger.info(f"输出文件20秒未修改（最后修改: {time.strftime('%H:%M:%S', time.localtime(last_file_mtime))}），认为测试已完成")
                         break
                     else:
                         last_file_mtime = current_mtime

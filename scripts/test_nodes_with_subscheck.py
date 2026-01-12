@@ -158,7 +158,7 @@ class SubsCheckTester:
             config = {
                 # 基本配置
                 'print-progress': True,
-                'concurrent': 30,
+                'concurrent': 20,  # 降低并发数，避免网络过载
                 'check-interval': 999999,  # 设置为超大值，避免重复测试
                 'timeout': 5000,  # 连通性测试超时5秒
                 
@@ -240,7 +240,7 @@ class SubsCheckTester:
                 # 并发数 = 30
                 # 基础时间 = (节点数 / 并发数) × 每个节点最大时间
                 # 加上3倍缓冲时间
-                concurrent = 30
+                concurrent = 20  # 降低并发数，避免网络过载
                 platforms = 3
                 platform_timeout = 8
                 buffer_multiplier = 3
@@ -281,6 +281,7 @@ class SubsCheckTester:
             start_time = time.time()
             last_progress_time = start_time
             last_output_time = start_time
+            last_file_mtime = 0
             line_count = 0
             last_line = ""
             stderr_lines = []
@@ -299,6 +300,17 @@ class SubsCheckTester:
                 if time.time() - last_output_time > 300:
                     self.logger.info("检测到300秒（5分钟）无新输出，认为测试已完成")
                     break
+                
+                # 检查文件保存状态（文件30秒未修改，认为测试完成）
+                if os.path.exists(self.output_file):
+                    current_mtime = os.path.getmtime(self.output_file)
+                    if last_file_mtime == 0:
+                        last_file_mtime = current_mtime
+                    elif time.time() - last_file_mtime > 30:
+                        self.logger.info(f"输出文件30秒未修改（最后修改: {time.strftime('%H:%M:%S', time.localtime(last_file_mtime))}），认为测试已完成")
+                        break
+                    else:
+                        last_file_mtime = current_mtime
                 
                 # 使用select检查是否有可读数据（非阻塞）
                 import select

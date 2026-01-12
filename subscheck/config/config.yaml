@@ -1,7 +1,7 @@
 alive-test-url: http://gstatic.com/generate_204
 api-key: ''
 check-interval: 999999
-concurrent: 30
+concurrent: 20
 download-mb: 0
 download-timeout: 1
 enable-web-ui: false

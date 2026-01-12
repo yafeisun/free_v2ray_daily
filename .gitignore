@@ -60,3 +60,10 @@ result/[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]/
 
 # Processed node data (temporary files)
 data/processed/*.json
+
+# Subs-check binary and config
+subscheck/bin/
+subscheck/config/config.yaml
+
+# Output files (test results)
+output/

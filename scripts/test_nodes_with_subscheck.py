@@ -158,7 +158,7 @@ class SubsCheckTester:
             config = {
                 # 基本配置
                 'print-progress': True,
-                'concurrent': 20,
+                'concurrent': 50,
                 'check-interval': 120,
                 'timeout': 3000,
                 
@@ -172,7 +172,7 @@ class SubsCheckTester:
                 
                 # 流媒体检测
                 'media-check': True,
-                'media-check-timeout': 10,
+                'media-check-timeout': 5,
                 'platforms': [
                     'youtube',
                     'openai',

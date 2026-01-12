@@ -656,7 +656,12 @@ class SubsCheckTester:
                         if 'headers' in ws_opts and 'Host' in ws_opts['headers']:
                             params.append(f"host={ws_opts['headers']['Host']}")
                         if 'path' in ws_opts:
-                            params.append(f"path={ws_opts['path']}")
+                            path = ws_opts['path']
+                            # URL编码path中的#符号，避免URI格式错误
+                            if '#' in path:
+                                import urllib.parse
+                                path = urllib.parse.quote(path, safe='')
+                            params.append(f"path={path}")
                 
                 uri = f"vless://{uuid}@{server}:{port}?{'&'.join(params)}#{new_name}"
                 return uri

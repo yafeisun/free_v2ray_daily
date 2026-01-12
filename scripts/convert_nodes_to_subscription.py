@@ -85,7 +85,8 @@ def parse_vless(vless_uri: str) -> Dict[str, Any]:
             port, name = port.split('#', 1)
             name = unquote(name)
         else:
-            name = 'VLESS'
+            # 生成唯一名称：使用server+port组合
+            name = f'VLESS-{server}:{port}'
         
         # 清理端口字符串（移除可能的斜杠等）
         port = port.strip().rstrip('/')
@@ -156,7 +157,8 @@ def parse_trojan(trojan_uri: str) -> Dict[str, Any]:
             port, name = port.split('#', 1)
             name = unquote(name)
         else:
-            name = 'Trojan'
+            # 生成唯一名称：使用server+port组合
+            name = f'Trojan-{server}:{port}'
         
         # 解析参数
         if '?' in port:
@@ -201,7 +203,8 @@ def parse_ss(ss_uri: str) -> Dict[str, Any]:
             name = unquote(name)
         else:
             encoded = uri
-            name = 'SS'
+            # 生成唯一名称：使用server+port组合（需要先解析server和port）
+            name = 'SS'  # 临时名称，后面会替换
         
         # 分离参数
         if '?' in encoded:
@@ -224,6 +227,9 @@ def parse_ss(ss_uri: str) -> Dict[str, Any]:
                     # 这是 UUID 格式，使用默认配置
                     if ':' in server_port:
                         server, port = server_port.split(':', 1)
+                        # 如果name是临时名称，生成唯一名称
+                        if name == 'SS':
+                            name = f'SS-{server}:{port}'
                         proxy = {
                             'name': name,
                             'type': 'ss',
@@ -331,6 +337,10 @@ def parse_ss(ss_uri: str) -> Dict[str, Any]:
         # 清理端口字符串（移除可能的斜杠等）
         port = port.strip().rstrip('/')
         
+        # 如果name是临时名称，生成唯一名称
+        if name == 'SS':
+            name = f'SS-{server}:{port}'
+        
         proxy = {
             'name': name,
             'type': 'ss',
@@ -394,7 +404,8 @@ def parse_hysteria2(hysteria2_uri: str) -> Dict[str, Any]:
             port, name = port.split('#', 1)
             name = unquote(name)
         else:
-            name = 'Hysteria2'
+            # 生成唯一名称：使用server+port组合
+            name = f'Hysteria2-{server}:{port}'
         
         # 解析参数
         if '?' in port:

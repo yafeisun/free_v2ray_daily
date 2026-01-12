@@ -212,9 +212,44 @@ class NodeCollector:
             except Exception as e:
                 self.logger.error(f"处理订阅链接失败 {link_info['url']}: {str(e)}")
         
-        # 去重
-        original_count = len(self.all_nodes)
-        self.all_nodes = list(set(self.all_nodes))
+        # 去重（使用server+port组合作为去重标准，去除真正重复的节点）
+original_count = len(self.all_nodes)
+seen = set()
+unique_nodes = []
+for node in self.all_nodes:
+    # 提取server+port作为唯一标识
+    server_port = None
+    try:
+        if '://' in node:
+            protocol = node.split('://', 1)[0]
+            rest = node.split('://', 1)[1]
+            
+            # 移除名称部分（#后面的内容）
+            if '#' in rest:
+                rest = rest.rsplit('#', 1)[0]
+            
+            # 提取server+port
+            if '@' in rest:
+                rest = rest.split('@', 1)[1]
+            
+            if ':' in rest:
+                parts = rest.split(':')
+                if len(parts) >= 2:
+                    server = parts[0]
+                    port = parts[1].split('?')[0].split('/')[0].split('\\')[0].rstrip('/')
+                    server_port = f"{server}:{port}"
+    except:
+                pass
+            
+            # 如果无法提取server+port，使用完整节点作为标识
+            if not server_port:
+                server_port = node
+            
+            if server_port not in seen:
+                seen.add(server_port)
+                unique_nodes.append(node)
+        
+        self.all_nodes = unique_nodes
         duplicate_count = original_count - len(self.all_nodes)
         
         # 保存去重后的所有节点到 nodetotal.txt（纯节点信息，无文件头）

@@ -270,10 +270,12 @@ class SubsCheckTester:
                     self.process.wait(timeout=10)
                     return False, "测试超时"
                 
-                # 读取输出（按字符读取以避免行缓冲）
+                # 读取输出（按字节读取以避免行缓冲）
                 try:
-                    char = self.process.stdout.read(1)
-                    if char:
+                    byte = self.process.stdout.read(1)
+                    if byte:
+                        # 将字节解码为字符
+                        char = byte.decode('utf-8', errors='ignore')
                         if char == '\n':
                             # 打印完整行
                             if last_line.strip():

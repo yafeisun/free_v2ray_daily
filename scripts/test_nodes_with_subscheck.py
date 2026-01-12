@@ -303,25 +303,33 @@ class SubsCheckTester:
                     self.process.wait(timeout=10)
                     return False, "测试超时"
                 
-                # 检查静默超时（180秒没有新输出就认为测试完成）
-                # 这是实际的控制机制：只要日志正常输出，就一直运行
-                if time.time() - last_output_time > 180:
-                    self.logger.info("检测到180秒（3分钟）无新输出，认为测试已完成")
-                    break
-                
                 # 检测进度是否达到100%（方案B优化）
                 # subs-check输出格式：: [====>] 99.9% (1492/1493) : 46
                 import re
                 progress_match = re.search(r'\[.*?\]\s+(\d+\.?\d*)%\s+\((\d+)/(\d+)\)', last_line)
+                current_progress = 0
                 if progress_match:
-                    progress_percent = float(progress_match.group(1))
+                    current_progress = float(progress_match.group(1))
                     tested_count = int(progress_match.group(2))
                     total_count = int(progress_match.group(3))
                     
                     # 当进度达到100%且测试数量等于总数时，认为测试完成
-                    if progress_percent >= 100.0 and tested_count >= total_count:
-                        self.logger.info(f"检测到测试完成（进度: {progress_percent}%, 测试: {tested_count}/{total_count}），准备终止进程")
+                    if current_progress >= 100.0 and tested_count >= total_count:
+                        self.logger.info(f"检测到测试完成（进度: {current_progress}%, 测试: {tested_count}/{total_count}），准备终止进程")
                         break
+                
+                # 检查静默超时（根据进度动态调整超时时间）
+                # 进度越接近100%，等待时间越长
+                if current_progress < 95:
+                    silent_timeout = 180  # 3分钟
+                elif current_progress < 98:
+                    silent_timeout = 300  # 5分钟
+                else:
+                    silent_timeout = 600  # 10分钟
+                
+                if time.time() - last_output_time > silent_timeout:
+                    self.logger.info(f"检测到{silent_timeout}秒（{silent_timeout/60:.0f}分钟）无新输出（当前进度: {current_progress:.1f}%），认为测试已完成")
+                    break
                 
                 # 使用select检查是否有可读数据（非阻塞）
                 import select

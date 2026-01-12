@@ -159,7 +159,7 @@ class SubsCheckTester:
                 # 基本配置
                 'print-progress': True,
                 'concurrent': 30,
-                'check-interval': 0,  # 禁用定时检查，避免文件保存后卡住
+                'check-interval': 999999,  # 设置为超大值，避免重复测试
                 'timeout': 5000,  # 连通性测试超时5秒
                 
                 # 测速配置

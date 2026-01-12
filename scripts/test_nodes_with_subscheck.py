@@ -240,9 +240,9 @@ class SubsCheckTester:
             # 动态计算超时时间
             if timeout is None:
                 # 根据CPU核心数动态设置并发数
-                # 每个核心可以处理10-15个并发连接
+                # 每个核心可以处理5-10个并发连接（降低并发数避免线程空闲）
                 cpu_count = os.cpu_count() or 2
-                concurrent = max(10, min(cpu_count * 10, 30))  # 最小10，最大30
+                concurrent = max(5, min(cpu_count * 5, 15))  # 最小5，最大15
                 
                 # 每个节点测试3个平台（YouTube、GPT、Gemini）
                 # 每个平台超时8秒
@@ -844,7 +844,7 @@ def main():
     
     # 计算并发数（根据CPU核心数）
     cpu_count = os.cpu_count() or 2
-    concurrent = max(10, min(cpu_count * 10, 30))
+    concurrent = max(5, min(cpu_count * 5, 15))
     logger.info(f"系统CPU核心数: {cpu_count}, 动态设置并发数: {concurrent}")
     
     # 创建配置

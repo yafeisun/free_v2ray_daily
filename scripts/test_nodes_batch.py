@@ -41,12 +41,12 @@ class BatchNodeTester:
         # 测试配置
         self.batch_size = 100  # 每批节点数
         self.max_workers = 2  # 并发批次数
-        self.concurrent = 10  # 每个批次的并发数
+        self.concurrent = 5  # 每个批次的并发数（降低以减少失败率）
         
         # 测试超时（每批）
         self.batch_timeout = 1800  # 30分钟
     
-    def create_batch_config(self, batch_index: int, subscription_file: str) -> str:
+    def create_batch_config(self, batch_index: int, subscription_url: str) -> str:
         """为每个批次创建独立的配置文件"""
         config_file = os.path.join(self.config_dir, f'batch_{batch_index}.yaml')
         
@@ -55,7 +55,7 @@ class BatchNodeTester:
             'print-progress': True,
             'concurrent': self.concurrent,
             'check-interval': 999999,
-            'timeout': 5000,
+            'timeout': 10000,  # 增加到10秒
             
             # 测速配置
             'alive-test-url': 'http://gstatic.com/generate_204',
@@ -98,7 +98,7 @@ class BatchNodeTester:
             'sub-urls-get-ua': 'clash.meta (https://github.com/beck-8/subs-check)',
             
             # 订阅链接
-            'sub-urls': [subscription_file]
+            'sub-urls': [subscription_url]
         }
         
         # 保存配置
@@ -109,13 +109,20 @@ class BatchNodeTester:
         self.logger.info(f"批次 {batch_index} 配置文件已创建: {config_file}")
         return config_file
     
-    def run_single_batch(self, batch_nodes: List[str], batch_index: int, subscription_file: str) -> List[str]:
+    def run_single_batch(self, batch_nodes: List[str], batch_index: int, subscription_file: str, http_server_port: int) -> List[str]:
         """运行单个批次的测试"""
         self.logger.info(f"开始测试批次 {batch_index}，节点数: {len(batch_nodes)}")
         
         try:
-            # 创建批次配置
-            config_file = self.create_batch_config(batch_index, subscription_file)
+            # 为当前批次创建独立的订阅文件
+            batch_subscription_file = os.path.join(self.project_root, 'result', f'batch_subscription_{batch_index}.yaml')
+            from scripts import convert_nodes_to_subscription
+            batch_clash_config = convert_nodes_to_subscription.convert_nodes_to_clash(batch_nodes)
+            with open(batch_subscription_file, 'w', encoding='utf-8') as f:
+                yaml.dump(batch_clash_config, f, allow_unicode=True, default_flow_style=False)
+            
+            # 创建批次配置，使用独立的订阅文件
+            config_file = self.create_batch_config(batch_index, f'http://127.0.0.1:{http_server_port}/result/batch_subscription_{batch_index}.yaml')
             
             # 运行subs-check
             cmd = [self.binary_path, '-f', config_file]
@@ -135,6 +142,8 @@ class BatchNodeTester:
             start_time = time.time()
             last_output_time = start_time
             last_line = ""
+            last_progress = 0
+            last_progress_time = start_time
             
             while True:
                 # 检查超时
@@ -150,6 +159,13 @@ class BatchNodeTester:
                     self.logger.info(f"批次 {batch_index} 300秒无输出，认为已完成")
                     break
                 
+                # 检查进度停滞（超过90%且120秒无变化）
+                if last_progress >= 90.0 and (time.time() - last_progress_time) > 120:
+                    self.logger.warning(f"批次 {batch_index} 进度停滞在 {last_progress}% 超过120秒，强制终止")
+                    process.terminate()
+                    process.wait(timeout=10)
+                    break
+                
                 # 读取输出
                 try:
                     import select
@@ -162,10 +178,26 @@ class BatchNodeTester:
                             if char == '\n':
                                 if last_line.strip():
                                     print(f"[批次{batch_index}] {last_line.strip()}")
+                                    # 解析进度
+                                    import re
+                                    progress_match = re.search(r'\[.*?\]\s+(\d+\.?\d*)%\s+\((\d+)/(\d+)\)', last_line)
+                                    if progress_match:
+                                        current_progress = float(progress_match.group(1))
+                                        if current_progress > last_progress:
+                                            last_progress = current_progress
+                                            last_progress_time = time.time()
                                 last_line = ""
                             elif char == '\r':
                                 if last_line.strip():
                                     print(f"[批次{batch_index}] {last_line.strip()}")
+                                    # 解析进度（回车符也可能包含进度信息）
+                                    import re
+                                    progress_match = re.search(r'\[.*?\]\s+(\d+\.?\d*)%\s+\((\d+)/(\d+)\)', last_line)
+                                    if progress_match:
+                                        current_progress = float(progress_match.group(1))
+                                        if current_progress > last_progress:
+                                            last_progress = current_progress
+                                            last_progress_time = time.time()
                                 last_line = ""
                             else:
                                 last_line += char
@@ -209,10 +241,9 @@ class BatchNodeTester:
                 for proxy in data['proxies']:
                     # 提取媒体信息
                     media_info = self._extract_media_info(proxy)
-                    passed_tests = sum([media_info['gpt'], media_info['gemini'], media_info['youtube']])
                     
-                    # 3选1规则：至少通过2个测试
-                    if passed_tests >= 2:
+                    # 2选1规则：GPT或Gemini至少通过1个
+                    if media_info['gpt'] or media_info['gemini']:
                         # 生成新名称
                         region = self._extract_region(proxy)
                         region_number = self._extract_region_number(proxy)
@@ -340,31 +371,50 @@ class BatchNodeTester:
         with open(subscription_file, 'w', encoding='utf-8') as f:
             yaml.dump(clash_config, f, allow_unicode=True, default_flow_style=False)
         
-        # 使用线程池并发处理批次
-        all_results = []
-        completed = 0
+        # 启动HTTP服务器
+        http_server_port = 8888
+        self.logger.info(f"启动HTTP服务器，端口: {http_server_port}")
+        http_server_process = subprocess.Popen(
+            ['python3', '-m', 'http.server', str(http_server_port), '--directory', self.project_root],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL
+        )
         
-        with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
-            futures = {}
-            
-            # 提交所有批次
-            for i, batch in enumerate(batches):
-                future = executor.submit(self.run_single_batch, batch, i, subscription_file)
-                futures[future] = i
-            
-            # 收集结果
-            for future in as_completed(futures):
-                batch_index = futures[future]
-                try:
-                    results = future.result()
-                    all_results.extend(results)
-                    completed += 1
-                    self.logger.info(f"批次 {batch_index} 完成，累计有效节点: {len(all_results)}/{completed}/{len(batches)}")
-                except Exception as e:
-                    self.logger.error(f"批次 {batch_index} 失败: {str(e)}")
+        time.sleep(5)  # 等待服务器启动
         
-        self.logger.info(f"分批测试完成，总有效节点: {len(all_results)}")
-        return all_results
+        try:
+            # 使用线程池并发处理批次
+            all_results = []
+            completed = 0
+            
+            with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
+                futures = {}
+                
+                # 提交所有批次
+                for i, batch in enumerate(batches):
+                    future = executor.submit(self.run_single_batch, batch, i, subscription_file, http_server_port)
+                    futures[future] = i
+                
+                # 收集结果
+                for future in as_completed(futures):
+                    batch_index = futures[future]
+                    try:
+                        results = future.result()
+                        all_results.extend(results)
+                        completed += 1
+                        self.logger.info(f"批次 {batch_index} 完成，累计有效节点: {len(all_results)}/{completed}/{len(batches)}")
+                    except Exception as e:
+                        self.logger.error(f"批次 {batch_index} 失败: {str(e)}")
+            
+            self.logger.info(f"分批测试完成，总有效节点: {len(all_results)}")
+            return all_results
+        
+        finally:
+            # 停止HTTP服务器
+            if http_server_process:
+                http_server_process.terminate()
+                http_server_process.wait(timeout=5)
+                self.logger.info("HTTP服务器已停止")
 
 
 def main():

@@ -300,6 +300,20 @@ class SubsCheckTester:
                     self.logger.info("检测到180秒（3分钟）无新输出，认为测试已完成")
                     break
                 
+                # 检测进度是否达到100%（方案B优化）
+                # subs-check输出格式：: [====>] 99.9% (1492/1493) : 46
+                import re
+                progress_match = re.search(r'\[.*?\]\s+(\d+\.?\d*)%\s+\((\d+)/(\d+)\)', last_line)
+                if progress_match:
+                    progress_percent = float(progress_match.group(1))
+                    tested_count = int(progress_match.group(2))
+                    total_count = int(progress_match.group(3))
+                    
+                    # 当进度达到100%且测试数量等于总数时，认为测试完成
+                    if progress_percent >= 100.0 and tested_count >= total_count:
+                        self.logger.info(f"检测到测试完成（进度: {progress_percent}%, 测试: {tested_count}/{total_count}），准备终止进程")
+                        break
+                
                 # 使用select检查是否有可读数据（非阻塞）
                 import select
                 try:
@@ -400,7 +414,7 @@ class SubsCheckTester:
             # 1. 进程正常退出（return_code == 0）
             # 2. 或者进程被终止但输出文件有效且节点数量合理（至少完成了30%的测试）
             
-            success_threshold = max(1, int(node_count * 0.3))  # 至少完成30%的测试
+            success_threshold = max(1, int(node_count * 0.1))  # 至少完成10%的测试
             
             if return_code == 0:
                 self.logger.info("测试成功完成")

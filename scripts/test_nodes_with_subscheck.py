@@ -360,6 +360,13 @@ class SubsCheckTester:
                     # 提取测试结果
                     media_info = self._extract_media_info(proxy)
                     
+                    # 计算通过的测试数量
+                    passed_tests = sum([media_info['gpt'], media_info['gemini'], media_info['youtube']])
+                    
+                    # 3选1规则：至少通过2个测试才能保留
+                    if passed_tests < 2:
+                        continue
+                    
                     # 生成新名称
                     new_name = self._generate_node_name(region, region_number, media_info)
                     
@@ -492,7 +499,15 @@ class SubsCheckTester:
             ai_tag = 'GM'
         
         # 生成YouTube标记
-        yt_tag = '|YT' if media_info['youtube'] else ''
+        if media_info['youtube']:
+            if ai_tag:
+                # 如果有AI标记，使用|YT
+                yt_tag = '|YT'
+            else:
+                # 如果没有AI标记，直接使用YT
+                yt_tag = 'YT'
+        else:
+            yt_tag = ''
         
         # 组合名称
         return f"{flag}{region}_{number}|{ai_tag}{yt_tag}"

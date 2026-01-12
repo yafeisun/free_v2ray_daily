@@ -160,7 +160,7 @@ class SubsCheckTester:
                 'print-progress': True,
                 'concurrent': 30,
                 'check-interval': 120,
-                'timeout': 3000,
+                'timeout': 5000,  # 连通性测试超时5秒
                 
                 # 测速配置
                 'alive-test-url': 'http://gstatic.com/generate_204',
@@ -399,8 +399,23 @@ class SubsCheckTester:
             
             # 提取节点并重命名
             renamed_nodes = []
+            total_count = 0
+            delay_filtered_count = 0
+            media_filtered_count = 0
+            
             if data and 'proxies' in data:
                 for proxy in data['proxies']:
+                    total_count += 1
+                    
+                    # 提取延迟信息（从节点名称中）
+                    name = proxy.get('name', '')
+                    delay_ms = self._extract_delay_from_name(name)
+                    
+                    # 过滤延迟超过1秒的节点
+                    if delay_ms > 1000:
+                        delay_filtered_count += 1
+                        continue
+                    
                     # 提取地区信息
                     region = self._extract_region(proxy)
                     
@@ -415,6 +430,7 @@ class SubsCheckTester:
                     
                     # 3选1规则：至少通过2个测试才能保留
                     if passed_tests < 2:
+                        media_filtered_count += 1
                         continue
                     
                     # 生成新名称
@@ -425,12 +441,26 @@ class SubsCheckTester:
                     if v2ray_uri:
                         renamed_nodes.append(v2ray_uri)
             
+            self.logger.info(f"节点统计: 总数{total_count}, 延迟过滤{delay_filtered_count}, 媒体过滤{media_filtered_count}, 有效{len(renamed_nodes)}")
             self.logger.info(f"从测试结果中提取并重命名 {len(renamed_nodes)} 个有效节点")
             return renamed_nodes
             
         except Exception as e:
             self.logger.error(f"解析测试结果失败: {str(e)}")
             return []
+    
+    def _extract_delay_from_name(self, name: str) -> int:
+        """从节点名称中提取延迟（毫秒）"""
+        import re
+        # 节点名称格式：FlagRegion_Number|AI|YT
+        # 例如：🇺🇸US_5|GPT|YT → 延迟5ms
+        match = re.search(r'[🇦-🇿]{2}[A-Z]{2}_(\d+)\|', name)
+        if match:
+            try:
+                return int(match.group(1))
+            except:
+                return 0
+        return 0
     
     def _extract_region(self, proxy: dict) -> str:
         """从节点中提取地区信息"""

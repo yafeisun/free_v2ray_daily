@@ -29,5 +29,5 @@ sub-urls:
 sub-urls-get-ua: clash.meta (https://github.com/beck-8/subs-check)
 sub-urls-retry: 3
 success-limit: 0
-timeout: 3000
+timeout: 5000
 total-speed-limit: 0

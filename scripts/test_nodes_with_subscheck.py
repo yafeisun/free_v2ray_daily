@@ -350,22 +350,18 @@ class SubsCheckTester:
             # 提取节点并重命名
             renamed_nodes = []
             if data and 'proxies' in data:
-                # 按地区分组
-                region_counters = {}
                 for proxy in data['proxies']:
                     # 提取地区信息
                     region = self._extract_region(proxy)
                     
-                    # 更新地区计数器
-                    if region not in region_counters:
-                        region_counters[region] = 0
-                    region_counters[region] += 1
+                    # 提取地区编号
+                    region_number = self._extract_region_number(proxy)
                     
                     # 提取测试结果
                     media_info = self._extract_media_info(proxy)
                     
                     # 生成新名称
-                    new_name = self._generate_node_name(region, region_counters[region], media_info)
+                    new_name = self._generate_node_name(region, region_number, media_info)
                     
                     # 将Clash节点转换回V2Ray URI格式
                     v2ray_uri = self._convert_proxy_to_uri(proxy, new_name)
@@ -381,8 +377,14 @@ class SubsCheckTester:
     
     def _extract_region(self, proxy: dict) -> str:
         """从节点中提取地区信息"""
+        import re
         name = proxy.get('name', '')
         server = proxy.get('server', '')
+        
+        # 首先尝试从subs-check的节点名称中提取地区代码（格式：FlagRegion_Number）
+        match = re.search(r'[🇦-🇿]{2}([A-Z]{2})_\d+', name)
+        if match:
+            return match.group(1)
         
         # 检查名称中是否包含地区标识
         region_keywords = {
@@ -425,6 +427,18 @@ class SubsCheckTester:
         # 默认返回US
         return 'US'
     
+    def _extract_region_number(self, proxy: dict) -> int:
+        """从节点中提取地区编号"""
+        import re
+        name = proxy.get('name', '')
+        
+        # 从subs-check的节点名称中提取地区编号（格式：FlagRegion_Number）
+        match = re.search(r'[🇦-🇿]{2}[A-Z]{2}_(\d+)', name)
+        if match:
+            return int(match.group(1))
+        
+        return 1
+    
     def _extract_media_info(self, proxy: dict) -> dict:
         """从节点中提取媒体测试结果"""
         media_info = {
@@ -436,16 +450,16 @@ class SubsCheckTester:
         # subs-check会在节点名称中添加媒体解锁标记
         name = proxy.get('name', '')
         
-        # 检查GPT标记
-        if 'GPT' in name or 'OpenAI' in name:
+        # 检查GPT标记（subs-check使用GPT⁺表示ChatGPT可用）
+        if 'GPT⁺' in name:
             media_info['gpt'] = True
         
-        # 检查Gemini标记
-        if 'Gemini' in name:
+        # 检查Gemini标记（subs-check使用GM表示Gemini可用）
+        if 'GM' in name:
             media_info['gemini'] = True
         
-        # 检查YouTube标记
-        if 'YouTube' in name or 'YT' in name:
+        # 检查YouTube标记（subs-check使用YT-{地区代码}格式）
+        if '|YT-' in name:
             media_info['youtube'] = True
         
         return media_info
@@ -471,11 +485,11 @@ class SubsCheckTester:
         # 生成AI标记
         ai_tag = ''
         if media_info['gpt'] and media_info['gemini']:
-            ai_tag = 'GPT+'
+            ai_tag = 'GPT|GM'
         elif media_info['gpt']:
             ai_tag = 'GPT'
         elif media_info['gemini']:
-            ai_tag = 'Gemini'
+            ai_tag = 'GM'
         
         # 生成YouTube标记
         yt_tag = '|YT' if media_info['youtube'] else ''

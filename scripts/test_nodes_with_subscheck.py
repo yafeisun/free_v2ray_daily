@@ -481,24 +481,54 @@ class SubsCheckTester:
                             char = byte.decode('utf-8', errors='ignore')
                             if char == '\n':
                                 if last_line.strip():
-                                    # 解析进度信息并重新格式化输出
-                                    if progress_match:
-                                        # 简洁的进度显示：P1: 38.2% (570/1493)
-                                        print(f"P{phase}: {current_progress:.1f}% ({tested_count}/{total_count})", flush=True)
+                                    # 解析节点测试结果（阶段2才显示节点状态）
+                                    if phase == 2:
+                                        node_result = self._parse_node_result(last_line)
+                                        if node_result:
+                                            node_name = node_result['name']
+                                            gpt_status = "✓" if node_result['gpt'] else "✗"
+                                            gemini_status = "✓" if node_result['gemini'] else "✗"
+                                            print(f"{node_name} | GPT: {gpt_status} | Gemini: {gemini_status}", flush=True)
+                                        elif progress_match:
+                                            # 简洁的进度显示：P2: 38.2% (570/1493)
+                                            print(f"P{phase}: {current_progress:.1f}% ({tested_count}/{total_count})", flush=True)
+                                        else:
+                                            # 其他信息正常显示
+                                            print(f"[P{phase}] {last_line.strip()}", flush=True)
                                     else:
-                                        # 其他信息正常显示
-                                        print(f"[P{phase}] {last_line.strip()}", flush=True)
+                                        # 阶段1只显示进度
+                                        if progress_match:
+                                            # 简洁的进度显示：P1: 38.2% (570/1493)
+                                            print(f"P{phase}: {current_progress:.1f}% ({tested_count}/{total_count})", flush=True)
+                                        else:
+                                            # 其他信息正常显示
+                                            print(f"[P{phase}] {last_line.strip()}", flush=True)
                                     line_count += 1
                                 last_line = ""
                             elif char == '\r':
                                 if last_line.strip():
-                                    # 解析进度信息并重新格式化输出
-                                    if progress_match:
-                                        # 简洁的进度显示：P1: 38.2% (570/1493)
-                                        print(f"P{phase}: {current_progress:.1f}% ({tested_count}/{total_count})", flush=True)
+                                    # 解析节点测试结果（阶段2才显示节点状态）
+                                    if phase == 2:
+                                        node_result = self._parse_node_result(last_line)
+                                        if node_result:
+                                            node_name = node_result['name']
+                                            gpt_status = "✓" if node_result['gpt'] else "✗"
+                                            gemini_status = "✓" if node_result['gemini'] else "✗"
+                                            print(f"{node_name} | GPT: {gpt_status} | Gemini: {gemini_status}", flush=True)
+                                        elif progress_match:
+                                            # 简洁的进度显示：P2: 38.2% (570/1493)
+                                            print(f"P{phase}: {current_progress:.1f}% ({tested_count}/{total_count})", flush=True)
+                                        else:
+                                            # 其他信息正常显示
+                                            print(f"[P{phase}] {last_line.strip()}", flush=True)
                                     else:
-                                        # 其他信息正常显示
-                                        print(f"[P{phase}] {last_line.strip()}", flush=True)
+                                        # 阶段1只显示进度
+                                        if progress_match:
+                                            # 简洁的进度显示：P1: 38.2% (570/1493)
+                                            print(f"P{phase}: {current_progress:.1f}% ({tested_count}/{total_count})", flush=True)
+                                        else:
+                                            # 其他信息正常显示
+                                            print(f"[P{phase}] {last_line.strip()}", flush=True)
                                     line_count += 1
                                 last_line = ""
                             else:
@@ -695,6 +725,60 @@ class SubsCheckTester:
             return int(match.group(1))
         
         return 1
+    
+    def _parse_node_result(self, line: str) -> dict:
+        """解析subs-check输出中的节点测试结果
+        
+        Args:
+            line: subs-check的输出行
+            
+        Returns:
+            dict: 包含节点名称和测试结果的字典
+        """
+        try:
+            import re
+            
+            # subs-check输出格式示例：
+            # : [====>] 99.9% (1492/1493) : 46
+            # 或者其他包含节点信息的行
+            
+            # 尝试匹配节点名称和媒体测试结果
+            # 节点名称格式可能包含：FlagRegion_Number|AI|YT 或类似格式
+            if '|' in line:
+                parts = line.split('|')
+                if len(parts) >= 2:
+                    node_name = parts[0].strip().split()[-1]  # 提取节点名称
+                    
+                    # 解析媒体测试结果
+                    media_info = {
+                        'gpt': False,
+                        'gemini': False,
+                        'youtube': False
+                    }
+                    
+                    # 检查GPT标记
+                    if 'AI' in parts[1] or 'GPT' in parts[1]:
+                        media_info['gpt'] = True
+                    
+                    # 检查Gemini标记
+                    if 'GM' in parts[1] or 'Gemini' in parts[1]:
+                        media_info['gemini'] = True
+                    
+                    # 检查YouTube标记
+                    if len(parts) >= 3 and ('YT' in parts[2] or 'YouTube' in parts[2]):
+                        media_info['youtube'] = True
+                    
+                    return {
+                        'name': node_name,
+                        'gpt': media_info['gpt'],
+                        'gemini': media_info['gemini'],
+                        'youtube': media_info['youtube']
+                    }
+            
+            return None
+            
+        except Exception as e:
+            return None
     
     def _extract_media_info(self, proxy: dict) -> dict:
         """从节点中提取媒体测试结果"""

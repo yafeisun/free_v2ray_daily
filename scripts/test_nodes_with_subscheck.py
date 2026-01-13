@@ -164,6 +164,10 @@ class SubsCheckTester:
             # 根据阶段设置不同的配置
             if phase == 1:
                 # 阶段1: 快速连通性测试（禁用媒体检测，高并发）
+                # 计算订阅URL
+                subscription_url = f'http://127.0.0.1:{self.http_server_port}/{subscription_file}'
+                self.logger.info(f"阶段1订阅URL: {subscription_url}")
+                
                 config = {
                     # 基本配置
                     'print-progress': True,
@@ -212,14 +216,16 @@ class SubsCheckTester:
                     'sub-urls-get-ua': 'clash.meta (https://github.com/beck-8/subs-check)',
 
                     # 使用HTTP服务器提供本地文件
-                    subscription_url = f'http://127.0.0.1:{self.http_server_port}/{subscription_file}'
-                    self.logger.info(f"阶段1订阅URL: {subscription_url}")
                     'sub-urls': [
                         subscription_url
                     ]
                 }
             else:
                 # 阶段2: 媒体检测（只检测openai和gemini，低并发）
+                # 计算订阅URL
+                subscription_url = f'http://127.0.0.1:{self.http_server_port}/{subscription_file}'
+                self.logger.info(f"阶段2订阅URL: {subscription_url}")
+                
                 config = {
                     # 基本配置
                     'print-progress': True,
@@ -271,8 +277,6 @@ class SubsCheckTester:
                     'sub-urls-get-ua': 'clash.meta (https://github.com/beck-8/subs-check)',
 
                     # 使用HTTP服务器提供本地文件
-                    subscription_url = f'http://127.0.0.1:{self.http_server_port}/{subscription_file}'
-                    self.logger.info(f"阶段2订阅URL: {subscription_url}")
                     'sub-urls': [
                         subscription_url
                     ]

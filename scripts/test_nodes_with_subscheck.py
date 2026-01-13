@@ -466,6 +466,8 @@ class SubsCheckTester:
             last_line = ""
             line_count = 0
             last_progress_displayed = -1.0  # 记录上一次显示的进度，避免重复打印
+            node_test_times = {}  # 记录每个节点的开始测试时间 {node_index: start_time}
+            last_tested_index = -1  # 上一个测试的节点索引
 
             while True:
                 # 检查总超时
@@ -484,6 +486,11 @@ class SubsCheckTester:
                     current_progress = float(progress_match.group(1))
                     tested_count = int(progress_match.group(2))
                     total_count = int(progress_match.group(3))
+
+                    # 记录新节点的开始测试时间
+                    if tested_count > last_tested_index and phase == 2:
+                        node_test_times[tested_count] = time.time()
+                        last_tested_index = tested_count
 
                     # 当进度达到90%以上且测试数量接近总数时，认为测试完成
                     if current_progress >= 90.0 and tested_count >= total_count * 0.9:
@@ -512,10 +519,32 @@ class SubsCheckTester:
                                         node_result = self._parse_node_result(last_line)
                                         if node_result:
                                             node_name = node_result['name']
-                                            gpt_status = "✓" if node_result['gpt'] else "✗"
-                                            gemini_status = "✓" if node_result['gemini'] else "✗"
+                                            # 计算单个节点的测试耗时
+                                            test_duration = 0
+                                            if tested_count in node_test_times:
+                                                test_duration = time.time() - node_test_times[tested_count]
                                             current_time = time.strftime("%H:%M:%S", time.localtime())
-                                            print(f"[{current_time}] {node_name} | GPT: {gpt_status} | Gemini: {gemini_status}", flush=True)
+                                            # 构建测试状态字符串，动态显示所有测试项
+                                            status_parts = []
+                                            if node_result['gpt']:
+                                                status_parts.append("GPT:✓")
+                                            if node_result['gemini']:
+                                                status_parts.append("GM:✓")
+                                            if node_result['youtube']:
+                                                status_parts.append("YT:✓")
+                                            # 如果没有任何测试项通过，显示失败状态
+                                            if not status_parts:
+                                                if node_result['gpt']:
+                                                    status_parts.append("GPT:✗")
+                                                if node_result['gemini']:
+                                                    status_parts.append("GM:✗")
+                                                if node_result['youtube']:
+                                                    status_parts.append("YT:✗")
+                                            status_str = " ".join(status_parts)
+                                            # 新格式：时间点 节点进度 节点名称 测试项状态 测试耗时
+                                            progress_str = f"{current_progress:.1f}% ({tested_count}/{total_count})" if progress_match else "N/A"
+                                            duration_str = f"{test_duration:.1f}s" if test_duration > 0 else "N/A"
+                                            print(f"{current_time} {progress_str} {node_name} {status_str} {duration_str}", flush=True)
                                         elif progress_match and current_progress != last_progress_displayed:
                                             # 简洁的进度显示：P2: 38.2% (570/1493)，只在进度变化时显示
                                             current_time = time.strftime("%H:%M:%S", time.localtime())
@@ -542,10 +571,32 @@ class SubsCheckTester:
                                     node_result = self._parse_node_result(last_line)
                                     if node_result:
                                         node_name = node_result['name']
-                                        gpt_status = "✓" if node_result['gpt'] else "✗"
-                                        gemini_status = "✓" if node_result['gemini'] else "✗"
+                                        # 计算单个节点的测试耗时
+                                        test_duration = 0
+                                        if tested_count in node_test_times:
+                                            test_duration = time.time() - node_test_times[tested_count]
                                         current_time = time.strftime("%H:%M:%S", time.localtime())
-                                        print(f"[{current_time}] {node_name} | GPT: {gpt_status} | Gemini: {gemini_status}", flush=True)
+                                        # 构建测试状态字符串，动态显示所有测试项
+                                        status_parts = []
+                                        if node_result['gpt']:
+                                            status_parts.append("GPT:✓")
+                                        if node_result['gemini']:
+                                            status_parts.append("GM:✓")
+                                        if node_result['youtube']:
+                                            status_parts.append("YT:✓")
+                                        # 如果没有任何测试项通过，显示失败状态
+                                        if not status_parts:
+                                            if node_result['gpt']:
+                                                status_parts.append("GPT:✗")
+                                            if node_result['gemini']:
+                                                status_parts.append("GM:✗")
+                                            if node_result['youtube']:
+                                                status_parts.append("YT:✗")
+                                        status_str = " ".join(status_parts)
+                                        # 新格式：时间点 节点进度 节点名称 测试项状态 测试耗时
+                                        progress_str = f"{current_progress:.1f}% ({tested_count}/{total_count})" if progress_match else "N/A"
+                                        duration_str = f"{test_duration:.1f}s" if test_duration > 0 else "N/A"
+                                        print(f"{current_time} {progress_str} {node_name} {status_str} {duration_str}", flush=True)
                                     # 不在 \r 时打印进度，避免重复
                                 last_line = ""
                             else:
@@ -745,55 +796,55 @@ class SubsCheckTester:
     
     def _parse_node_result(self, line: str) -> dict:
         """解析subs-check输出中的节点测试结果
-        
+
         Args:
             line: subs-check的输出行
-            
+
         Returns:
             dict: 包含节点名称和测试结果的字典
         """
         try:
             import re
-            
+
             # subs-check输出格式示例：
             # : [====>] 99.9% (1492/1493) : 46
             # 或者其他包含节点信息的行
-            
+
             # 尝试匹配节点名称和媒体测试结果
             # 节点名称格式可能包含：FlagRegion_Number|AI|YT 或类似格式
             if '|' in line:
                 parts = line.split('|')
                 if len(parts) >= 2:
                     node_name = parts[0].strip().split()[-1]  # 提取节点名称
-                    
+
                     # 解析媒体测试结果
                     media_info = {
                         'gpt': False,
                         'gemini': False,
                         'youtube': False
                     }
-                    
+
                     # 检查GPT标记
                     if 'AI' in parts[1] or 'GPT' in parts[1]:
                         media_info['gpt'] = True
-                    
+
                     # 检查Gemini标记
                     if 'GM' in parts[1] or 'Gemini' in parts[1]:
                         media_info['gemini'] = True
-                    
+
                     # 检查YouTube标记
                     if len(parts) >= 3 and ('YT' in parts[2] or 'YouTube' in parts[2]):
                         media_info['youtube'] = True
-                    
+
                     return {
                         'name': node_name,
                         'gpt': media_info['gpt'],
                         'gemini': media_info['gemini'],
                         'youtube': media_info['youtube']
                     }
-            
+
             return None
-            
+
         except Exception as e:
             return None
     

@@ -46,9 +46,9 @@ class BatchNodeTester:
         # 测试超时（每批）
         self.batch_timeout = 1800  # 30分钟
     
-    def create_batch_config(self, batch_index: int, subscription_url: str) -> str:
-        """为每个批次创建独立的配置文件"""
-        config_file = os.path.join(self.config_dir, f'batch_{batch_index}.yaml')
+    def create_unified_config(self) -> str:
+        """创建统一的配置文件（所有批次共享）"""
+        config_file = os.path.join(self.config_dir, 'batch_config.yaml')
         
         config = {
             # 基本配置
@@ -97,8 +97,8 @@ class BatchNodeTester:
             'sub-urls-retry': 3,
             'sub-urls-get-ua': 'clash.meta (https://github.com/beck-8/subs-check)',
             
-            # 订阅链接
-            'sub-urls': [subscription_url]
+            # 订阅链接（统一配置，通过命令行参数覆盖）
+            'sub-urls': []
         }
         
         # 保存配置
@@ -106,10 +106,21 @@ class BatchNodeTester:
         with open(config_file, 'w', encoding='utf-8') as f:
             yaml.dump(config, f, allow_unicode=True, default_flow_style=False)
         
-        self.logger.info(f"批次 {batch_index} 配置文件已创建: {config_file}")
+        self.logger.info(f"统一配置文件已创建: {config_file}")
         return config_file
     
-    def run_single_batch(self, batch_nodes: List[str], batch_index: int, subscription_file: str, http_server_port: int) -> List[str]:
+    def clean_old_configs(self):
+        """清理旧的批次配置文件"""
+        import glob
+        old_configs = glob.glob(os.path.join(self.config_dir, 'batch_*.yaml'))
+        for old_config in old_configs:
+            try:
+                os.remove(old_config)
+                self.logger.info(f"清理旧配置文件: {old_config}")
+            except Exception as e:
+                self.logger.warning(f"清理配置文件失败 {old_config}: {str(e)}")
+    
+    def run_single_batch(self, batch_nodes: List[str], batch_index: int, http_server_port: int) -> List[str]:
         """运行单个批次的测试"""
         self.logger.info(f"开始测试批次 {batch_index}，节点数: {len(batch_nodes)}")
         
@@ -121,11 +132,12 @@ class BatchNodeTester:
             with open(batch_subscription_file, 'w', encoding='utf-8') as f:
                 yaml.dump(batch_clash_config, f, allow_unicode=True, default_flow_style=False)
             
-            # 创建批次配置，使用独立的订阅文件
-            config_file = self.create_batch_config(batch_index, f'http://127.0.0.1:{http_server_port}/result/batch_subscription_{batch_index}.yaml')
+            # 使用统一配置文件，通过命令行参数指定订阅URL
+            config_file = os.path.join(self.config_dir, 'batch_config.yaml')
+            subscription_url = f'http://127.0.0.1:{http_server_port}/result/batch_subscription_{batch_index}.yaml'
             
-            # 运行subs-check
-            cmd = [self.binary_path, '-f', config_file]
+            # 运行subs-check，使用命令行参数覆盖订阅URL
+            cmd = [self.binary_path, '-f', config_file, '--sub-url', subscription_url]
             
             self.logger.info(f"执行命令: {' '.join(cmd)}")
             
@@ -363,13 +375,11 @@ class BatchNodeTester:
         
         self.logger.info(f"共 {len(batches)} 个批次")
         
-        # 转换为Clash格式
-        from scripts import convert_nodes_to_subscription
-        clash_config = convert_nodes_to_subscription.convert_nodes_to_clash(nodes)
-        subscription_file = os.path.join(self.project_root, 'result', 'clash_subscription.yaml')
-        os.makedirs(os.path.dirname(subscription_file), exist_ok=True)
-        with open(subscription_file, 'w', encoding='utf-8') as f:
-            yaml.dump(clash_config, f, allow_unicode=True, default_flow_style=False)
+        # 清理旧的批次配置文件
+        self.clean_old_configs()
+        
+        # 创建统一配置文件（所有批次共享）
+        self.create_unified_config()
         
         # 启动HTTP服务器
         http_server_port = 8888
@@ -392,7 +402,7 @@ class BatchNodeTester:
                 
                 # 提交所有批次
                 for i, batch in enumerate(batches):
-                    future = executor.submit(self.run_single_batch, batch, i, subscription_file, http_server_port)
+                    future = executor.submit(self.run_single_batch, batch, i, http_server_port)
                     futures[future] = i
                 
                 # 收集结果

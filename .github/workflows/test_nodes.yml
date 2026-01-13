@@ -109,12 +109,15 @@ jobs:
       run: |
         echo "开始节点测试..."
         echo "测试策略:"
-        echo "  - 使用subs-check进行真实的代理测试"
+        echo "  - 使用分批测试脚本，每批100个节点"
+        echo "  - 2个批次并发处理"
+        echo "  - 超时时间10秒，并发数5"
+        echo "  - 筛选规则：GPT或Gemini至少通过1个（2选1）"
         echo "  - 测试节点连通性、速度和流媒体解锁能力"
-        echo "  - 支持的流媒体平台: YouTube, Netflix, OpenAI, Gemini"
+        echo "  - 支持的流媒体平台: YouTube, OpenAI, Gemini"
         
-        # 使用stdbuf禁用所有缓冲，确保实时输出
-        stdbuf -o0 -e0 python3 scripts/test_nodes_with_subscheck.py --input result/nodetotal.txt --output result/nodelist.txt 2>&1 | stdbuf -o0 -e0 tee test_output.log
+        # 使用新的分批测试脚本
+        python3 scripts/test_nodes_batch.py --input result/nodetotal.txt --output result/nodelist.txt --batch-size 100 --max-workers 2
         
         echo "节点测试完成"
       continue-on-error: true

@@ -537,35 +537,16 @@ class SubsCheckTester:
                                     line_count += 1
                                 last_line = ""
                             elif char == '\r':
-                                if last_line.strip():
-                                    # 解析节点测试结果（阶段2才显示节点状态）
-                                    if phase == 2:
-                                        node_result = self._parse_node_result(last_line)
-                                        if node_result:
-                                            node_name = node_result['name']
-                                            gpt_status = "✓" if node_result['gpt'] else "✗"
-                                            gemini_status = "✓" if node_result['gemini'] else "✗"
-                                            current_time = time.strftime("%H:%M:%S", time.localtime())
-                                            print(f"[{current_time}] {node_name} | GPT: {gpt_status} | Gemini: {gemini_status}", flush=True)
-                                        elif progress_match and current_progress != last_progress_displayed:
-                                            # 简洁的进度显示：P2: 38.2% (570/1493)，只在进度变化时显示
-                                            current_time = time.strftime("%H:%M:%S", time.localtime())
-                                            print(f"[{current_time}] P{phase}: {current_progress:.1f}% ({tested_count}/{total_count})", flush=True)
-                                            last_progress_displayed = current_progress
-                                        else:
-                                            # 其他信息正常显示
-                                            print(f"[P{phase}] {last_line.strip()}", flush=True)
-                                    else:
-                                        # 阶段1只显示进度，只在进度变化时显示
-                                        if progress_match and current_progress != last_progress_displayed:
-                                            # 简洁的进度显示：P1: 38.2% (570/1493)
-                                            current_time = time.strftime("%H:%M:%S", time.localtime())
-                                            print(f"[{current_time}] P{phase}: {current_progress:.1f}% ({tested_count}/{total_count})", flush=True)
-                                            last_progress_displayed = current_progress
-                                        else:
-                                            # 其他信息正常显示
-                                            print(f"[P{phase}] {last_line.strip()}", flush=True)
-                                    line_count += 1
+                                # 只在阶段2且遇到节点结果时才处理
+                                if phase == 2:
+                                    node_result = self._parse_node_result(last_line)
+                                    if node_result:
+                                        node_name = node_result['name']
+                                        gpt_status = "✓" if node_result['gpt'] else "✗"
+                                        gemini_status = "✓" if node_result['gemini'] else "✗"
+                                        current_time = time.strftime("%H:%M:%S", time.localtime())
+                                        print(f"[{current_time}] {node_name} | GPT: {gpt_status} | Gemini: {gemini_status}", flush=True)
+                                    # 不在 \r 时打印进度，避免重复
                                 last_line = ""
                             else:
                                 last_line += char

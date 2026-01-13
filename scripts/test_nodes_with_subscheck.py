@@ -330,11 +330,26 @@ class SubsCheckTester:
                 self.stop_http_server()
                 return True, "阶段1完成，无可用节点"
 
+            # 将阶段1的输出文件转换为Clash格式，供阶段2使用
+            phase2_subscription_file = 'result/output/clash_subscription.yaml'
+            try:
+                with open(self.output_file, 'r', encoding='utf-8') as f:
+                    data = yaml.safe_load(f)
+                if data:
+                    # 保存为Clash格式
+                    with open(phase2_subscription_file, 'w', encoding='utf-8') as f:
+                        yaml.dump(data, f, allow_unicode=True, default_flow_style=False)
+                    self.logger.info(f"阶段1结果已转换为Clash格式: {phase2_subscription_file}")
+            except Exception as e:
+                self.logger.error(f"转换阶段1结果失败: {str(e)}")
+                self.stop_http_server()
+                return False, f"转换阶段1结果失败: {str(e)}"
+
             # 阶段2: 媒体检测
             self.logger.info("=" * 60)
             self.logger.info(f"阶段2: 媒体检测（节点数: {len(phase1_nodes)}）")
             self.logger.info("=" * 60)
-            phase2_success, phase2_message = self.run_phase2(len(phase1_nodes), timeout)
+            phase2_success, phase2_message = self.run_phase2(len(phase1_nodes), timeout, phase2_subscription_file)
 
             # 停止HTTP服务器
             self.stop_http_server()
@@ -392,11 +407,21 @@ class SubsCheckTester:
             self.logger.error(f"阶段1测试失败: {str(e)}")
             return False, str(e)
 
-    def run_phase2(self, node_count: int = 0, timeout: int = None) -> Tuple[bool, str]:
-        """阶段2: 媒体检测（只检测openai和gemini，低并发）"""
+    def run_phase2(self, node_count: int = 0, timeout: int = None, subscription_file: str = None) -> Tuple[bool, str]:
+        """阶段2: 媒体检测（只检测openai和gemini，低并发）
+
+        Args:
+            node_count: 节点数量
+            timeout: 超时时间
+            subscription_file: 订阅文件路径（阶段1的输出文件）
+        """
         try:
+            # 如果没有指定订阅文件，使用默认值
+            if subscription_file is None:
+                subscription_file = 'result/clash_subscription.yaml'
+
             # 创建阶段2配置
-            if not self.create_config('result/clash_subscription.yaml', concurrent=5, phase=2):
+            if not self.create_config(subscription_file, concurrent=5, phase=2):
                 return False, "创建阶段2配置失败"
 
             # 动态计算超时时间

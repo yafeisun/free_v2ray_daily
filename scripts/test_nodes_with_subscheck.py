@@ -150,161 +150,306 @@ class SubsCheckTester:
             self.logger.error(f"安装subs-check失败: {str(e)}")
             return False
     
-    def create_config(self, subscription_file: str, concurrent: int = 20) -> bool:
+    def create_config(self, subscription_file: str, concurrent: int = 20, phase: int = 1) -> bool:
         """创建subs-check配置文件
-        
+
         Args:
             subscription_file: 订阅文件路径
             concurrent: 并发数
+            phase: 测试阶段（1=连通性测试，2=媒体检测）
         """
         try:
-            self.logger.info("创建subs-check配置文件...")
-            
-            config = {
-                # 基本配置
-                'print-progress': True,
-                'concurrent': concurrent,  # 根据CPU核心数动态设置
-                'check-interval': 999999,  # 设置为超大值，避免重复测试
-                'timeout': 5000,  # 连通性测试超时5秒
-                
-                # 测速配置
-                'alive-test-url': 'http://gstatic.com/generate_204',
-                'speed-test-url': '',
-                'min-speed': 0,
-                'download-timeout': 1,
-                'download-mb': 0,
-                'total-speed-limit': 0,
-                
-                # 流媒体检测
-                'media-check': True,
-                'media-check-timeout': 8,
-                'platforms': [
-                    'youtube',
-                    'openai',
-                    'gemini'
-                ],
-                
-                # 节点配置
-                'rename-node': True,
-                'node-prefix': '',
-                'success-limit': 0,
-                
-                # 输出配置
-                'output-dir': self.output_dir,
-                'listen-port': '',
-                'save-method': 'local',
-                
-                # Web UI
-                'enable-web-ui': False,
-                'api-key': '',
-                
-                # Sub-Store
-                'sub-store-port': '',
-                'sub-store-path': '',
-                
-                # 代理配置
-                'github-proxy': '',
-                'proxy': '',
-                
-                # 其他
-                'keep-success-proxies': False,
-                'sub-urls-retry': 3,
-                'sub-urls-get-ua': 'clash.meta (https://github.com/beck-8/subs-check)',
-                
-                # 使用HTTP服务器提供本地文件
-                'sub-urls': [
-                    f'http://127.0.0.1:{self.http_server_port}/result/clash_subscription.yaml'
-                ]
-            }
-            
+            self.logger.info(f"创建subs-check配置文件（阶段{phase}）...")
+
+            # 根据阶段设置不同的配置
+            if phase == 1:
+                # 阶段1: 快速连通性测试（禁用媒体检测，高并发）
+                config = {
+                    # 基本配置
+                    'print-progress': True,
+                    'concurrent': 20,  # 高并发
+                    'check-interval': 999999,
+                    'timeout': 10000,  # 连通性测试超时10秒
+
+                    # 测速配置
+                    'alive-test-url': 'http://gstatic.com/generate_204',
+                    'speed-test-url': '',
+                    'min-speed': 0,
+                    'download-timeout': 1,
+                    'download-mb': 0,
+                    'total-speed-limit': 0,
+
+                    # 流媒体检测（禁用）
+                    'media-check': False,
+                    'media-check-timeout': 0,
+                    'platforms': [],
+
+                    # 节点配置
+                    'rename-node': True,
+                    'node-prefix': '',
+                    'success-limit': 0,
+
+                    # 输出配置
+                    'output-dir': self.output_dir,
+                    'listen-port': '',
+                    'save-method': 'local',
+
+                    # Web UI
+                    'enable-web-ui': False,
+                    'api-key': '',
+
+                    # Sub-Store
+                    'sub-store-port': '',
+                    'sub-store-path': '',
+
+                    # 代理配置
+                    'github-proxy': '',
+                    'proxy': '',
+
+                    # 其他
+                    'keep-success-proxies': False,
+                    'sub-urls-retry': 3,
+                    'sub-urls-get-ua': 'clash.meta (https://github.com/beck-8/subs-check)',
+
+                    # 使用HTTP服务器提供本地文件
+                    'sub-urls': [
+                        f'http://127.0.0.1:{self.http_server_port}/{subscription_file}'
+                    ]
+                }
+            else:
+                # 阶段2: 媒体检测（只检测openai和gemini，低并发）
+                config = {
+                    # 基本配置
+                    'print-progress': True,
+                    'concurrent': 5,  # 低并发
+                    'check-interval': 999999,
+                    'timeout': 15000,  # 连通性测试超时15秒
+
+                    # 测速配置
+                    'alive-test-url': 'http://gstatic.com/generate_204',
+                    'speed-test-url': '',
+                    'min-speed': 0,
+                    'download-timeout': 1,
+                    'download-mb': 0,
+                    'total-speed-limit': 0,
+
+                    # 流媒体检测（只检测openai和gemini，不检测youtube）
+                    'media-check': True,
+                    'media-check-timeout': 10,  # 增加超时
+                    'platforms': [
+                        'openai',
+                        'gemini'
+                    ],
+
+                    # 节点配置
+                    'rename-node': True,
+                    'node-prefix': '',
+                    'success-limit': 0,
+
+                    # 输出配置
+                    'output-dir': self.output_dir,
+                    'listen-port': '',
+                    'save-method': 'local',
+
+                    # Web UI
+                    'enable-web-ui': False,
+                    'api-key': '',
+
+                    # Sub-Store
+                    'sub-store-port': '',
+                    'sub-store-path': '',
+
+                    # 代理配置
+                    'github-proxy': '',
+                    'proxy': '',
+
+                    # 其他
+                    'keep-success-proxies': False,
+                    'sub-urls-retry': 3,
+                    'sub-urls-get-ua': 'clash.meta (https://github.com/beck-8/subs-check)',
+
+                    # 使用HTTP服务器提供本地文件
+                    'sub-urls': [
+                        f'http://127.0.0.1:{self.http_server_port}/{subscription_file}'
+                    ]
+                }
+
             # 保存配置
             # 确保目录存在
             os.makedirs(os.path.dirname(self.config_file), exist_ok=True)
             with open(self.config_file, 'w', encoding='utf-8') as f:
                 yaml.dump(config, f, allow_unicode=True, default_flow_style=False)
-            
+
             self.logger.info(f"配置文件创建成功: {self.config_file}")
             return True
-            
+
         except Exception as e:
             self.logger.error(f"创建配置文件失败: {str(e)}")
             return False
     
     def run_test(self, node_count: int = 0, timeout: int = None) -> Tuple[bool, str]:
-        """运行测试"""
+        """运行测试（两阶段测试）"""
         try:
             # 启动HTTP服务器
             if not self.start_http_server():
                 return False, "HTTP服务器启动失败"
-            
-            # 动态计算超时时间
-            if timeout is None:
-                # 根据CPU核心数动态设置并发数
-                # 每个核心可以处理5-10个并发连接（降低并发数避免线程空闲）
-                cpu_count = os.cpu_count() or 2
-                concurrent = max(5, min(cpu_count * 5, 15))  # 最小5，最大15
-                
-                # 每个节点测试3个平台（YouTube、GPT、Gemini）
-                # 每个平台超时8秒
-                # 每个节点最大时间 = 3 × 8 = 24秒
-                # 基础时间 = (节点数 / 并发数) × 每个节点最大时间
-                # 缓冲倍数基于实际测试时间调整（实际测试时间约为理论时间的35%）
-                platforms = 3
-                platform_timeout = 8
-                buffer_multiplier = 1.2  # 基于实际测试数据调整
-                
-                if node_count > 0:
-                    base_time = (node_count / concurrent) * (platforms * platform_timeout)
-                    timeout = int(base_time * buffer_multiplier)
-                    self.logger.info(f"系统CPU核心数: {cpu_count}, 动态设置并发数: {concurrent}")
-                    self.logger.info(f"节点数: {node_count}, 平台数: {platforms}")
-                    self.logger.info(f"基础测试时间: {base_time:.0f}秒, 缓冲倍数: {buffer_multiplier}x")
-                    self.logger.info(f"动态计算超时时间: {timeout}秒 ({timeout/60:.1f}分钟)")
-                else:
-                    timeout = 86400  # 默认24小时
-                    self.logger.info(f"未提供节点数，使用默认超时: {timeout}秒")
-            
-            self.logger.info("开始运行subs-check测试...")
-            
+
             # 检查二进制文件
             if not os.path.exists(self.binary_path):
                 self.logger.warning("subs-check不存在，开始安装...")
                 if not self.install_subscheck():
                     return False, "subs-check安装失败"
-            
+
+            # 阶段1: 连通性测试
+            self.logger.info("=" * 60)
+            self.logger.info("阶段1: 连通性测试（禁用媒体检测，高并发）")
+            self.logger.info("=" * 60)
+            phase1_success, phase1_message = self.run_phase1(node_count, timeout)
+
+            if not phase1_success:
+                self.logger.error(f"阶段1失败: {phase1_message}")
+                self.stop_http_server()
+                return False, f"阶段1失败: {phase1_message}"
+
+            # 读取阶段1结果
+            phase1_nodes = []
+            try:
+                with open(self.output_file, 'r', encoding='utf-8') as f:
+                    data = yaml.safe_load(f)
+                if data and 'proxies' in data:
+                    phase1_nodes = [proxy for proxy in data['proxies']]
+                    self.logger.info(f"阶段1可用节点数: {len(phase1_nodes)}")
+            except Exception as e:
+                self.logger.error(f"读取阶段1结果失败: {str(e)}")
+                self.stop_http_server()
+                return False, f"读取阶段1结果失败: {str(e)}"
+
+            if not phase1_nodes:
+                self.logger.warning("阶段1无可用节点，跳过阶段2")
+                self.stop_http_server()
+                return True, "阶段1完成，无可用节点"
+
+            # 阶段2: 媒体检测
+            self.logger.info("=" * 60)
+            self.logger.info(f"阶段2: 媒体检测（节点数: {len(phase1_nodes)}）")
+            self.logger.info("=" * 60)
+            phase2_success, phase2_message = self.run_phase2(len(phase1_nodes), timeout)
+
+            # 停止HTTP服务器
+            self.stop_http_server()
+
+            if not phase2_success:
+                self.logger.warning(f"阶段2失败: {phase2_message}")
+                # 阶段2失败不影响整体成功，返回阶段1的结果
+                return True, f"阶段1完成，阶段2失败: {phase2_message}"
+
+            return True, "两阶段测试完成"
+
+        except Exception as e:
+            self.logger.error(f"测试失败: {str(e)}")
+            self.stop_http_server()
+            return False, f"测试失败: {str(e)}"
+
+    def run_phase1(self, node_count: int = 0, timeout: int = None) -> Tuple[bool, str]:
+        """阶段1: 连通性测试（禁用媒体检测，高并发）"""
+        try:
+            # 创建阶段1配置
+            if not self.create_config('result/clash_subscription.yaml', concurrent=20, phase=1):
+                return False, "创建阶段1配置失败"
+
+            # 动态计算超时时间
+            if timeout is None:
+                if node_count > 0:
+                    # 阶段1只做连通性测试，速度快
+                    base_time = (node_count / 20) * 10  # 每个节点10秒
+                    timeout = int(base_time * 1.5)  # 缓冲1.5倍
+                    self.logger.info(f"节点数: {node_count}, 动态计算超时时间: {timeout}秒 ({timeout/60:.1f}分钟)")
+                else:
+                    timeout = 3600  # 默认1小时
+                    self.logger.info(f"未提供节点数，使用默认超时: {timeout}秒")
+
+            self.logger.info("开始运行阶段1测试...")
+
             # 运行subs-check
             cmd = [self.binary_path, '-f', self.config_file]
-            
+
             self.logger.info(f"执行命令: {' '.join(cmd)}")
-            
+
             self.process = subprocess.Popen(
                 cmd,
                 stdout=subprocess.PIPE,
-                stderr=subprocess.STDOUT,  # 合并 stderr 到 stdout
-                cwd=self.project_root,  # 使用项目根目录作为工作目录
-                universal_newlines=False,  # 使用二进制模式避免缓冲
-                bufsize=0  # 完全无缓冲
+                stderr=subprocess.STDOUT,
+                cwd=self.project_root,
+                universal_newlines=False,
+                bufsize=0
             )
-            
+
             # 实时输出日志
+            return self._monitor_process(timeout, phase=1)
+
+        except Exception as e:
+            self.logger.error(f"阶段1测试失败: {str(e)}")
+            return False, str(e)
+
+    def run_phase2(self, node_count: int = 0, timeout: int = None) -> Tuple[bool, str]:
+        """阶段2: 媒体检测（只检测openai和gemini，低并发）"""
+        try:
+            # 创建阶段2配置
+            if not self.create_config('result/clash_subscription.yaml', concurrent=5, phase=2):
+                return False, "创建阶段2配置失败"
+
+            # 动态计算超时时间
+            if timeout is None:
+                if node_count > 0:
+                    # 阶段2只检测2个平台
+                    base_time = (node_count / 5) * (2 * 10)  # 每个节点20秒（2个平台×10秒）
+                    timeout = int(base_time * 2.0)  # 缓冲2倍
+                    self.logger.info(f"节点数: {node_count}, 动态计算超时时间: {timeout}秒 ({timeout/60:.1f}分钟)")
+                else:
+                    timeout = 3600  # 默认1小时
+                    self.logger.info(f"未提供节点数，使用默认超时: {timeout}秒")
+
+            self.logger.info("开始运行阶段2测试...")
+
+            # 运行subs-check
+            cmd = [self.binary_path, '-f', self.config_file]
+
+            self.logger.info(f"执行命令: {' '.join(cmd)}")
+
+            self.process = subprocess.Popen(
+                cmd,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                cwd=self.project_root,
+                universal_newlines=False,
+                bufsize=0
+            )
+
+            # 实时输出日志
+            return self._monitor_process(timeout, phase=2)
+
+        except Exception as e:
+            self.logger.error(f"阶段2测试失败: {str(e)}")
+            return False, str(e)
+
+    def _monitor_process(self, timeout: int, phase: int = 1) -> Tuple[bool, str]:
+        """监控进程输出"""
+        try:
             start_time = time.time()
-            last_progress_time = start_time
             last_output_time = start_time
-            line_count = 0
             last_line = ""
-            stderr_lines = []
-            
+            line_count = 0
+
             while True:
-                # 检查总超时（根据节点数量动态计算）
+                # 检查总超时
                 elapsed = time.time() - start_time
                 if elapsed > timeout:
-                    self.logger.error(f"测试超过动态计算的超时时间 {timeout}秒 ({timeout/60:.1f}分钟)，强制终止")
+                    self.logger.error(f"阶段{phase}超过超时时间 {timeout}秒 ({timeout/60:.1f}分钟)，强制终止")
                     self.process.terminate()
                     self.process.wait(timeout=10)
-                    return False, "测试超时"
-                
-                # 检测进度是否达到100%（方案B优化）
-                # subs-check输出格式：: [====>] 99.9% (1492/1493) : 46
+                    return False, f"阶段{phase}超时"
+
+                # 解析进度
                 import re
                 progress_match = re.search(r'\[.*?\]\s+(\d+\.?\d*)%\s+\((\d+)/(\d+)\)', last_line)
                 current_progress = 0
@@ -312,154 +457,88 @@ class SubsCheckTester:
                     current_progress = float(progress_match.group(1))
                     tested_count = int(progress_match.group(2))
                     total_count = int(progress_match.group(3))
-                    
-                    # 当进度达到100%且测试数量等于总数时，认为测试完成
-                    if current_progress >= 100.0 and tested_count >= total_count:
-                        self.logger.info(f"检测到测试完成（进度: {current_progress}%, 测试: {tested_count}/{total_count}），准备终止进程")
+
+                    # 当进度达到90%以上且测试数量接近总数时，认为测试完成
+                    if current_progress >= 90.0 and tested_count >= total_count * 0.9:
+                        self.logger.info(f"检测到阶段{phase}测试完成（进度: {current_progress}%, 测试: {tested_count}/{total_count}），准备终止进程")
                         break
-                
-                # 检查静默超时（根据进度动态调整超时时间）
-                # 进度越接近100%，等待时间越长
-                if current_progress < 95:
-                    silent_timeout = 180  # 3分钟
-                elif current_progress < 98:
-                    silent_timeout = 300  # 5分钟
-                else:
-                    silent_timeout = 600  # 10分钟
-                
+
+                # 检查静默超时（3分钟无输出认为结束）
+                silent_timeout = 180  # 3分钟
                 if time.time() - last_output_time > silent_timeout:
-                    self.logger.info(f"检测到{silent_timeout}秒（{silent_timeout/60:.0f}分钟）无新输出（当前进度: {current_progress:.1f}%），认为测试已完成")
+                    self.logger.info(f"检测到{silent_timeout}秒（{silent_timeout/60:.0f}分钟）无新输出（当前进度: {current_progress:.1f}%），认为阶段{phase}测试已完成")
                     break
-                
-                # 使用select检查是否有可读数据（非阻塞）
+
+                # 使用select检查是否有可读数据
                 import select
                 try:
-                    ready, _, _ = select.select([self.process.stdout], [], [], 1.0)  # 1秒超时
+                    ready, _, _ = select.select([self.process.stdout], [], [], 1.0)
                     if ready:
-                        # 有数据可读
                         byte = self.process.stdout.read(1)
                         if byte:
-                            # 更新最后输出时间
                             last_output_time = time.time()
-                            
-                            # 将字节解码为字符
                             char = byte.decode('utf-8', errors='ignore')
                             if char == '\n':
-                                # 打印完整行
                                 if last_line.strip():
-                                    print(last_line.strip(), flush=True)
-                                    stderr_lines.append(last_line.strip())
+                                    print(f"[P{phase}] {last_line.strip()}", flush=True)
                                     line_count += 1
                                 last_line = ""
                             elif char == '\r':
-                                # 处理进度条（\r表示行首，用于更新进度条）
                                 if last_line.strip():
-                                    print(last_line.strip(), flush=True)
-                                    stderr_lines.append(last_line.strip())
+                                    print(f"[P{phase}] {last_line.strip()}", flush=True)
                                     line_count += 1
                                 last_line = ""
                             else:
                                 last_line += char
-                                # 定期刷新输出（每100个字符）
                                 if len(last_line) >= 100:
-                                    print(last_line, end='', flush=True)
+                                    print(f"[P{phase}] {last_line}", end='', flush=True)
                                     last_line = ""
                         else:
-                            # EOF，进程结束
                             break
                 except (OSError, ValueError):
-                    # 进程已结束
                     break
-                
-                # 定期打印进度（每30秒）
-                if time.time() - last_progress_time >= 30:
-                    if last_line.strip():
-                        print(last_line.strip(), flush=True)
-                    self.logger.info(f"测试进行中... 已运行 {int(time.time() - start_time)} 秒，已读取 {line_count} 行输出")
-                    last_progress_time = time.time()
-                
+
                 # 检查进程是否结束
                 if self.process.poll() is not None:
                     break
-                
-                time.sleep(0.01)  # 更频繁的检查
-            
-            # 等待进程结束（带超时）
+
+                time.sleep(0.01)
+
+            # 等待进程结束
             try:
-                return_code = self.process.wait(timeout=30)  # 30秒超时
-                self.logger.info(f"进程正常退出，返回码: {return_code}")
+                return_code = self.process.wait(timeout=30)
+                self.logger.info(f"阶段{phase}进程退出，返回码: {return_code}")
             except subprocess.TimeoutExpired:
-                self.logger.warning("进程未在30秒内退出，尝试优雅终止...")
+                self.logger.warning(f"阶段{phase}进程未在30秒内退出，尝试终止...")
                 self.process.terminate()
                 try:
-                    return_code = self.process.wait(timeout=10)  # 再等10秒
-                    self.logger.info(f"进程已终止，返回码: {return_code}")
+                    return_code = self.process.wait(timeout=10)
+                    self.logger.info(f"阶段{phase}进程已终止，返回码: {return_code}")
                 except subprocess.TimeoutExpired:
-                    self.logger.error("进程无法终止，强制kill")
+                    self.logger.error(f"阶段{phase}进程无法终止，强制kill")
                     self.process.kill()
-                    try:
-                        return_code = self.process.wait(timeout=5)  # 等待kill完成
-                        self.logger.info(f"进程已被kill，返回码: {return_code}")
-                    except subprocess.TimeoutExpired:
-                        self.logger.error("进程无法kill，可能已僵死")
-                        return_code = -1
-            
-            # 停止HTTP服务器
-            self.stop_http_server()
-            
-            # 检查输出文件是否存在且有效
-            output_file_exists = os.path.exists(self.output_file)
-            output_file_valid = False
+                    return_code = -1
+
+            # 检查输出文件
             tested_node_count = 0
-            
-            if output_file_exists:
+            if os.path.exists(self.output_file):
                 try:
                     with open(self.output_file, 'r', encoding='utf-8') as f:
                         data = yaml.safe_load(f)
                     if data and 'proxies' in data:
                         tested_node_count = len(data['proxies'])
-                        if tested_node_count > 0:
-                            output_file_valid = True
-                            self.logger.info(f"输出文件有效，包含 {tested_node_count} 个节点")
-                        else:
-                            self.logger.warning("输出文件存在但没有节点")
+                        self.logger.info(f"阶段{phase}输出文件有效，包含 {tested_node_count} 个节点")
                 except Exception as e:
-                    self.logger.warning(f"检查输出文件失败: {str(e)}")
-            
-            # 判断测试是否成功
-            # 成功条件：
-            # 1. 进程正常退出（return_code == 0）
-            # 2. 或者进程被终止但输出文件有效且节点数量合理（至少完成了30%的测试）
-            
-            success_threshold = max(1, int(node_count * 0.1))  # 至少完成10%的测试
-            
-            if return_code == 0:
-                self.logger.info("测试成功完成")
-                return True, "测试成功"
-            elif output_file_valid and tested_node_count >= success_threshold:
-                # 进程被强制终止，但输出文件有效且节点数量合理，认为部分成功
-                completion_rate = (tested_node_count / node_count * 100) if node_count > 0 else 0
-                self.logger.info(f"进程被终止（返回码: {return_code}），但输出文件有效，测试了 {tested_node_count}/{node_count} 个节点（{completion_rate:.1f}%），认为测试成功")
-                return True, f"测试成功（进程返回码: {return_code}，测试了 {tested_node_count}/{node_count} 个节点）"
+                    self.logger.warning(f"检查阶段{phase}输出文件失败: {str(e)}")
+
+            # 判断是否成功
+            if tested_node_count > 0:
+                return True, f"阶段{phase}完成，测试了{tested_node_count}个节点"
             else:
-                # 测试失败
-                error_msg = f"测试失败，返回码: {return_code}"
-                if output_file_exists:
-                    if output_file_valid:
-                        error_msg += f"，输出文件有效但节点数量不足（{tested_node_count}/{node_count}，需要至少{success_threshold}个）"
-                    else:
-                        error_msg += "，输出文件无效或为空"
-                else:
-                    error_msg += "，输出文件不存在"
-                if stderr_lines:
-                    error_msg += f"\n错误信息:\n" + "\n".join(stderr_lines[-10:])  # 只显示最后10行
-                self.logger.error(error_msg)
-                return False, error_msg
-            
+                return False, f"阶段{phase}完成，但无有效节点"
+
         except Exception as e:
-            # 确保停止HTTP服务器
-            self.stop_http_server()
-            self.logger.error(f"运行测试失败: {str(e)}")
+            self.logger.error(f"监控阶段{phase}进程失败: {str(e)}")
             return False, str(e)
     
     def parse_results(self) -> List[str]:
@@ -491,12 +570,9 @@ class SubsCheckTester:
                     
                     # 提取测试结果
                     media_info = self._extract_media_info(proxy)
-                    
-                    # 计算通过的测试数量
-                    passed_tests = sum([media_info['gpt'], media_info['gemini'], media_info['youtube']])
-                    
-                    # 3选1规则：至少通过2个测试才能保留
-                    if passed_tests < 2:
+
+                    # 2选1规则：GPT或Gemini至少通过1个才能保留
+                    if not (media_info['gpt'] or media_info['gemini']):
                         media_filtered_count += 1
                         continue
                     

@@ -165,14 +165,14 @@ class BatchNodeTester:
                     process.wait(timeout=10)
                     break
                 
-                # 检查静默超时
-                if time.time() - last_output_time > 300:
-                    self.logger.info(f"批次 {batch_index} 300秒无输出，认为已完成")
+                # 检查静默超时（增加到600秒，避免误判）
+                if time.time() - last_output_time > 600:
+                    self.logger.info(f"批次 {batch_index} 600秒无输出，认为已完成")
                     break
                 
-                # 检查进度停滞（超过90%且120秒无变化）
-                if last_progress >= 90.0 and (time.time() - last_progress_time) > 120:
-                    self.logger.warning(f"批次 {batch_index} 进度停滞在 {last_progress}% 超过120秒，强制终止")
+                # 检查进度停滞（降低阈值到70%，增加停滞时间到180秒）
+                if last_progress >= 70.0 and (time.time() - last_progress_time) > 180:
+                    self.logger.warning(f"批次 {batch_index} 进度停滞在 {last_progress}% 超过180秒，强制终止")
                     process.terminate()
                     process.wait(timeout=10)
                     break

@@ -465,6 +465,7 @@ class SubsCheckTester:
             last_output_time = start_time
             last_line = ""
             line_count = 0
+            last_progress_displayed = -1.0  # 记录上一次显示的进度，避免重复打印
 
             while True:
                 # 检查总超时
@@ -514,17 +515,19 @@ class SubsCheckTester:
                                             gpt_status = "✓" if node_result['gpt'] else "✗"
                                             gemini_status = "✓" if node_result['gemini'] else "✗"
                                             print(f"{node_name} | GPT: {gpt_status} | Gemini: {gemini_status}", flush=True)
-                                        elif progress_match:
-                                            # 简洁的进度显示：P2: 38.2% (570/1493)
+                                        elif progress_match and current_progress != last_progress_displayed:
+                                            # 简洁的进度显示：P2: 38.2% (570/1493)，只在进度变化时显示
                                             print(f"P{phase}: {current_progress:.1f}% ({tested_count}/{total_count})", flush=True)
+                                            last_progress_displayed = current_progress
                                         else:
                                             # 其他信息正常显示
                                             print(f"[P{phase}] {last_line.strip()}", flush=True)
                                     else:
-                                        # 阶段1只显示进度
-                                        if progress_match:
+                                        # 阶段1只显示进度，只在进度变化时显示
+                                        if progress_match and current_progress != last_progress_displayed:
                                             # 简洁的进度显示：P1: 38.2% (570/1493)
                                             print(f"P{phase}: {current_progress:.1f}% ({tested_count}/{total_count})", flush=True)
+                                            last_progress_displayed = current_progress
                                         else:
                                             # 其他信息正常显示
                                             print(f"[P{phase}] {last_line.strip()}", flush=True)
@@ -540,17 +543,19 @@ class SubsCheckTester:
                                             gpt_status = "✓" if node_result['gpt'] else "✗"
                                             gemini_status = "✓" if node_result['gemini'] else "✗"
                                             print(f"{node_name} | GPT: {gpt_status} | Gemini: {gemini_status}", flush=True)
-                                        elif progress_match:
-                                            # 简洁的进度显示：P2: 38.2% (570/1493)
+                                        elif progress_match and current_progress != last_progress_displayed:
+                                            # 简洁的进度显示：P2: 38.2% (570/1493)，只在进度变化时显示
                                             print(f"P{phase}: {current_progress:.1f}% ({tested_count}/{total_count})", flush=True)
+                                            last_progress_displayed = current_progress
                                         else:
                                             # 其他信息正常显示
                                             print(f"[P{phase}] {last_line.strip()}", flush=True)
                                     else:
-                                        # 阶段1只显示进度
-                                        if progress_match:
+                                        # 阶段1只显示进度，只在进度变化时显示
+                                        if progress_match and current_progress != last_progress_displayed:
                                             # 简洁的进度显示：P1: 38.2% (570/1493)
                                             print(f"P{phase}: {current_progress:.1f}% ({tested_count}/{total_count})", flush=True)
+                                            last_progress_displayed = current_progress
                                         else:
                                             # 其他信息正常显示
                                             print(f"[P{phase}] {last_line.strip()}", flush=True)

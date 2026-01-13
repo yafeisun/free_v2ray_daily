@@ -1145,20 +1145,14 @@ def convert_nodes_to_vless_yaml(clash_file: str, output_file: str) -> bool:
 def main():
     """主函数"""
     import argparse
-
-    # 禁用输出缓冲，确保日志实时显示
-    sys.stdout.reconfigure(line_buffering=True)
-    sys.stderr.reconfigure(line_buffering=True)
-    print("开始执行节点测试...", flush=True)
-
+    
     parser = argparse.ArgumentParser(description='节点测速脚本 - 使用subs-check')
     parser.add_argument('--input', default='result/nodetotal.txt', help='输入节点文件')
     parser.add_argument('--output', default='result/nodelist.txt', help='输出节点文件')
     
     args = parser.parse_args()
-
+    
     logger = get_logger("main")
-
     print(f"\n{'='*60}", flush=True)
     print("节点测速工具 - subs-check", flush=True)
     print(f"{'='*60}", flush=True)

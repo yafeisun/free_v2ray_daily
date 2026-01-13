@@ -290,47 +290,63 @@ class SubsCheckTester:
     def run_test(self, node_count: int = 0, timeout: int = None) -> Tuple[bool, str]:
         """运行测试（两阶段测试）"""
         try:
+            print("\n" + "="*60, flush=True)
+            print("开始执行两阶段节点测试", flush=True)
+            print("="*60, flush=True)
+
             # 启动HTTP服务器
+            print("\n[1/6] 启动HTTP服务器...", flush=True)
             if not self.start_http_server():
                 return False, "HTTP服务器启动失败"
+            print("✓ HTTP服务器启动成功", flush=True)
 
             # 检查二进制文件
+            print("\n[2/6] 检查subs-check工具...", flush=True)
             if not os.path.exists(self.binary_path):
                 self.logger.warning("subs-check不存在，开始安装...")
+                print("正在安装subs-check...", flush=True)
                 if not self.install_subscheck():
                     return False, "subs-check安装失败"
+            print("✓ subs-check工具就绪", flush=True)
 
             # 阶段1: 连通性测试
+            print("\n[3/6] 阶段1: 连通性测试（禁用媒体检测，高并发）", flush=True)
+            print("="*60, flush=True)
             self.logger.info("=" * 60)
             self.logger.info("阶段1: 连通性测试（禁用媒体检测，高并发）")
             self.logger.info("=" * 60)
             phase1_success, phase1_message = self.run_phase1(node_count, timeout)
 
             if not phase1_success:
+                print(f"\n✗ 阶段1失败: {phase1_message}", flush=True)
                 self.logger.error(f"阶段1失败: {phase1_message}")
                 self.stop_http_server()
                 return False, f"阶段1失败: {phase1_message}"
 
             # 读取阶段1结果
+            print("\n[4/6] 读取阶段1结果...", flush=True)
             phase1_nodes = []
             try:
                 with open(self.output_file, 'r', encoding='utf-8') as f:
                     data = yaml.safe_load(f)
                 if data and 'proxies' in data:
                     phase1_nodes = [proxy for proxy in data['proxies']]
-                    print(f"\n阶段1完成: {len(phase1_nodes)}个节点可用", flush=True)
+                    print(f"✓ 阶段1完成: {len(phase1_nodes)}个节点可用", flush=True)
                     self.logger.info(f"阶段1可用节点数: {len(phase1_nodes)}")
             except Exception as e:
+                print(f"✗ 读取阶段1结果失败: {str(e)}", flush=True)
                 self.logger.error(f"读取阶段1结果失败: {str(e)}")
                 self.stop_http_server()
                 return False, f"读取阶段1结果失败: {str(e)}"
 
             if not phase1_nodes:
+                print("\n⚠ 阶段1无可用节点，跳过阶段2", flush=True)
                 self.logger.warning("阶段1无可用节点，跳过阶段2")
                 self.stop_http_server()
                 return True, "阶段1完成，无可用节点"
 
             # 将阶段1的输出文件转换为Clash格式，供阶段2使用
+            print("\n[5/6] 准备阶段2测试...", flush=True)
             phase2_subscription_file = 'result/output/clash_subscription.yaml'
             try:
                 with open(self.output_file, 'r', encoding='utf-8') as f:
@@ -339,29 +355,40 @@ class SubsCheckTester:
                     # 保存为Clash格式
                     with open(phase2_subscription_file, 'w', encoding='utf-8') as f:
                         yaml.dump(data, f, allow_unicode=True, default_flow_style=False)
+                    print(f"✓ 阶段1结果已转换", flush=True)
                     self.logger.info(f"阶段1结果已转换为Clash格式: {phase2_subscription_file}")
             except Exception as e:
+                print(f"✗ 转换阶段1结果失败: {str(e)}", flush=True)
                 self.logger.error(f"转换阶段1结果失败: {str(e)}")
                 self.stop_http_server()
                 return False, f"转换阶段1结果失败: {str(e)}"
 
             # 阶段2: 媒体检测
+            print(f"\n[6/6] 阶段2: 媒体检测（{len(phase1_nodes)}个节点）", flush=True)
+            print("="*60, flush=True)
             self.logger.info("=" * 60)
             self.logger.info(f"阶段2: 媒体检测（节点数: {len(phase1_nodes)}）")
             self.logger.info("=" * 60)
             phase2_success, phase2_message = self.run_phase2(len(phase1_nodes), timeout, phase2_subscription_file)
 
             # 停止HTTP服务器
+            print("\n停止HTTP服务器...", flush=True)
             self.stop_http_server()
+            print("✓ HTTP服务器已停止", flush=True)
 
             if not phase2_success:
+                print(f"\n⚠ 阶段2失败: {phase2_message}", flush=True)
                 self.logger.warning(f"阶段2失败: {phase2_message}")
                 # 阶段2失败不影响整体成功，返回阶段1的结果
                 return True, f"阶段1完成，阶段2失败: {phase2_message}"
 
+            print("\n" + "="*60, flush=True)
+            print("✓ 两阶段测试完成", flush=True)
+            print("="*60, flush=True)
             return True, "两阶段测试完成"
 
         except Exception as e:
+            print(f"\n✗ 测试失败: {str(e)}", flush=True)
             self.logger.error(f"测试失败: {str(e)}")
             self.stop_http_server()
             return False, f"测试失败: {str(e)}"
@@ -369,9 +396,11 @@ class SubsCheckTester:
     def run_phase1(self, node_count: int = 0, timeout: int = None) -> Tuple[bool, str]:
         """阶段1: 连通性测试（禁用媒体检测，高并发）"""
         try:
+            print(f"\n创建阶段1配置...", flush=True)
             # 创建阶段1配置
             if not self.create_config('result/clash_subscription.yaml', concurrent=20, phase=1):
                 return False, "创建阶段1配置失败"
+            print(f"✓ 阶段1配置已创建", flush=True)
 
             # 动态计算超时时间
             if timeout is None:
@@ -379,6 +408,7 @@ class SubsCheckTester:
                     # 阶段1只做连通性测试，速度快
                     base_time = (node_count / 20) * 10  # 每个节点10秒
                     timeout = int(base_time * 1.5)  # 缓冲1.5倍
+                    print(f"节点数: {node_count}, 预计超时时间: {timeout}秒 ({timeout/60:.1f}分钟)", flush=True)
                     self.logger.info(f"节点数: {node_count}, 动态计算超时时间: {timeout}秒 ({timeout/60:.1f}分钟)")
                 else:
                     timeout = 3600  # 默认1小时
@@ -420,9 +450,11 @@ class SubsCheckTester:
             if subscription_file is None:
                 subscription_file = 'result/clash_subscription.yaml'
 
+            print(f"\n创建阶段2配置...", flush=True)
             # 创建阶段2配置
             if not self.create_config(subscription_file, concurrent=5, phase=2):
                 return False, "创建阶段2配置失败"
+            print(f"✓ 阶段2配置已创建", flush=True)
 
             # 动态计算超时时间
             if timeout is None:
@@ -430,11 +462,13 @@ class SubsCheckTester:
                     # 阶段2只检测2个平台
                     base_time = (node_count / 5) * (2 * 10)  # 每个节点20秒（2个平台×10秒）
                     timeout = int(base_time * 2.0)  # 缓冲2倍
+                    print(f"节点数: {node_count}, 预计超时时间: {timeout}秒 ({timeout/60:.1f}分钟)", flush=True)
                     self.logger.info(f"节点数: {node_count}, 动态计算超时时间: {timeout}秒 ({timeout/60:.1f}分钟)")
                 else:
                     timeout = 3600  # 默认1小时
                     self.logger.info(f"未提供节点数，使用默认超时: {timeout}秒")
 
+            print(f"\n开始运行阶段2测试...", flush=True)
             self.logger.info("开始运行阶段2测试...")
 
             # 运行subs-check
@@ -1057,84 +1091,114 @@ def convert_nodes_to_vless_yaml(clash_file: str, output_file: str) -> bool:
 def main():
     """主函数"""
     import argparse
-    
+
+    # 禁用输出缓冲，确保日志实时显示
+    sys.stdout.reconfigure(line_buffering=True)
+    sys.stderr.reconfigure(line_buffering=True)
+    print("开始执行节点测试...", flush=True)
+
     parser = argparse.ArgumentParser(description='节点测速脚本 - 使用subs-check')
     parser.add_argument('--input', default='result/nodetotal.txt', help='输入节点文件')
     parser.add_argument('--output', default='result/nodelist.txt', help='输出节点文件')
     
     args = parser.parse_args()
-    
+
     logger = get_logger("main")
-    
+
+    print(f"\n{'='*60}", flush=True)
+    print("节点测速工具 - subs-check", flush=True)
+    print(f"{'='*60}", flush=True)
+    print(f"输入文件: {args.input}", flush=True)
+    print(f"输出文件: {args.output}", flush=True)
+
     # 检查输入文件
+    print(f"\n检查输入文件...", flush=True)
     if not os.path.exists(args.input):
+        print(f"✗ 输入文件不存在: {args.input}", flush=True)
         logger.error(f"输入文件不存在: {args.input}")
         sys.exit(1)
-    
+
     # 读取节点
+    print(f"读取节点文件: {args.input}", flush=True)
     logger.info(f"读取节点文件: {args.input}")
     with open(args.input, 'r', encoding='utf-8') as f:
         nodes = [line.strip() for line in f if line.strip()]
-    
+
+    print(f"✓ 读取到 {len(nodes)} 个节点", flush=True)
     logger.info(f"读取到 {len(nodes)} 个节点")
     
     # 转换为Clash格式
+    print(f"\n转换为Clash订阅格式...", flush=True)
     logger.info("转换为Clash订阅格式...")
     subscription_file = os.path.join(os.path.dirname(args.output), 'clash_subscription.yaml')
-    
+
     # 导入转换函数
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
     import convert_nodes_to_subscription
     clash_config = convert_nodes_to_subscription.convert_nodes_to_clash(nodes)
-    
+
     # 保存Clash配置
     os.makedirs(os.path.dirname(subscription_file), exist_ok=True)
     with open(subscription_file, 'w', encoding='utf-8') as f:
         yaml.dump(clash_config, f, allow_unicode=True, default_flow_style=False)
-    
+
+    print(f"✓ Clash订阅文件已保存: {subscription_file}", flush=True)
     logger.info(f"Clash订阅文件已保存: {subscription_file}")
     
     # 运行subs-check测试
+    print(f"\n初始化测试器...", flush=True)
     tester = SubsCheckTester()
-    
+
     # 计算并发数（根据CPU核心数）
     cpu_count = os.cpu_count() or 2
     concurrent = max(5, min(cpu_count * 5, 15))
+    print(f"系统CPU核心数: {cpu_count}, 动态设置并发数: {concurrent}", flush=True)
     logger.info(f"系统CPU核心数: {cpu_count}, 动态设置并发数: {concurrent}")
-    
+
     # 创建配置
+    print(f"创建测试配置...", flush=True)
     if not tester.create_config(subscription_file, concurrent):
+        print("✗ 创建配置文件失败", flush=True)
         logger.error("创建配置文件失败")
         sys.exit(1)
-    
+    print(f"✓ 测试配置已创建", flush=True)
+
     # 运行测试
+    print(f"\n开始测试...", flush=True)
     success, message = tester.run_test(node_count=len(nodes))
-    
+
     if not success:
+        print(f"\n✗ 测试失败: {message}", flush=True)
         logger.error(f"测试失败: {message}")
         sys.exit(1)
-    
+
     # 解析结果
+    print(f"\n解析测试结果...", flush=True)
     logger.info("解析测试结果...")
     
     # 使用parse_results方法解析结果并重命名节点
     renamed_nodes = tester.parse_results()
-    
+
     if renamed_nodes:
         # 保存重命名后的节点
         os.makedirs(os.path.dirname(args.output), exist_ok=True)
         with open(args.output, 'w', encoding='utf-8') as f:
             for node in renamed_nodes:
                 f.write(f"{node}\n")
+        print(f"✓ 有效节点已保存到: {args.output} ({len(renamed_nodes)}个)", flush=True)
         logger.info(f"有效节点已保存到: {args.output}")
     else:
+        print("⚠ 未找到有效节点", flush=True)
         logger.warning("未找到有效节点")
         # 保留原始Clash输出
         if os.path.exists(tester.output_file):
             import shutil
             shutil.copy(tester.output_file, args.output)
             logger.info(f"使用Clash格式输出: {args.output}")
-    
+
+    print(f"\n{'='*60}", flush=True)
+    print("✓ 测试完成", flush=True)
+    print(f"{'='*60}\n", flush=True)
     logger.info("✓ 测试完成")
     sys.exit(0)
 

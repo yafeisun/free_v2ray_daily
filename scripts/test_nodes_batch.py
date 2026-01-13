@@ -46,60 +46,121 @@ class BatchNodeTester:
         # 测试超时（每批）
         self.batch_timeout = 1800  # 30分钟
     
-    def create_batch_config(self, batch_index: int, subscription_url: str) -> str:
-        """为每个批次创建独立的配置文件"""
-        config_file = os.path.join(self.config_dir, f'batch_{batch_index}.yaml')
-        
-        config = {
-            # 基本配置
-            'print-progress': True,
-            'concurrent': self.concurrent,
-            'check-interval': 999999,
-            'timeout': 10000,
-            
-            # 测速配置
-            'alive-test-url': 'http://gstatic.com/generate_204',
-            'speed-test-url': '',
-            'min-speed': 0,
-            'download-timeout': 1,
-            'download-mb': 0,
-            'total-speed-limit': 0,
-            
-            # 流媒体检测
-            'media-check': True,
-            'media-check-timeout': 8,
-            'platforms': ['youtube', 'openai', 'gemini'],
-            
-            # 节点配置
-            'rename-node': True,
-            'node-prefix': '',
-            'success-limit': 0,
-            
-            # 输出配置
-            'output-dir': self.output_dir,
-            'listen-port': '',
-            'save-method': 'local',
-            
-            # Web UI
-            'enable-web-ui': False,
-            'api-key': '',
-            
-            # Sub-Store
-            'sub-store-port': '',
-            'sub-store-path': '',
-            
-            # 代理配置
-            'github-proxy': '',
-            'proxy': '',
-            
-            # 其他
-            'keep-success-proxies': False,
-            'sub-urls-retry': 3,
-            'sub-urls-get-ua': 'clash.meta (https://github.com/beck-8/subs-check)',
-            
-            # 订阅链接
-            'sub-urls': [subscription_url]
-        }
+    def create_batch_config(self, batch_index: int, subscription_url: str, phase: int = 1) -> str:
+        """为每个批次创建独立的配置文件
+
+        Args:
+            batch_index: 批次索引
+            subscription_url: 订阅链接
+            phase: 测试阶段（1=连通性测试，2=媒体检测）
+        """
+        config_file = os.path.join(self.config_dir, f'batch_{batch_index}_phase{phase}.yaml')
+
+        # 根据阶段设置不同的配置
+        if phase == 1:
+            # 阶段1: 快速连通性测试（禁用媒体检测，高并发）
+            config = {
+                # 基本配置
+                'print-progress': True,
+                'concurrent': 20,  # 高并发
+                'check-interval': 999999,
+                'timeout': 10000,
+
+                # 测速配置
+                'alive-test-url': 'http://gstatic.com/generate_204',
+                'speed-test-url': '',
+                'min-speed': 0,
+                'download-timeout': 1,
+                'download-mb': 0,
+                'total-speed-limit': 0,
+
+                # 流媒体检测（禁用）
+                'media-check': False,
+                'media-check-timeout': 0,
+                'platforms': [],
+
+                # 节点配置
+                'rename-node': True,
+                'node-prefix': '',
+                'success-limit': 0,
+
+                # 输出配置
+                'output-dir': self.output_dir,
+                'listen-port': '',
+                'save-method': 'local',
+
+                # Web UI
+                'enable-web-ui': False,
+                'api-key': '',
+
+                # Sub-Store
+                'sub-store-port': '',
+                'sub-store-path': '',
+
+                # 代理配置
+                'github-proxy': '',
+                'proxy': '',
+
+                # 其他
+                'keep-success-proxies': False,
+                'sub-urls-retry': 3,
+                'sub-urls-get-ua': 'clash.meta (https://github.com/beck-8/subs-check)',
+
+                # 订阅链接
+                'sub-urls': [subscription_url]
+            }
+        else:
+            # 阶段2: 媒体检测（只检测openai和gemini，低并发）
+            config = {
+                # 基本配置
+                'print-progress': True,
+                'concurrent': 5,  # 低并发
+                'check-interval': 999999,
+                'timeout': 15000,  # 增加超时
+
+                # 测速配置
+                'alive-test-url': 'http://gstatic.com/generate_204',
+                'speed-test-url': '',
+                'min-speed': 0,
+                'download-timeout': 1,
+                'download-mb': 0,
+                'total-speed-limit': 0,
+
+                # 流媒体检测（只检测openai和gemini，不检测youtube）
+                'media-check': True,
+                'media-check-timeout': 10,  # 增加超时
+                'platforms': ['openai', 'gemini'],  # 不检测youtube
+
+                # 节点配置
+                'rename-node': True,
+                'node-prefix': '',
+                'success-limit': 0,
+
+                # 输出配置
+                'output-dir': self.output_dir,
+                'listen-port': '',
+                'save-method': 'local',
+
+                # Web UI
+                'enable-web-ui': False,
+                'api-key': '',
+
+                # Sub-Store
+                'sub-store-port': '',
+                'sub-store-path': '',
+
+                # 代理配置
+                'github-proxy': '',
+                'proxy': '',
+
+                # 其他
+                'keep-success-proxies': False,
+                'sub-urls-retry': 3,
+                'sub-urls-get-ua': 'clash.meta (https://github.com/beck-8/subs-check)',
+
+                # 订阅链接
+                'sub-urls': [subscription_url]
+            }
         
         # 保存配置
         os.makedirs(os.path.dirname(config_file), exist_ok=True)
@@ -110,7 +171,7 @@ class BatchNodeTester:
         return config_file
     
     def clean_old_configs(self):
-        """清理旧的批次配置文件"""
+        """清理旧的批次配置文件（包括所有阶段的配置）"""
         import glob
         old_configs = glob.glob(os.path.join(self.config_dir, 'batch_*.yaml'))
         for old_config in old_configs:
@@ -121,25 +182,46 @@ class BatchNodeTester:
                 self.logger.warning(f"清理配置文件失败 {old_config}: {str(e)}")
     
     def run_single_batch(self, batch_nodes: List[str], batch_index: int, http_server_port: int) -> List[str]:
-        """运行单个批次的测试"""
+        """运行单个批次的测试（两阶段测试）"""
         self.logger.info(f"开始测试批次 {batch_index}，节点数: {len(batch_nodes)}")
-        
+
+        try:
+            # 阶段1: 连通性测试
+            self.logger.info(f"批次 {batch_index} 阶段1: 连通性测试")
+            phase1_nodes = self.run_phase1(batch_nodes, batch_index, http_server_port)
+
+            if not phase1_nodes:
+                self.logger.warning(f"批次 {batch_index} 阶段1无可用节点，跳过阶段2")
+                return []
+
+            # 阶段2: 媒体检测
+            self.logger.info(f"批次 {batch_index} 阶段2: 媒体检测（节点数: {len(phase1_nodes)}）")
+            phase2_nodes = self.run_phase2(phase1_nodes, batch_index, http_server_port)
+
+            return phase2_nodes
+
+        except Exception as e:
+            self.logger.error(f"批次 {batch_index} 测试失败: {str(e)}")
+            return []
+
+    def run_phase1(self, batch_nodes: List[str], batch_index: int, http_server_port: int) -> List[str]:
+        """阶段1: 连通性测试（禁用媒体检测，高并发）"""
         try:
             # 为当前批次创建独立的订阅文件
-            batch_subscription_file = os.path.join(self.project_root, 'result', f'batch_subscription_{batch_index}.yaml')
+            batch_subscription_file = os.path.join(self.project_root, 'result', f'batch_subscription_{batch_index}_phase1.yaml')
             from scripts import convert_nodes_to_subscription
             batch_clash_config = convert_nodes_to_subscription.convert_nodes_to_clash(batch_nodes)
             with open(batch_subscription_file, 'w', encoding='utf-8') as f:
                 yaml.dump(batch_clash_config, f, allow_unicode=True, default_flow_style=False)
-            
-            # 创建批次配置，使用独立的订阅文件
-            config_file = self.create_batch_config(batch_index, f'http://127.0.0.1:{http_server_port}/result/batch_subscription_{batch_index}.yaml')
-            
+
+            # 创建阶段1配置（禁用媒体检测，高并发）
+            config_file = self.create_batch_config(batch_index, f'http://127.0.0.1:{http_server_port}/result/batch_subscription_{batch_index}_phase1.yaml', phase=1)
+
             # 运行subs-check
             cmd = [self.binary_path, '-f', config_file]
-            
+
             self.logger.info(f"执行命令: {' '.join(cmd)}")
-            
+
             process = subprocess.Popen(
                 cmd,
                 stdout=subprocess.PIPE,
@@ -148,35 +230,28 @@ class BatchNodeTester:
                 universal_newlines=False,
                 bufsize=0
             )
-            
+
             # 实时输出日志
             start_time = time.time()
             last_output_time = start_time
             last_line = ""
             last_progress = 0
             last_progress_time = start_time
-            
+
             while True:
                 # 检查超时
                 elapsed = time.time() - start_time
                 if elapsed > self.batch_timeout:
-                    self.logger.error(f"批次 {batch_index} 超时（{self.batch_timeout}秒），强制终止")
+                    self.logger.error(f"批次 {batch_index} 阶段1 超时（{self.batch_timeout}秒），强制终止")
                     process.terminate()
                     process.wait(timeout=10)
                     break
-                
-                # 检查静默超时（增加到600秒，避免误判）
-                if time.time() - last_output_time > 600:
-                    self.logger.info(f"批次 {batch_index} 600秒无输出，认为已完成")
+
+                # 检查静默超时（阶段1使用300秒，因为速度快）
+                if time.time() - last_output_time > 300:
+                    self.logger.info(f"批次 {batch_index} 阶段1 300秒无输出，认为已完成")
                     break
-                
-                # 检查进度停滞（降低阈值到70%，增加停滞时间到180秒）
-                if last_progress >= 70.0 and (time.time() - last_progress_time) > 180:
-                    self.logger.warning(f"批次 {batch_index} 进度停滞在 {last_progress}% 超过180秒，强制终止")
-                    process.terminate()
-                    process.wait(timeout=10)
-                    break
-                
+
                 # 读取输出
                 try:
                     import select
@@ -188,7 +263,7 @@ class BatchNodeTester:
                             char = byte.decode('utf-8', errors='ignore')
                             if char == '\n':
                                 if last_line.strip():
-                                    print(f"[批次{batch_index}] {last_line.strip()}")
+                                    print(f"[批次{batch_index}-P1] {last_line.strip()}")
                                     # 解析进度
                                     import re
                                     progress_match = re.search(r'\[.*?\]\s+(\d+\.?\d*)%\s+\((\d+)/(\d+)\)', last_line)
@@ -200,7 +275,7 @@ class BatchNodeTester:
                                 last_line = ""
                             elif char == '\r':
                                 if last_line.strip():
-                                    print(f"[批次{batch_index}] {last_line.strip()}")
+                                    print(f"[批次{batch_index}-P1] {last_line.strip()}")
                                     # 解析进度（回车符也可能包含进度信息）
                                     import re
                                     progress_match = re.search(r'\[.*?\]\s+(\d+\.?\d*)%\s+\((\d+)/(\d+)\)', last_line)
@@ -216,29 +291,148 @@ class BatchNodeTester:
                             break
                 except (OSError, ValueError):
                     break
-                
+
                 # 检查进程是否结束
                 if process.poll() is not None:
                     break
-                
+
                 time.sleep(0.01)
-            
+
             # 等待进程结束
             return_code = process.wait(timeout=30)
-            self.logger.info(f"批次 {batch_index} 完成，返回码: {return_code}")
-            
+            self.logger.info(f"批次 {batch_index} 阶段1 完成，返回码: {return_code}")
+
             # 解析结果
             output_file = os.path.join(self.output_dir, 'all.yaml')
             if os.path.exists(output_file):
                 results = self.parse_results(output_file)
-                self.logger.info(f"批次 {batch_index} 有效节点数: {len(results)}")
+                self.logger.info(f"批次 {batch_index} 阶段1 可用节点数: {len(results)}")
                 return results
             else:
-                self.logger.warning(f"批次 {batch_index} 输出文件不存在")
+                self.logger.warning(f"批次 {batch_index} 阶段1 输出文件不存在")
                 return []
-            
+
         except Exception as e:
-            self.logger.error(f"批次 {batch_index} 测试失败: {str(e)}")
+            self.logger.error(f"批次 {batch_index} 阶段1 测试失败: {str(e)}")
+            return []
+
+    def run_phase2(self, phase1_nodes: List[str], batch_index: int, http_server_port: int) -> List[str]:
+        """阶段2: 媒体检测（只检测openai和gemini，低并发）"""
+        try:
+            # 为阶段1的可用节点创建订阅文件
+            batch_subscription_file = os.path.join(self.project_root, 'result', f'batch_subscription_{batch_index}_phase2.yaml')
+            from scripts import convert_nodes_to_subscription
+            batch_clash_config = convert_nodes_to_subscription.convert_nodes_to_clash(phase1_nodes)
+            with open(batch_subscription_file, 'w', encoding='utf-8') as f:
+                yaml.dump(batch_clash_config, f, allow_unicode=True, default_flow_style=False)
+
+            # 创建阶段2配置（只检测openai和gemini，低并发）
+            config_file = self.create_batch_config(batch_index, f'http://127.0.0.1:{http_server_port}/result/batch_subscription_{batch_index}_phase2.yaml', phase=2)
+
+            # 运行subs-check
+            cmd = [self.binary_path, '-f', config_file]
+
+            self.logger.info(f"执行命令: {' '.join(cmd)}")
+
+            process = subprocess.Popen(
+                cmd,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                cwd=self.project_root,
+                universal_newlines=False,
+                bufsize=0
+            )
+
+            # 实时输出日志
+            start_time = time.time()
+            last_output_time = start_time
+            last_line = ""
+            last_progress = 0
+            last_progress_time = start_time
+
+            while True:
+                # 检查超时
+                elapsed = time.time() - start_time
+                if elapsed > self.batch_timeout:
+                    self.logger.error(f"批次 {batch_index} 阶段2 超时（{self.batch_timeout}秒），强制终止")
+                    process.terminate()
+                    process.wait(timeout=10)
+                    break
+
+                # 检查静默超时（增加到600秒，避免误判）
+                if time.time() - last_output_time > 600:
+                    self.logger.info(f"批次 {batch_index} 阶段2 600秒无输出，认为已完成")
+                    break
+
+                # 检查进度停滞（降低阈值到70%，增加停滞时间到180秒）
+                if last_progress >= 70.0 and (time.time() - last_progress_time) > 180:
+                    self.logger.warning(f"批次 {batch_index} 阶段2 进度停滞在 {last_progress}% 超过180秒，强制终止")
+                    process.terminate()
+                    process.wait(timeout=10)
+                    break
+
+                # 读取输出
+                try:
+                    import select
+                    ready, _, _ = select.select([process.stdout], [], [], 1.0)
+                    if ready:
+                        byte = process.stdout.read(1)
+                        if byte:
+                            last_output_time = time.time()
+                            char = byte.decode('utf-8', errors='ignore')
+                            if char == '\n':
+                                if last_line.strip():
+                                    print(f"[批次{batch_index}-P2] {last_line.strip()}")
+                                    # 解析进度
+                                    import re
+                                    progress_match = re.search(r'\[.*?\]\s+(\d+\.?\d*)%\s+\((\d+)/(\d+)\)', last_line)
+                                    if progress_match:
+                                        current_progress = float(progress_match.group(1))
+                                        if current_progress > last_progress:
+                                            last_progress = current_progress
+                                            last_progress_time = time.time()
+                                last_line = ""
+                            elif char == '\r':
+                                if last_line.strip():
+                                    print(f"[批次{batch_index}-P2] {last_line.strip()}")
+                                    # 解析进度（回车符也可能包含进度信息）
+                                    import re
+                                    progress_match = re.search(r'\[.*?\]\s+(\d+\.?\d*)%\s+\((\d+)/(\d+)\)', last_line)
+                                    if progress_match:
+                                        current_progress = float(progress_match.group(1))
+                                        if current_progress > last_progress:
+                                            last_progress = current_progress
+                                            last_progress_time = time.time()
+                                last_line = ""
+                            else:
+                                last_line += char
+                        else:
+                            break
+                except (OSError, ValueError):
+                    break
+
+                # 检查进程是否结束
+                if process.poll() is not None:
+                    break
+
+                time.sleep(0.01)
+
+            # 等待进程结束
+            return_code = process.wait(timeout=30)
+            self.logger.info(f"批次 {batch_index} 阶段2 完成，返回码: {return_code}")
+
+            # 解析结果
+            output_file = os.path.join(self.output_dir, 'all.yaml')
+            if os.path.exists(output_file):
+                results = self.parse_results(output_file)
+                self.logger.info(f"批次 {batch_index} 阶段2 有效节点数: {len(results)}")
+                return results
+            else:
+                self.logger.warning(f"批次 {batch_index} 阶段2 输出文件不存在")
+                return []
+
+        except Exception as e:
+            self.logger.error(f"批次 {batch_index} 阶段2 测试失败: {str(e)}")
             return []
     
     def parse_results(self, output_file: str) -> List[str]:

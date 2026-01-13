@@ -318,6 +318,7 @@ class SubsCheckTester:
                     data = yaml.safe_load(f)
                 if data and 'proxies' in data:
                     phase1_nodes = [proxy for proxy in data['proxies']]
+                    print(f"\n阶段1完成: {len(phase1_nodes)}个节点可用", flush=True)
                     self.logger.info(f"阶段1可用节点数: {len(phase1_nodes)}")
             except Exception as e:
                 self.logger.error(f"读取阶段1结果失败: {str(e)}")
@@ -480,12 +481,24 @@ class SubsCheckTester:
                             char = byte.decode('utf-8', errors='ignore')
                             if char == '\n':
                                 if last_line.strip():
-                                    print(f"[P{phase}] {last_line.strip()}", flush=True)
+                                    # 解析进度信息并重新格式化输出
+                                    if progress_match:
+                                        # 简洁的进度显示：P1: 38.2% (570/1493)
+                                        print(f"P{phase}: {current_progress:.1f}% ({tested_count}/{total_count})", flush=True)
+                                    else:
+                                        # 其他信息正常显示
+                                        print(f"[P{phase}] {last_line.strip()}", flush=True)
                                     line_count += 1
                                 last_line = ""
                             elif char == '\r':
                                 if last_line.strip():
-                                    print(f"[P{phase}] {last_line.strip()}", flush=True)
+                                    # 解析进度信息并重新格式化输出
+                                    if progress_match:
+                                        # 简洁的进度显示：P1: 38.2% (570/1493)
+                                        print(f"P{phase}: {current_progress:.1f}% ({tested_count}/{total_count})", flush=True)
+                                    else:
+                                        # 其他信息正常显示
+                                        print(f"[P{phase}] {last_line.strip()}", flush=True)
                                     line_count += 1
                                 last_line = ""
                             else:
@@ -557,6 +570,8 @@ class SubsCheckTester:
             renamed_nodes = []
             total_count = 0
             media_filtered_count = 0
+            gpt_count = 0
+            gemini_count = 0
             
             if data and 'proxies' in data:
                 for proxy in data['proxies']:
@@ -571,6 +586,12 @@ class SubsCheckTester:
                     # 提取测试结果
                     media_info = self._extract_media_info(proxy)
 
+                    # 统计GPT和Gemini可用节点
+                    if media_info['gpt']:
+                        gpt_count += 1
+                    if media_info['gemini']:
+                        gemini_count += 1
+
                     # 2选1规则：GPT或Gemini至少通过1个才能保留
                     if not (media_info['gpt'] or media_info['gemini']):
                         media_filtered_count += 1
@@ -584,7 +605,13 @@ class SubsCheckTester:
                     if v2ray_uri:
                         renamed_nodes.append(v2ray_uri)
             
+            # 显示详细的统计信息
+            gpt_status = "✓" if gpt_count > 0 else "✗"
+            gemini_status = "✓" if gemini_count > 0 else "✗"
+            print(f"\n测试完成: {total_count}个节点 | 有效: {len(renamed_nodes)} | GPT: {gpt_status} ({gpt_count}) | Gemini: {gemini_status} ({gemini_count})", flush=True)
+            
             self.logger.info(f"节点统计: 总数{total_count}, 媒体过滤{media_filtered_count}, 有效{len(renamed_nodes)}")
+            self.logger.info(f"GPT可用: {gpt_count}, Gemini可用: {gemini_count}")
             self.logger.info(f"从测试结果中提取并重命名 {len(renamed_nodes)} 个有效节点")
             return renamed_nodes
             

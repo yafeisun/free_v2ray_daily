@@ -552,18 +552,39 @@ class SubsCheckTester:
                         self.logger.info(f"检测到阶段{phase}测试完成（进度: {current_progress}%, 测试: {tested_count}/{total_count}），准备终止进程")
                         break
 
-                # 检查静默超时（3分钟无输出认为结束）
-                silent_timeout = 180  # 3分钟
+                # 检查静默超时（1分钟无输出认为结束，缩短超时时间以快速发现问题）
+                silent_timeout = 60  # 1分钟（从3分钟缩短到1分钟）
                 silent_elapsed = time.time() - last_output_time
 
                 # 每分钟输出一次状态信息
                 if int(silent_elapsed) % 60 == 0 and int(silent_elapsed) > 0:
-                    self.logger.info(f"阶段{phase}测试中... 已运行{int(elapsed)}秒，{int(silent_elapsed)}秒无输出，当前进度: {current_progress:.1f}%")
+                    # 检查进程状态
+                    process_status = "运行中" if self.process.poll() is None else f"已退出(返回码:{self.process.poll()})"
+                    self.logger.info(f"阶段{phase}测试中... 已运行{int(elapsed)}秒，{int(silent_elapsed)}秒无输出，当前进度: {current_progress:.1f}%，进程状态: {process_status}")
+                
+                # 30秒无输出时输出警告
+                if int(silent_elapsed) == 30:
+                    process_status = "运行中" if self.process.poll() is None else f"已退出(返回码:{self.process.poll()})"
+                    self.logger.warning(f"⚠ 阶段{phase}已30秒无输出，进程状态: {process_status}，最后输出: {last_line.strip() if last_line else '(空)'}")
 
                 if silent_elapsed > silent_timeout:
                     self.logger.info(f"检测到{silent_timeout}秒（{silent_timeout/60:.0f}分钟）无新输出（当前进度: {current_progress:.1f}%），认为阶段{phase}测试已完成")
                     self.logger.info(f"最后收到的输出: {last_line.strip() if last_line else '(空)'}")
                     self.logger.info(f"已接收总行数: {line_count}")
+                    
+                    # 检查进程状态
+                    if self.process.poll() is None:
+                        self.logger.warning(f"进程仍在运行但无输出，尝试终止进程...")
+                        self.process.terminate()
+                        try:
+                            self.process.wait(timeout=5)
+                            self.logger.info(f"进程已终止")
+                        except subprocess.TimeoutExpired:
+                            self.logger.error(f"进程无法终止，强制kill")
+                            self.process.kill()
+                    else:
+                        self.logger.info(f"进程已退出，返回码: {self.process.poll()}")
+                    
                     break
 
                 # 使用select检查是否有可读数据

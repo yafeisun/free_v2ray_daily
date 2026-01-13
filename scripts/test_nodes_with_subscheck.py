@@ -514,10 +514,12 @@ class SubsCheckTester:
                                             node_name = node_result['name']
                                             gpt_status = "✓" if node_result['gpt'] else "✗"
                                             gemini_status = "✓" if node_result['gemini'] else "✗"
-                                            print(f"{node_name} | GPT: {gpt_status} | Gemini: {gemini_status}", flush=True)
+                                            current_time = time.strftime("%H:%M:%S", time.localtime())
+                                            print(f"[{current_time}] {node_name} | GPT: {gpt_status} | Gemini: {gemini_status}", flush=True)
                                         elif progress_match and current_progress != last_progress_displayed:
                                             # 简洁的进度显示：P2: 38.2% (570/1493)，只在进度变化时显示
-                                            print(f"P{phase}: {current_progress:.1f}% ({tested_count}/{total_count})", flush=True)
+                                            current_time = time.strftime("%H:%M:%S", time.localtime())
+                                            print(f"[{current_time}] P{phase}: {current_progress:.1f}% ({tested_count}/{total_count})", flush=True)
                                             last_progress_displayed = current_progress
                                         else:
                                             # 其他信息正常显示
@@ -526,7 +528,8 @@ class SubsCheckTester:
                                         # 阶段1只显示进度，只在进度变化时显示
                                         if progress_match and current_progress != last_progress_displayed:
                                             # 简洁的进度显示：P1: 38.2% (570/1493)
-                                            print(f"P{phase}: {current_progress:.1f}% ({tested_count}/{total_count})", flush=True)
+                                            current_time = time.strftime("%H:%M:%S", time.localtime())
+                                            print(f"[{current_time}] P{phase}: {current_progress:.1f}% ({tested_count}/{total_count})", flush=True)
                                             last_progress_displayed = current_progress
                                         else:
                                             # 其他信息正常显示
@@ -542,10 +545,12 @@ class SubsCheckTester:
                                             node_name = node_result['name']
                                             gpt_status = "✓" if node_result['gpt'] else "✗"
                                             gemini_status = "✓" if node_result['gemini'] else "✗"
-                                            print(f"{node_name} | GPT: {gpt_status} | Gemini: {gemini_status}", flush=True)
+                                            current_time = time.strftime("%H:%M:%S", time.localtime())
+                                            print(f"[{current_time}] {node_name} | GPT: {gpt_status} | Gemini: {gemini_status}", flush=True)
                                         elif progress_match and current_progress != last_progress_displayed:
                                             # 简洁的进度显示：P2: 38.2% (570/1493)，只在进度变化时显示
-                                            print(f"P{phase}: {current_progress:.1f}% ({tested_count}/{total_count})", flush=True)
+                                            current_time = time.strftime("%H:%M:%S", time.localtime())
+                                            print(f"[{current_time}] P{phase}: {current_progress:.1f}% ({tested_count}/{total_count})", flush=True)
                                             last_progress_displayed = current_progress
                                         else:
                                             # 其他信息正常显示
@@ -554,7 +559,8 @@ class SubsCheckTester:
                                         # 阶段1只显示进度，只在进度变化时显示
                                         if progress_match and current_progress != last_progress_displayed:
                                             # 简洁的进度显示：P1: 38.2% (570/1493)
-                                            print(f"P{phase}: {current_progress:.1f}% ({tested_count}/{total_count})", flush=True)
+                                            current_time = time.strftime("%H:%M:%S", time.localtime())
+                                            print(f"[{current_time}] P{phase}: {current_progress:.1f}% ({tested_count}/{total_count})", flush=True)
                                             last_progress_displayed = current_progress
                                         else:
                                             # 其他信息正常显示

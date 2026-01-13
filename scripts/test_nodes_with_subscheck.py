@@ -212,8 +212,10 @@ class SubsCheckTester:
                     'sub-urls-get-ua': 'clash.meta (https://github.com/beck-8/subs-check)',
 
                     # 使用HTTP服务器提供本地文件
+                    subscription_url = f'http://127.0.0.1:{self.http_server_port}/{subscription_file}'
+                    self.logger.info(f"阶段1订阅URL: {subscription_url}")
                     'sub-urls': [
-                        f'http://127.0.0.1:{self.http_server_port}/{subscription_file}'
+                        subscription_url
                     ]
                 }
             else:
@@ -269,8 +271,10 @@ class SubsCheckTester:
                     'sub-urls-get-ua': 'clash.meta (https://github.com/beck-8/subs-check)',
 
                     # 使用HTTP服务器提供本地文件
+                    subscription_url = f'http://127.0.0.1:{self.http_server_port}/{subscription_file}'
+                    self.logger.info(f"阶段2订阅URL: {subscription_url}")
                     'sub-urls': [
-                        f'http://127.0.0.1:{self.http_server_port}/{subscription_file}'
+                        subscription_url
                     ]
                 }
 
@@ -471,9 +475,22 @@ class SubsCheckTester:
             print(f"\n开始运行阶段2测试...", flush=True)
             self.logger.info("开始运行阶段2测试...")
 
+            # 测试订阅URL是否可访问
+            subscription_url = f'http://127.0.0.1:{self.http_server_port}/{subscription_file}'
+            print(f"测试订阅URL: {subscription_url}", flush=True)
+            try:
+                import requests
+                test_response = requests.get(subscription_url, timeout=5)
+                print(f"✓ 订阅URL可访问，状态码: {test_response.status_code}", flush=True)
+                self.logger.info(f"订阅URL可访问，状态码: {test_response.status_code}")
+            except Exception as e:
+                print(f"✗ 订阅URL不可访问: {str(e)}", flush=True)
+                self.logger.error(f"订阅URL不可访问: {str(e)}")
+
             # 运行subs-check
             cmd = [self.binary_path, '-f', self.config_file]
 
+            print(f"执行命令: {' '.join(cmd)}", flush=True)
             self.logger.info(f"执行命令: {' '.join(cmd)}")
 
             self.process = subprocess.Popen(
@@ -533,7 +550,13 @@ class SubsCheckTester:
 
                 # 检查静默超时（3分钟无输出认为结束）
                 silent_timeout = 180  # 3分钟
-                if time.time() - last_output_time > silent_timeout:
+                silent_elapsed = time.time() - last_output_time
+
+                # 每分钟输出一次状态信息
+                if int(silent_elapsed) % 60 == 0 and int(silent_elapsed) > 0:
+                    self.logger.info(f"阶段{phase}测试中... 已运行{int(elapsed)}秒，{int(silent_elapsed)}秒无输出，当前进度: {current_progress:.1f}%")
+
+                if silent_elapsed > silent_timeout:
                     self.logger.info(f"检测到{silent_timeout}秒（{silent_timeout/60:.0f}分钟）无新输出（当前进度: {current_progress:.1f}%），认为阶段{phase}测试已完成")
                     break
 

@@ -34,7 +34,7 @@ class SubsCheckTester:
         self.subscheck_dir = os.path.join(self.project_root, 'subscheck')
         self.binary_path = os.path.join(self.subscheck_dir, 'bin', 'subs-check')
         self.config_file = os.path.join(self.subscheck_dir, 'config', 'config.yaml')
-        self.output_dir = os.path.join(self.project_root, 'output')
+        self.output_dir = os.path.join(self.project_root, 'result', 'output')
         self.output_file = os.path.join(self.output_dir, 'all.yaml')
         
         # 进程

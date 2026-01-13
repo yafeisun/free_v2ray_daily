@@ -36,7 +36,7 @@ class BatchNodeTester:
         self.subscheck_dir = os.path.join(self.project_root, 'subscheck')
         self.binary_path = os.path.join(self.subscheck_dir, 'bin', 'subs-check')
         self.config_dir = os.path.join(self.subscheck_dir, 'config')
-        self.output_dir = os.path.join(self.project_root, 'output')
+        self.output_dir = os.path.join(self.project_root, 'result', 'output')
         
         # 测试配置
         self.batch_size = 100  # 每批节点数

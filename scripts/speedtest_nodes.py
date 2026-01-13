@@ -77,8 +77,8 @@ def main():
     import argparse
     
     parser = argparse.ArgumentParser(description='节点速度测试')
-    parser.add_argument('--input', default='output/all_speedtest.yaml', help='输入文件')
-    parser.add_argument('--output', default='output/all_with_speed.yaml', help='输出文件')
+    parser.add_argument('--input', default='result/output/all_speedtest.yaml', help='输入文件')
+    parser.add_argument('--output', default='result/output/all_with_speed.yaml', help='输出文件')
     parser.add_argument('--timeout', type=int, default=5, help='超时时间（秒）')
     parser.add_argument('--concurrent', type=int, default=10, help='并发数')
     

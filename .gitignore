@@ -66,4 +66,4 @@ subscheck/bin/
 subscheck/config/config.yaml
 
 # Output files (test results)
-output/
+result/output/

@@ -16,7 +16,7 @@ media-check-timeout: 10
 mihomo-overwrite-url: ''
 min-speed: 0
 node-prefix: ''
-output-dir: /home/geely/Documents/Github/free_v2ray_daily/output
+output-dir: /home/geely/Documents/Github/free_v2ray_daily/result/output
 platforms: []
 print-progress: true
 proxy: ''
@@ -26,7 +26,7 @@ speed-test-url: ''
 sub-store-path: ''
 sub-store-port: 8299
 sub-urls:
-- http://127.0.0.1:8888/output/all_speedtest.yaml
+- http://127.0.0.1:8888/result/output/all_speedtest.yaml
 sub-urls-get-ua: clash.meta (https://github.com/beck-8/subs-check)
 sub-urls-retry: 3
 success-limit: 0

@@ -562,6 +562,8 @@ class SubsCheckTester:
 
                 if silent_elapsed > silent_timeout:
                     self.logger.info(f"检测到{silent_timeout}秒（{silent_timeout/60:.0f}分钟）无新输出（当前进度: {current_progress:.1f}%），认为阶段{phase}测试已完成")
+                    self.logger.info(f"最后收到的输出: {last_line.strip() if last_line else '(空)'}")
+                    self.logger.info(f"已接收总行数: {line_count}")
                     break
 
                 # 使用select检查是否有可读数据
@@ -575,8 +577,10 @@ class SubsCheckTester:
                             char = byte.decode('utf-8', errors='ignore')
                             if char == '\n':
                                 if last_line.strip():
-                                    # 解析节点测试结果（阶段2才显示节点状态）
+                                    # 阶段2：显示所有输出行（调试用）
                                     if phase == 2:
+                                        print(f"[P2-DEBUG] {last_line.strip()}", flush=True)
+                                        # 解析节点测试结果（阶段2才显示节点状态）
                                         node_result = self._parse_node_result(last_line)
                                         if node_result:
                                             node_name = node_result['name']
@@ -615,6 +619,8 @@ class SubsCheckTester:
                                             # 其他信息正常显示
                                             print(f"[P{phase}] {last_line.strip()}", flush=True)
                                     else:
+                                        # 阶段1：显示所有输出行（调试用）
+                                        print(f"[P1-DEBUG] {last_line.strip()}", flush=True)
                                         # 阶段1只显示进度，只在进度变化时显示
                                         if progress_match and current_progress != last_progress_displayed:
                                             # 简洁的进度显示：P1: 38.2% (570/1493)

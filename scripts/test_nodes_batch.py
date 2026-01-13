@@ -46,16 +46,16 @@ class BatchNodeTester:
         # 测试超时（每批）
         self.batch_timeout = 1800  # 30分钟
     
-    def create_unified_config(self) -> str:
-        """创建统一的配置文件（所有批次共享）"""
-        config_file = os.path.join(self.config_dir, 'batch_config.yaml')
+    def create_batch_config(self, batch_index: int, subscription_url: str) -> str:
+        """为每个批次创建独立的配置文件"""
+        config_file = os.path.join(self.config_dir, f'batch_{batch_index}.yaml')
         
         config = {
             # 基本配置
             'print-progress': True,
             'concurrent': self.concurrent,
             'check-interval': 999999,
-            'timeout': 10000,  # 增加到10秒
+            'timeout': 10000,
             
             # 测速配置
             'alive-test-url': 'http://gstatic.com/generate_204',
@@ -97,8 +97,8 @@ class BatchNodeTester:
             'sub-urls-retry': 3,
             'sub-urls-get-ua': 'clash.meta (https://github.com/beck-8/subs-check)',
             
-            # 订阅链接（统一配置，通过命令行参数覆盖）
-            'sub-urls': []
+            # 订阅链接
+            'sub-urls': [subscription_url]
         }
         
         # 保存配置
@@ -106,7 +106,7 @@ class BatchNodeTester:
         with open(config_file, 'w', encoding='utf-8') as f:
             yaml.dump(config, f, allow_unicode=True, default_flow_style=False)
         
-        self.logger.info(f"统一配置文件已创建: {config_file}")
+        self.logger.info(f"批次 {batch_index} 配置文件已创建: {config_file}")
         return config_file
     
     def clean_old_configs(self):
@@ -132,12 +132,11 @@ class BatchNodeTester:
             with open(batch_subscription_file, 'w', encoding='utf-8') as f:
                 yaml.dump(batch_clash_config, f, allow_unicode=True, default_flow_style=False)
             
-            # 使用统一配置文件，通过命令行参数指定订阅URL
-            config_file = os.path.join(self.config_dir, 'batch_config.yaml')
-            subscription_url = f'http://127.0.0.1:{http_server_port}/result/batch_subscription_{batch_index}.yaml'
+            # 创建批次配置，使用独立的订阅文件
+            config_file = self.create_batch_config(batch_index, f'http://127.0.0.1:{http_server_port}/result/batch_subscription_{batch_index}.yaml')
             
-            # 运行subs-check，使用命令行参数覆盖订阅URL
-            cmd = [self.binary_path, '-f', config_file, '--sub-url', subscription_url]
+            # 运行subs-check
+            cmd = [self.binary_path, '-f', config_file]
             
             self.logger.info(f"执行命令: {' '.join(cmd)}")
             
@@ -377,9 +376,6 @@ class BatchNodeTester:
         
         # 清理旧的批次配置文件
         self.clean_old_configs()
-        
-        # 创建统一配置文件（所有批次共享）
-        self.create_unified_config()
         
         # 启动HTTP服务器
         http_server_port = 8888

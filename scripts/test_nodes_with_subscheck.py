@@ -223,7 +223,7 @@ class SubsCheckTester:
                     'print-progress': True,
                     'concurrent': 5,  # 低并发
                     'check-interval': 999999,
-                    'timeout': 15000,  # 连通性测试超时15秒
+                    'timeout': 25000,  # 连通性测试超时25秒（增加以适应媒体检测）
 
                     # 测速配置
                     'alive-test-url': 'http://gstatic.com/generate_204',
@@ -235,7 +235,7 @@ class SubsCheckTester:
 
                     # 流媒体检测（只检测openai和gemini，不检测youtube）
                     'media-check': True,
-                    'media-check-timeout': 10,  # 增加超时
+                    'media-check-timeout': 15,  # 增加超时到15秒
                     'platforms': [
                         'openai',
                         'gemini'

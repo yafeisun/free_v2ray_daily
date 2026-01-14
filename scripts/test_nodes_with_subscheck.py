@@ -1,7 +1,13 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-节点测速脚本 - 使用subs-check进行真实的代理测试
+节点测速脚本 - 12小时定时运行模式，使用subs-check进行真实的代理测试
+
+优化策略：
+1. 每12小时运行一次，避免过度消耗GitHub Actions资源
+2. 参考SubsCheck-Win-GUI标准配置，平衡速度与稳定性
+3. 两阶段测试：连通性 + 媒体检测
+4. 智能超时管理，避免进程卡死
 """
 
 import sys

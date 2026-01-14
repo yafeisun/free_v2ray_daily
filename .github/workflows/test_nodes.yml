@@ -1,17 +1,22 @@
 name: Test Nodes
 
 on:
+  schedule:
+    # 每12小时运行一次测速 (北京时间 0:00, 12:00)
+    - cron: '0 */12 * * *'
+  
+  workflow_dispatch:  # 允许手动触发
+  
   workflow_run:
     workflows: ["Update Free Nodes"]
     types:
       - completed
     branches: [main]
-  
-  workflow_dispatch:  # 允许手动触发
 
 jobs:
   test-nodes:
     runs-on: ubuntu-latest
+    timeout-minutes: 120  # 2小时超时，给12小时运行充足时间
     permissions:
       contents: write
     
@@ -108,13 +113,14 @@ jobs:
       id: tester
       run: |
         echo "开始节点测试..."
-        echo "🔥 测试策略:"
+        echo "🔥 定时测速策略 (每12小时一次):"
         echo "  - 使用两阶段测试方案，优化并发避免卡死"
-        echo "  - 阶段1: 连通性测试（禁用媒体检测，优化并发6）"
-        echo "  - 阶段2: 媒体检测（只检测openai和gemini，低并发3）"
-        echo "  - 快速失败策略：阶段1静默45秒结束，阶段2静默90秒结束"
+        echo "  - 阶段1: 连通性测试（禁用媒体检测，优化并发8）"
+        echo "  - 阶段2: 媒体检测（只检测openai和gemini，优化并发5）"
+        echo "  - 标准超时：阶段1静默60秒结束，阶段2静默120秒结束"
         echo "  - 筛选规则：GPT或Gemini至少通过1个（2选1）"
-        echo "  - 优化：单节点超时大幅缩短，快速跳过问题节点"
+        echo "  - 优化：参考SubsCheck标准配置，平衡速度与稳定性"
+        echo "  - 频率：每12小时自动运行 + 手动触发"
 
         # 获取节点数
         if [ -f result/nodetotal.txt ]; then

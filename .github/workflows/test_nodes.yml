@@ -1,6 +1,10 @@
 name: Test Nodes
 
 on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
   schedule:
     # 每12小时运行一次测速 (北京时间 0:00, 12:00)
     - cron: '0 */12 * * *'
@@ -108,20 +112,12 @@ jobs:
         mkdir -p subscheck/bin
         cd subscheck/bin
         
-        echo "下载subs-check..."
-        wget --timeout=300 --tries=3 https://github.com/beck-8/subs-check/releases/latest/download/subs-check_Linux_x86_64.tar.gz -O subs-check.tar.gz
-        
-        echo "解压subs-check..."
+        wget -q --timeout=300 --tries=3 https://github.com/beck-8/subs-check/releases/latest/download/subs-check_Linux_x86_64.tar.gz -O subs-check.tar.gz
         tar -xzf subs-check.tar.gz
-        
-        echo "设置执行权限..."
         chmod +x subs-check
-        
-        echo "清理临时文件..."
         rm -f subs-check.tar.gz
         
-        echo "subs-check安装完成"
-        ls -lh subs-check
+        echo "✅ subs-check安装完成"
     
     - name: Test nodes with subs-check
       id: tester

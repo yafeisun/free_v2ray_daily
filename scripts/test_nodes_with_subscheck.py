@@ -21,12 +21,17 @@ from typing import List, Dict, Any, Tuple
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from src.utils.logger import get_logger
+from scripts.intelligent_timeout import (
+    IntelligentTimeoutManager,
+    PerformanceMonitor,
+    ConcurrencyController,
+)
 
 
 class SubsCheckTester:
     """使用subs-check进行节点测试"""
 
-    def __init__(self, project_root: str = None):
+    def __init__(self, project_root: str | None = None):
         """初始化测试器"""
         self.logger = get_logger("subscheck_tester")
 
@@ -46,12 +51,17 @@ class SubsCheckTester:
         self.output_file = os.path.join(self.output_dir, "all.yaml")
 
         # 进程
-        self.process = None
+        self.process: subprocess.Popen = None  # type: ignore
 
         # HTTP服务器
         self.http_server = None
         self.http_server_port = 8888
         self.http_server_process = None
+
+        # 智能管理器
+        self.timeout_manager = IntelligentTimeoutManager()
+        self.performance_monitor = PerformanceMonitor()
+        self.concurrency_controller = ConcurrencyController()
 
     def start_http_server(self) -> bool:
         """启动HTTP服务器"""
@@ -210,7 +220,7 @@ class SubsCheckTester:
             return False
 
     def create_config(
-        self, subscription_file: str, concurrent: int = 20, phase: int = 1
+        self, subscription_file: str, concurrent: int | None = None, phase: int = 1
     ) -> bool:
         """创建subs-check配置文件
 
@@ -222,21 +232,43 @@ class SubsCheckTester:
         try:
             self.logger.info(f"创建subs-check配置文件（阶段{phase}）...")
 
+            # 计算订阅URL
+            subscription_url = (
+                f"http://127.0.0.1:{self.http_server_port}/{subscription_file}"
+            )
+            self.logger.info(f"阶段{phase}订阅URL: {subscription_url}")
+
+            # 使用智能管理器计算最优并发数和超时
+            # 先读取订阅文件获取节点数量（如果可能）
+            node_count = 0
+            try:
+                subscription_path = os.path.join(self.project_root, subscription_file)
+                if os.path.exists(subscription_path):
+                    with open(subscription_path, "r", encoding="utf-8") as f:
+                        data = yaml.safe_load(f)
+                        if data and "proxies" in data:
+                            node_count = len(data["proxies"])
+                            self.logger.info(f"检测到{node_count}个节点")
+            except:
+                pass
+
+            # 计算最优配置
+            if concurrent is None:
+                concurrent = self.timeout_manager.calculate_optimal_concurrency(
+                    node_count, phase
+                )
+
+            timeout = self.timeout_manager.calculate_optimal_timeout(phase, node_count)
+
             # 根据阶段设置不同的配置
             if phase == 1:
                 # 阶段1: 快速连通性测试（禁用媒体检测，高并发）
-                # 计算订阅URL
-                subscription_url = (
-                    f"http://127.0.0.1:{self.http_server_port}/{subscription_file}"
-                )
-                self.logger.info(f"阶段1订阅URL: {subscription_url}")
-
                 config = {
                     # 基本配置 - 参考SubsCheck标准优化
                     "print-progress": True,
-                    "concurrent": 8,  # 优化并发数（GitHub Actions环境优化）
+                    "concurrent": concurrent,  # 智能计算并发数
                     "check-interval": 999999,
-                    "timeout": 3000,  # 3秒超时，快速跳过坏节点
+                    "timeout": timeout,  # 智能计算超时
                     # 测速配置
                     "alive-test-url": "http://gstatic.com/generate_204",
                     "speed-test-url": "",
@@ -274,18 +306,12 @@ class SubsCheckTester:
                 }
             else:
                 # 阶段2: 媒体检测（只检测openai和gemini，低并发）
-                # 计算订阅URL
-                subscription_url = (
-                    f"http://127.0.0.1:{self.http_server_port}/{subscription_file}"
-                )
-                self.logger.info(f"阶段2订阅URL: {subscription_url}")
-
                 config = {
                     # 基本配置 - 参考SubsCheck标准优化
                     "print-progress": True,
-                    "concurrent": 5,  # 优化并发数（参考标准的20，但适当保守）
+                    "concurrent": concurrent,  # 智能计算并发数
                     "check-interval": 999999,
-                    "timeout": 6000,  # 6秒超时，快速跳过坏节点
+                    "timeout": timeout,  # 智能计算超时
                     # 测速配置
                     "alive-test-url": "http://gstatic.com/generate_204",
                     "speed-test-url": "",
@@ -322,6 +348,8 @@ class SubsCheckTester:
                     "sub-urls": [subscription_url],
                 }
 
+            self.logger.info(f"阶段{phase}配置: 并发={concurrent}, 超时={timeout}ms")
+
             # 保存配置
             # 确保目录存在
             os.makedirs(os.path.dirname(self.config_file), exist_ok=True)
@@ -335,7 +363,9 @@ class SubsCheckTester:
             self.logger.error(f"创建配置文件失败: {str(e)}")
             return False
 
-    def run_test(self, node_count: int = 0, timeout: int = None) -> Tuple[bool, str]:
+    def run_test(
+        self, node_count: int = 0, timeout: int | None = None
+    ) -> Tuple[bool, str]:
         """运行测试（两阶段测试）"""
         try:
             print("\n" + "=" * 60, flush=True)
@@ -445,39 +475,36 @@ class SubsCheckTester:
             self.stop_http_server()
             return False, f"测试失败: {str(e)}"
 
-    def run_phase1(self, node_count: int = 0, timeout: int = None) -> Tuple[bool, str]:
+    def run_phase1(
+        self, node_count: int = 0, timeout: int | None = None
+    ) -> Tuple[bool, str]:
         """阶段1: 连通性测试（禁用媒体检测，高并发）"""
         try:
             print(f"\n创建阶段1配置...", flush=True)
             # 创建阶段1配置
-            if not self.create_config(
-                "result/clash_subscription.yaml", concurrent=12, phase=1
-            ):
+            if not self.create_config("result/clash_subscription.yaml", phase=1):
                 return False, "创建阶段1配置失败"
             print(f"✓ 阶段1配置已创建", flush=True)
 
-            # 动态计算超时时间
+            # 使用智能管理器计算超时时间
             if timeout is None:
-                if node_count > 0:
-                    # 阶段2只检测2个平台，但媒体检测可能较慢
-                    base_time = (node_count / 5) * (
-                        2 * 15
-                    )  # 每个节点30秒（2个平台×15秒，从10秒增加到15秒）
-                    timeout = int(base_time * 2.5)  # 缓冲2.5倍（从2倍增加到2.5倍）
-                    # 设置最小超时时间为15分钟
-                    timeout = max(timeout, 900)
-                    print(
-                        f"节点数: {node_count}, 预计超时时间: {timeout}秒 ({timeout / 60:.1f}分钟)",
-                        flush=True,
-                    )
-                    self.logger.info(
-                        f"节点数: {node_count}, 动态计算超时时间: {timeout}秒 ({timeout / 60:.1f}分钟)"
-                    )
-                else:
-                    timeout = 3600  # 默认1小时
-                    self.logger.info(f"未提供节点数，使用默认超时: {timeout}秒")
+                timeout = self.timeout_manager.calculate_optimal_timeout(1, node_count)
+                # 转换为秒并添加缓冲
+                timeout_seconds = timeout / 1000
+                timeout_seconds = timeout_seconds * 2.5  # 2.5倍缓冲
+                timeout_seconds = max(timeout_seconds, 900)  # 最少15分钟
+
+                print(
+                    f"智能计算超时: 节点数={node_count}, 预计超时={int(timeout_seconds)}秒 ({int(timeout_seconds / 60)}分钟)",
+                    flush=True,
+                )
+                self.logger.info(
+                    f"智能计算阶段1超时: 节点数={node_count}, 超时={int(timeout_seconds)}秒"
+                )
+                timeout = int(timeout_seconds)
 
             self.logger.info("开始运行阶段1测试...")
+            self.performance_monitor.start_test(node_count)
 
             # 运行subs-check
             cmd = [self.binary_path, "-f", self.config_file]
@@ -501,7 +528,10 @@ class SubsCheckTester:
             return False, str(e)
 
     def run_phase2(
-        self, node_count: int = 0, timeout: int = None, subscription_file: str = None
+        self,
+        node_count: int = 0,
+        timeout: int | None = None,
+        subscription_file: str | None = None,
     ) -> Tuple[bool, str]:
         """阶段2: 媒体检测（只检测openai和gemini，低并发）
 
@@ -517,31 +547,30 @@ class SubsCheckTester:
 
             print(f"\n创建阶段2配置...", flush=True)
             # 创建阶段2配置
-            if not self.create_config(subscription_file, concurrent=4, phase=2):
+            if not self.create_config(subscription_file, phase=2):
                 return False, "创建阶段2配置失败"
             print(f"✓ 阶段2配置已创建", flush=True)
 
-            # 动态计算超时时间
+            # 使用智能管理器计算超时时间
             if timeout is None:
-                if node_count > 0:
-                    # 阶段2只检测2个平台
-                    base_time = (node_count / 5) * (
-                        2 * 10
-                    )  # 每个节点20秒（2个平台×10秒）
-                    timeout = int(base_time * 2.0)  # 缓冲2倍
-                    print(
-                        f"节点数: {node_count}, 预计超时时间: {timeout}秒 ({timeout / 60:.1f}分钟)",
-                        flush=True,
-                    )
-                    self.logger.info(
-                        f"节点数: {node_count}, 动态计算超时时间: {timeout}秒 ({timeout / 60:.1f}分钟)"
-                    )
-                else:
-                    timeout = 3600  # 默认1小时
-                    self.logger.info(f"未提供节点数，使用默认超时: {timeout}秒")
+                timeout = self.timeout_manager.calculate_optimal_timeout(2, node_count)
+                # 转换为秒并添加缓冲
+                timeout_seconds = timeout / 1000
+                timeout_seconds = timeout_seconds * 3.0  # 媒体检测需要更多缓冲
+                timeout_seconds = max(timeout_seconds, 900)  # 最少15分钟
+
+                print(
+                    f"智能计算超时: 节点数={node_count}, 预计超时={int(timeout_seconds)}秒 ({int(timeout_seconds / 60)}分钟)",
+                    flush=True,
+                )
+                self.logger.info(
+                    f"智能计算阶段2超时: 节点数={node_count}, 超时={int(timeout_seconds)}秒"
+                )
+                timeout = int(timeout_seconds)
 
             print(f"\n开始运行阶段2测试...", flush=True)
             self.logger.info("开始运行阶段2测试...")
+            self.performance_monitor.start_test(node_count)
 
             # 测试订阅URL是否可访问
             subscription_url = (
@@ -622,6 +651,8 @@ class SubsCheckTester:
                     if tested_count > last_tested_index and phase == 2:
                         node_test_times[tested_count] = time.time()
                         last_tested_index = tested_count
+                        # 记录到性能监控器
+                        self.performance_monitor.record_node_processed()
 
                     # 当进度达到95%以上且测试数量接近总数时，认为测试完成（提高完成阈值）
                     if current_progress >= 95.0 and tested_count >= total_count * 0.95:
@@ -647,10 +678,24 @@ class SubsCheckTester:
 
                 # 每分钟输出一次状态信息
                 if int(silent_elapsed) % 60 == 0 and int(silent_elapsed) > 0:
+                    # 获取性能统计
+                    stats = self.performance_monitor.get_current_stats()
+
+                    # 动态调整并发数
+                    if avg_latency := stats.get("avg_latency", 0):
+                        new_concurrency = (
+                            self.concurrency_controller.adjust_concurrency(
+                                current_progress,
+                                avg_latency,
+                                stats.get("error_count", 0) / max(tested_count, 1),
+                            )
+                        )
+                        self.logger.info(f"动态调整并发数: {new_concurrency}")
+
                     # 检查进程状态
                     process_status = (
                         "运行中"
-                        if self.process.poll() is None
+                        if self.process and self.process.poll() is None
                         else f"已退出(返回码:{self.process.poll()})"
                     )
                     self.logger.info(
@@ -670,40 +715,28 @@ class SubsCheckTester:
                     )
 
                 if silent_elapsed > silent_timeout:
-                    # 更智能的判断：区分"接近完成"和"可能卡住"
+                    # 使用智能管理器判断是否应该继续等待
                     remaining_nodes = (
                         total_count - tested_count
                         if tested_count and total_count
                         else 0
                     )
 
-                    if current_progress >= 99.0 and remaining_nodes <= 3:
-                        # 非常接近完成，给更多时间
-                        if silent_elapsed < silent_timeout * 2:
-                            self.logger.info(
-                                f"进度{current_progress:.1f}%，剩余{remaining_nodes}个节点，延长等待时间..."
-                            )
-                            continue  # 不终止，继续等待
-                        else:
-                            self.logger.warning(
-                                f"剩余{remaining_nodes}个节点可能卡住，准备终止..."
-                            )
-                    elif current_progress >= 97.0 and remaining_nodes <= 10:
-                        # 接近完成，给中等时间
-                        if silent_elapsed < silent_timeout * 1.5:
-                            self.logger.info(
-                                f"进度{current_progress:.1f}%，剩余{remaining_nodes}个节点，继续等待..."
-                            )
-                            continue  # 不终止，继续等待
-                        else:
-                            self.logger.warning(
-                                f"进度{current_progress:.1f}%但剩余{remaining_nodes}个节点处理过慢，准备终止..."
-                            )
-                    else:
-                        # 进度不够或剩余节点过多，可能真的卡住了
-                        self.logger.warning(
-                            f"进度{current_progress:.1f}%，剩余{remaining_nodes}个节点，可能卡死，准备终止..."
+                    should_wait, wait_reason = (
+                        self.timeout_manager.should_continue_waiting(
+                            current_progress,
+                            remaining_nodes,
+                            int(silent_elapsed),
+                            phase,
+                            last_output_time,
                         )
+                    )
+
+                    if should_wait:
+                        self.logger.info(f"智能等待: {wait_reason}")
+                        continue  # 继续等待
+                    else:
+                        self.logger.warning(f"智能终止: {wait_reason}")
 
                     self.logger.info(
                         f"检测到{silent_timeout}秒（{silent_timeout / 60:.0f}分钟）无新输出（当前进度: {current_progress:.1f}%）"
@@ -714,7 +747,7 @@ class SubsCheckTester:
                     self.logger.info(f"已接收总行数: {line_count}")
 
                     # 检查进程状态
-                    if self.process.poll() is None:
+                    if self.process and self.process.poll() is None:
                         self.logger.warning("进程仍在运行但无输出，尝试终止进程...")
                         self.process.terminate()
                         try:
@@ -722,11 +755,13 @@ class SubsCheckTester:
                             self.logger.info("进程已终止")
                         except subprocess.TimeoutExpired:
                             self.logger.error("进程无法终止，强制kill")
-                            self.process.kill()
+                            if self.process:
+                                self.process.kill()
                     else:
-                        self.logger.info(
-                            f"进程已自然退出，返回码: {self.process.poll()}"
-                        )
+                        if self.process:
+                            self.logger.info(
+                                f"进程已自然退出，返回码: {self.process.poll()}"
+                            )
 
                     break
 
@@ -734,116 +769,129 @@ class SubsCheckTester:
                 import select
 
                 try:
-                    ready, _, _ = select.select([self.process.stdout], [], [], 0.5)
-                    if ready:
-                        byte = self.process.stdout.read(1)
-                        if byte:
-                            last_output_time = time.time()
-                            char = byte.decode("utf-8", errors="ignore")
-                            if char == "\n":
-                                if last_line.strip():
-                                    # 阶段2：显示所有输出行（调试用）
-                                    if phase == 2:
-                                        print(
-                                            f"[P2-DEBUG] {last_line.strip()}",
-                                            flush=True,
-                                        )
-                                        # 解析节点测试结果（阶段2才显示节点状态）
-                                        node_result = self._parse_node_result(last_line)
-                                        if node_result:
-                                            node_name = node_result["name"]
-                                            # 计算单个节点的测试耗时
-                                            test_duration = 0
-                                            if tested_count in node_test_times:
-                                                test_duration = (
-                                                    time.time()
-                                                    - node_test_times[tested_count]
+                    byte = None
+                    char = ""  # 初始化char变量
+                    if self.process and self.process.stdout:
+                        ready, _, _ = select.select([self.process.stdout], [], [], 0.5)
+                        if ready:
+                            byte = self.process.stdout.read(1)
+                            if byte:
+                                last_output_time = time.time()
+                                char = (
+                                    byte.decode("utf-8", errors="ignore")
+                                    if byte
+                                    else ""
+                                )
+                                if char == "\n":
+                                    if last_line.strip():
+                                        # 阶段2：显示所有输出行（调试用）
+                                        if phase == 2:
+                                            print(
+                                                f"[P2-DEBUG] {last_line.strip()}",
+                                                flush=True,
+                                            )
+                                            # 解析节点测试结果（阶段2才显示节点状态）
+                                            node_result = self._parse_node_result(
+                                                last_line
+                                            )
+                                            if node_result:
+                                                node_name = node_result["name"]
+                                                # 计算单个节点的测试耗时
+                                                test_duration = 0
+                                                if tested_count in node_test_times:
+                                                    test_duration = (
+                                                        time.time()
+                                                        - node_test_times[tested_count]
+                                                    )
+                                                current_time = time.strftime(
+                                                    "%H:%M:%S", time.localtime()
                                                 )
-                                            current_time = time.strftime(
-                                                "%H:%M:%S", time.localtime()
-                                            )
-                                            # 构建测试状态字符串，动态显示所有测试项
-                                            status_parts = []
-                                            if node_result["gpt"]:
-                                                status_parts.append("GPT:✓")
-                                            if node_result["gemini"]:
-                                                status_parts.append("GM:✓")
-                                            if node_result["youtube"]:
-                                                status_parts.append("YT:✓")
-                                            # 如果没有任何测试项通过，显示失败状态
-                                            if not status_parts:
+                                                # 构建测试状态字符串，动态显示所有测试项
+                                                status_parts = []
                                                 if node_result["gpt"]:
-                                                    status_parts.append("GPT:✗")
+                                                    status_parts.append("GPT:✓")
                                                 if node_result["gemini"]:
-                                                    status_parts.append("GM:✗")
+                                                    status_parts.append("GM:✓")
                                                 if node_result["youtube"]:
-                                                    status_parts.append("YT:✗")
-                                            status_str = " ".join(status_parts)
-                                            # 新格式：时间点 节点进度 节点名称 测试项状态 测试耗时
-                                            progress_str = (
-                                                f"{current_progress:.1f}% ({tested_count}/{total_count})"
-                                                if progress_match
-                                                else "N/A"
-                                            )
-                                            duration_str = (
-                                                f"{test_duration:.1f}s"
-                                                if test_duration > 0
-                                                else "N/A"
-                                            )
-                                            print(
-                                                f"{current_time} {progress_str} {node_name} {status_str} {duration_str}",
-                                                flush=True,
-                                            )
-                                        elif (
-                                            progress_match
-                                            and current_progress
-                                            != last_progress_displayed
-                                        ):
-                                            # 简洁的进度显示：P2: 38.2% (570/1493)，只在进度变化时显示
-                                            current_time = time.strftime(
-                                                "%H:%M:%S", time.localtime()
-                                            )
-                                            print(
-                                                f"[{current_time}] P{phase}: {current_progress:.1f}% ({tested_count}/{total_count})",
-                                                flush=True,
-                                            )
-                                            last_progress_displayed = current_progress
+                                                    status_parts.append("YT:✓")
+                                                # 如果没有任何测试项通过，显示失败状态
+                                                if not status_parts:
+                                                    if node_result["gpt"]:
+                                                        status_parts.append("GPT:✗")
+                                                    if node_result["gemini"]:
+                                                        status_parts.append("GM:✗")
+                                                    if node_result["youtube"]:
+                                                        status_parts.append("YT:✗")
+                                                status_str = " ".join(status_parts)
+                                                # 新格式：时间点 节点进度 节点名称 测试项状态 测试耗时
+                                                progress_str = (
+                                                    f"{current_progress:.1f}% ({tested_count}/{total_count})"
+                                                    if progress_match
+                                                    else "N/A"
+                                                )
+                                                duration_str = (
+                                                    f"{test_duration:.1f}s"
+                                                    if test_duration > 0
+                                                    else "N/A"
+                                                )
+                                                print(
+                                                    f"{current_time} {progress_str} {node_name} {status_str} {duration_str}",
+                                                    flush=True,
+                                                )
+                                            elif (
+                                                progress_match
+                                                and current_progress
+                                                != last_progress_displayed
+                                            ):
+                                                # 简洁的进度显示：P2: 38.2% (570/1493)，只在进度变化时显示
+                                                current_time = time.strftime(
+                                                    "%H:%M:%S", time.localtime()
+                                                )
+                                                print(
+                                                    f"[{current_time}] P{phase}: {current_progress:.1f}% ({tested_count}/{total_count})",
+                                                    flush=True,
+                                                )
+                                                last_progress_displayed = (
+                                                    current_progress
+                                                )
+                                            else:
+                                                # 其他信息正常显示
+                                                print(
+                                                    f"[P{phase}] {last_line.strip()}",
+                                                    flush=True,
+                                                )
                                         else:
-                                            # 其他信息正常显示
+                                            # 阶段1：显示所有输出行（调试用）
                                             print(
-                                                f"[P{phase}] {last_line.strip()}",
+                                                f"[P1-DEBUG] {last_line.strip()}",
                                                 flush=True,
                                             )
-                                    else:
-                                        # 阶段1：显示所有输出行（调试用）
-                                        print(
-                                            f"[P1-DEBUG] {last_line.strip()}",
-                                            flush=True,
-                                        )
-                                        # 阶段1只显示进度，只在进度变化时显示
-                                        if (
-                                            progress_match
-                                            and current_progress
-                                            != last_progress_displayed
-                                        ):
-                                            # 简洁的进度显示：P1: 38.2% (570/1493)
-                                            current_time = time.strftime(
-                                                "%H:%M:%S", time.localtime()
-                                            )
-                                            print(
-                                                f"[{current_time}] P{phase}: {current_progress:.1f}% ({tested_count}/{total_count})",
-                                                flush=True,
-                                            )
-                                            last_progress_displayed = current_progress
-                                        else:
-                                            # 其他信息正常显示
-                                            print(
-                                                f"[P{phase}] {last_line.strip()}",
-                                                flush=True,
-                                            )
-                                    line_count += 1
-                                last_line = ""
-                            elif char == "\r":
+                                            # 阶段1只显示进度，只在进度变化时显示
+                                            if (
+                                                progress_match
+                                                and current_progress
+                                                != last_progress_displayed
+                                            ):
+                                                # 简洁的进度显示：P1: 38.2% (570/1493)
+                                                current_time = time.strftime(
+                                                    "%H:%M:%S", time.localtime()
+                                                )
+                                                print(
+                                                    f"[{current_time}] P{phase}: {current_progress:.1f}% ({tested_count}/{total_count})",
+                                                    flush=True,
+                                                )
+                                                last_progress_displayed = (
+                                                    current_progress
+                                                )
+                                            else:
+                                                # 其他信息正常显示
+                                                print(
+                                                    f"[P{phase}] {last_line.strip()}",
+                                                    flush=True,
+                                                )
+                                        line_count += 1
+                                    last_line = ""
+                            elif char and char == "\r":
                                 # 只在阶段2且遇到节点结果时才处理
                                 if phase == 2:
                                     node_result = self._parse_node_result(last_line)
@@ -894,17 +942,22 @@ class SubsCheckTester:
                                     # 不在 \r 时打印进度，避免重复
                                 last_line = ""
                             else:
-                                last_line += char
-                                if len(last_line) >= 100:
-                                    print(f"[P{phase}] {last_line}", end="", flush=True)
-                                    last_line = ""
+                                if char:
+                                    last_line += char
+                                    if len(last_line) >= 100:
+                                        print(
+                                            f"[P{phase}] {last_line}",
+                                            end="",
+                                            flush=True,
+                                        )
+                                        last_line = ""
                         else:
                             break
                 except (OSError, ValueError):
                     break
 
                 # 检查进程是否结束
-                if self.process.poll() is not None:
+                if self.process and self.process.poll() is not None:
                     self.logger.info(
                         f"阶段{phase}进程已自然结束，返回码: {self.process.poll()}"
                     )
@@ -947,6 +1000,17 @@ class SubsCheckTester:
                         )
                 except Exception as e:
                     self.logger.warning(f"检查阶段{phase}输出文件失败: {str(e)}")
+
+            # 更新性能管理器的指标
+            stats = self.performance_monitor.get_current_stats()
+            # 从监控的输出中推断总节点数
+            total_nodes = max(tested_count, tested_node_count, total_count)
+            self.timeout_manager.update_performance_metrics(
+                total_nodes,
+                stats.get("avg_latency", 200.0),
+                (tested_node_count / max(total_nodes, 1)) if total_nodes > 0 else 0.0,
+                stats.get("duration", 0.0),
+            )
 
             # 判断是否成功
             if tested_node_count > 0:
@@ -1149,7 +1213,7 @@ class SubsCheckTester:
 
         return 1
 
-    def _parse_node_result(self, line: str) -> dict:
+    def _parse_node_result(self, line: str) -> dict | None:
         """解析subs-check输出中的节点测试结果
 
         Args:
@@ -1359,9 +1423,8 @@ def convert_nodes_to_vless_yaml(clash_file: str, output_file: str) -> bool:
         clash_file: Clash配置文件路径
         output_file: 输出文件路径
     """
+    logger = get_logger("converter")
     try:
-        logger = get_logger("converter")
-
         with open(clash_file, "r", encoding="utf-8") as f:
             data = yaml.safe_load(f)
 

@@ -21,8 +21,14 @@ class IntelligentTimeoutManager:
         if avg_latency is None:
             avg_latency = 200.0  # 默认200ms延迟
 
-        # 基础超时
+        # 基础超时，并根据节点数量调整
         base_timeout = 3000 if phase == 1 else 6000
+
+        # 根据节点数量增加超时时间
+        if node_count > 1000:
+            base_timeout *= 2  # 大量节点需要更长时间
+        elif node_count > 500:
+            base_timeout *= 1.5
 
         # 根据GitHub开源项目最佳实践调整
         if phase == 1:

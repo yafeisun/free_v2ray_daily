@@ -46,7 +46,7 @@ class SubsCheckTester:
             self.project_root = project_root
 
         # 路径配置
-        self.subscheck_dir = os.path.join(self.project_root, "subscheck")
+        self.subscheck_dir = os.path.join(self.project_root, "tools", "subscheck")
         self.binary_path = os.path.join(self.subscheck_dir, "bin", "subs-check")
         self.config_file = os.path.join(self.subscheck_dir, "config", "config.yaml")
         self.output_dir = os.path.join(self.project_root, "result", "output")

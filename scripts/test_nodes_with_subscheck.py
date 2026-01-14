@@ -236,7 +236,7 @@ class SubsCheckTester:
                     "print-progress": True,
                     "concurrent": 8,  # 优化并发数（GitHub Actions环境优化）
                     "check-interval": 999999,
-                    "timeout": 4000,  # 匹配SubsCheck标准的4秒超时
+                    "timeout": 3000,  # 3秒超时，快速跳过坏节点
                     # 测速配置
                     "alive-test-url": "http://gstatic.com/generate_204",
                     "speed-test-url": "",
@@ -285,7 +285,7 @@ class SubsCheckTester:
                     "print-progress": True,
                     "concurrent": 5,  # 优化并发数（参考标准的20，但适当保守）
                     "check-interval": 999999,
-                    "timeout": 10000,  # 匹配SubsCheck标准的10秒超时
+                    "timeout": 6000,  # 6秒超时，快速跳过坏节点
                     # 测速配置
                     "alive-test-url": "http://gstatic.com/generate_204",
                     "speed-test-url": "",
@@ -295,7 +295,7 @@ class SubsCheckTester:
                     "total-speed-limit": 0,
                     # 流媒体检测（参考SubsCheck标准优化）
                     "media-check": True,
-                    "media-check-timeout": 10,  # 匹配SubsCheck标准的10秒超时
+                    "media-check-timeout": 8,  # 8秒超时，快速跳过无响应节点
                     "platforms": ["openai", "gemini"],
                     # 节点配置
                     "rename-node": True,
@@ -639,9 +639,9 @@ class SubsCheckTester:
 
                 # 检查静默超时 - 参考SubsCheck标准优化
                 if phase == 1:
-                    silent_timeout = 90  # 阶段1：90秒无输出结束（增加缓冲时间）
+                    silent_timeout = 120  # 阶段1：120秒无输出结束（更宽松）
                 else:
-                    silent_timeout = 180  # 阶段2：180秒无输出结束（增加缓冲时间）
+                    silent_timeout = 240  # 阶段2：240秒无输出结束（更宽松）
 
                 silent_elapsed = time.time() - last_output_time
 
@@ -708,7 +708,7 @@ class SubsCheckTester:
                 import select
 
                 try:
-                    ready, _, _ = select.select([self.process.stdout], [], [], 1.0)
+                    ready, _, _ = select.select([self.process.stdout], [], [], 0.5)
                     if ready:
                         byte = self.process.stdout.read(1)
                         if byte:

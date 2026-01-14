@@ -207,6 +207,9 @@ jobs:
         git config --global user.email "action@github.com"
         git config --global user.name "GitHub Action"
         
+        # 先拉取最新代码避免冲突
+        git pull origin main --rebase || true
+        
         # 添加文件到暂存区
         git add result/nodelist.txt
         
@@ -231,7 +234,19 @@ jobs:
           git commit -m "节点测试 - 节点总数:${total_count} 有效节点:${valid_count} 通过率:N/A"
         fi
         
-        git push
+        # 尝试推送，如果有冲突则重试
+        for i in {1..3}; do
+          if git push origin main; then
+            echo "✅ 成功推送到远程仓库"
+            break
+          elif [ $i -eq 3 ]; then
+            echo "❌ 推送失败，已重试3次"
+            exit 1
+          else
+            echo "⚠️ 第$i次推送失败，等待5秒后重试..."
+            sleep 5
+          fi
+        done
         
         echo "测速结果已提交并推送到仓库"
     

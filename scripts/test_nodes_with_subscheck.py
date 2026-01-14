@@ -451,7 +451,7 @@ class SubsCheckTester:
             print(f"\n创建阶段1配置...", flush=True)
             # 创建阶段1配置
             if not self.create_config(
-                "result/clash_subscription.yaml", concurrent=20, phase=1
+                "result/clash_subscription.yaml", concurrent=12, phase=1
             ):
                 return False, "创建阶段1配置失败"
             print(f"✓ 阶段1配置已创建", flush=True)
@@ -517,7 +517,7 @@ class SubsCheckTester:
 
             print(f"\n创建阶段2配置...", flush=True)
             # 创建阶段2配置
-            if not self.create_config(subscription_file, concurrent=5, phase=2):
+            if not self.create_config(subscription_file, concurrent=4, phase=2):
                 return False, "创建阶段2配置失败"
             print(f"✓ 阶段2配置已创建", flush=True)
 
@@ -639,9 +639,9 @@ class SubsCheckTester:
 
                 # 检查静默超时 - 参考SubsCheck标准优化
                 if phase == 1:
-                    silent_timeout = 60  # 阶段1：60秒无输出结束（匹配4秒超时+缓冲）
+                    silent_timeout = 90  # 阶段1：90秒无输出结束（增加缓冲时间）
                 else:
-                    silent_timeout = 120  # 阶段2：120秒无输出结束（匹配10秒超时+缓冲）
+                    silent_timeout = 180  # 阶段2：180秒无输出结束（增加缓冲时间）
 
                 silent_elapsed = time.time() - last_output_time
 

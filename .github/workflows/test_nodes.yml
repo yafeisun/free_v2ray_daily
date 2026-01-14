@@ -70,19 +70,30 @@ jobs:
         # 连接 WARP
         warp-cli --accept-tos connect
         
+        # 等待连接完全建立
+        echo "⏳ 等待WARP连接完全建立..."
+        sleep 20
+        
         # 验证连接状态
+        echo "🔍 检查WARP连接状态..."
         warp-cli --accept-tos status
         
+        # 验证IP变更
+        echo "🌐 验证IP地址变更..."
+        current_ip=$(curl -s --max-time 10 ipinfo.io/ip || echo "检测失败")
+        echo "当前IP: $current_ip"
+        
         # 获取 WARP 代理端口（通常是 40000）
-        echo "WARP 代理已启用，SOCKS5 端口: 40000"
+        echo "✅ WARP 代理已启用，SOCKS5 端口: 40000"
     
     - name: Cache subs-check binary
       id: cache-subscheck
       uses: actions/cache@v4
       with:
         path: subscheck/bin/subs-check
-        key: subs-check-${{ runner.os }}-${{ runner.arch }}-v1
+        key: subs-check-${{ runner.os }}-${{ runner.arch }}-v2-${{ github.run_id }}
         restore-keys: |
+          subs-check-${{ runner.os }}-${{ runner.arch }}-v2-
           subs-check-${{ runner.os }}-${{ runner.arch }}-
           subs-check-${{ runner.os }}-
     
@@ -146,6 +157,11 @@ jobs:
           echo "❌ Node file not found, skipping test"
           exit 0
         fi
+        
+        # Python语法检查
+        echo "🔍 Python syntax check..."
+        python3 -m py_compile scripts/test_nodes_with_subscheck.py
+        echo "✅ Python syntax check passed"
         
         echo "🚀 Executing Python script..."
         echo "🔗 Command: python3 scripts/test_nodes_with_subscheck.py --input result/nodetotal.txt --output result/nodelist.txt"

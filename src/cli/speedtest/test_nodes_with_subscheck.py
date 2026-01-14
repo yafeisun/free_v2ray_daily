@@ -303,7 +303,7 @@ class SubsCheckTester:
                     "keep-success-proxies": False,
                     "sub-urls-retry": 1,  # 大幅减少重试次数，避免卡死
                     "sub-urls-get-ua": "clash.meta (https://github.com/beck-8/subs-check)",
-                    # 使用HTTP服务器提供本地文件
+                    # 使用本地文件路径，避免HTTP服务器问题
                     "sub-urls": [subscription_url],
                 }
             else:
@@ -346,7 +346,7 @@ class SubsCheckTester:
                     "keep-success-proxies": False,
                     "sub-urls-retry": 1,  # 大幅减少重试次数，避免卡死
                     "sub-urls-get-ua": "clash.meta (https://github.com/beck-8/subs-check)",
-                    # 使用HTTP服务器提供本地文件
+                    # 使用本地文件路径，避免HTTP服务器问题
                     "sub-urls": [subscription_url],
                 }
 

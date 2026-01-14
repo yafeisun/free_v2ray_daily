@@ -214,11 +214,11 @@ class SubsCheckTester:
                 self.logger.info(f"阶段1订阅URL: {subscription_url}")
 
                 config = {
-                    # 基本配置
+                    # 基本配置 - 参考SubsCheck标准优化
                     "print-progress": True,
-                    "concurrent": 6,  # 降低并发避免卡死（从20降到6）
+                    "concurrent": 8,  # 优化并发数（GitHub Actions环境优化）
                     "check-interval": 999999,
-                    "timeout": 5000,  # 快速跳过问题节点（从10秒降到5秒）
+                    "timeout": 4000,  # 匹配SubsCheck标准的4秒超时
                     # 测速配置
                     "alive-test-url": "http://gstatic.com/generate_204",
                     "speed-test-url": "",
@@ -263,11 +263,11 @@ class SubsCheckTester:
                 self.logger.info(f"阶段2订阅URL: {subscription_url}")
 
                 config = {
-                    # 基本配置
+                    # 基本配置 - 参考SubsCheck标准优化
                     "print-progress": True,
-                    "concurrent": 3,  # 进一步降低并发（从5降到3）
+                    "concurrent": 5,  # 优化并发数（参考标准的20，但适当保守）
                     "check-interval": 999999,
-                    "timeout": 8000,  # 快速跳过问题节点（从25秒降到8秒）
+                    "timeout": 10000,  # 匹配SubsCheck标准的10秒超时
                     # 测速配置
                     "alive-test-url": "http://gstatic.com/generate_204",
                     "speed-test-url": "",
@@ -275,9 +275,9 @@ class SubsCheckTester:
                     "download-timeout": 1,
                     "download-mb": 0,
                     "total-speed-limit": 0,
-                    # 流媒体检测（只检测openai和gemini，不检测youtube）
+                    # 流媒体检测（参考SubsCheck标准优化）
                     "media-check": True,
-                    "media-check-timeout": 15,  # 增加超时到15秒
+                    "media-check-timeout": 10,  # 匹配SubsCheck标准的10秒超时
                     "platforms": ["openai", "gemini"],
                     # 节点配置
                     "rename-node": True,
@@ -619,11 +619,11 @@ class SubsCheckTester:
                         )
                         break
 
-                # 检查静默超时 - 大幅缩短超时时间，快速跳过卡住的节点
+                # 检查静默超时 - 参考SubsCheck标准优化
                 if phase == 1:
-                    silent_timeout = 45  # 阶段1：45秒无输出就结束（原来2分钟）
+                    silent_timeout = 60  # 阶段1：60秒无输出结束（匹配4秒超时+缓冲）
                 else:
-                    silent_timeout = 90  # 阶段2：90秒无输出就结束（原来5分钟）
+                    silent_timeout = 120  # 阶段2：120秒无输出结束（匹配10秒超时+缓冲）
 
                 silent_elapsed = time.time() - last_output_time
 

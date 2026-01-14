@@ -18,10 +18,12 @@ import yaml
 from typing import List, Dict, Any, Tuple
 
 # 添加项目根目录到路径
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(
+    0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+)
 
 from src.utils.logger import get_logger
-from scripts.intelligent_timeout import (
+from scripts.speedtest.intelligent_timeout import (
     IntelligentTimeoutManager,
     PerformanceMonitor,
     ConcurrencyController,

@@ -19,20 +19,25 @@ def run_collectors():
     """运行所有节点收集器"""
     print("🔍 开始收集节点...")
 
-    # 运行通用收集器
-    collector_script = project_root / "scripts" / "utils" / "universal_collector.py"
+    # 使用统一的收集器运行器
+    collector_script = project_root / "scripts" / "run_collectors.py"
     if collector_script.exists():
-        print("📡 运行通用收集器...")
+        print("📡 运行统一收集器...")
         result = subprocess.run(
-            [sys.executable, str(collector_script)], capture_output=False, text=True
+            [sys.executable, str(collector_script), "--all"],
+            capture_output=False,
+            text=True,
+            cwd=project_root,
         )
         if result.returncode == 0:
             print("✅ 节点收集完成")
         else:
             print("❌ 节点收集失败")
     else:
-        print("⚠️ 通用收集器不存在，运行单个收集器...")
-        run_single_collectors()
+        print("❌ 收集器运行器不存在")
+        return False
+
+    return result.returncode == 0
 
 
 def run_single_collectors():
@@ -110,7 +115,8 @@ def show_status():
         ("结果目录", "result/nodetotal.txt"),
         ("有效节点", "result/nodelist.txt"),
         ("主测速脚本", "scripts/speedtest/test_nodes_with_subscheck.py"),
-        ("收集器目录", "scripts/collectors"),
+        ("收集器模块", "src/collectors"),
+        ("收集器运行器", "scripts/run_collectors.py"),
     ]
 
     for name, path in files_to_check:

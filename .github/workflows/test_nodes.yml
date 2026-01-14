@@ -1,10 +1,6 @@
 name: Test Nodes
 
 on:
-  push:
-    branches: [ main ]
-  pull_request:
-    branches: [ main ]
   schedule:
     # 每12小时运行一次测速 (北京时间 0:00, 12:00)
     - cron: '0 */12 * * *'

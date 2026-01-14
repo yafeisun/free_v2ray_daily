@@ -20,7 +20,7 @@ def run_collectors():
     print("🔍 开始收集节点...")
 
     # 使用统一的收集器运行器
-    collector_script = project_root / "scripts" / "run_collectors.py"
+    collector_script = project_root / "src" / "cli" / "run_collectors.py"
     if collector_script.exists():
         print("📡 运行统一收集器...")
         result = subprocess.run(
@@ -114,9 +114,9 @@ def show_status():
     files_to_check = [
         ("结果目录", "result/nodetotal.txt"),
         ("有效节点", "result/nodelist.txt"),
-        ("主测速脚本", "scripts/speedtest/test_nodes_with_subscheck.py"),
+        ("主测速脚本", "src/cli/speedtest/test_nodes_with_subscheck.py"),
         ("收集器模块", "src/collectors"),
-        ("收集器运行器", "scripts/run_collectors.py"),
+        ("CLI运行器", "src/cli/run_collectors.py"),
     ]
 
     for name, path in files_to_check:

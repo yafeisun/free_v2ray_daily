@@ -85,7 +85,7 @@ jobs:
         https_proxy: socks5://127.0.0.1:40000/
       run: |
         echo "开始节点收集..."
-        python -m src.main --update-github
+        python3 main.py --collect
         echo "节点收集完成"
       continue-on-error: true
     

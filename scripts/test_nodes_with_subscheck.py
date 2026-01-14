@@ -671,8 +671,12 @@ class SubsCheckTester:
 
                 if silent_elapsed > silent_timeout:
                     # 更智能的判断：区分"接近完成"和"可能卡住"
-                    remaining_nodes = total_count - tested_count if tested_count and total_count else 0
-                    
+                    remaining_nodes = (
+                        total_count - tested_count
+                        if tested_count and total_count
+                        else 0
+                    )
+
                     if current_progress >= 99.0 and remaining_nodes <= 3:
                         # 非常接近完成，给更多时间
                         if silent_elapsed < silent_timeout * 2:
@@ -700,7 +704,7 @@ class SubsCheckTester:
                         self.logger.warning(
                             f"进度{current_progress:.1f}%，剩余{remaining_nodes}个节点，可能卡死，准备终止..."
                         )
-                    
+
                     self.logger.info(
                         f"检测到{silent_timeout}秒（{silent_timeout / 60:.0f}分钟）无新输出（当前进度: {current_progress:.1f}%）"
                     )
@@ -709,24 +713,22 @@ class SubsCheckTester:
                     )
                     self.logger.info(f"已接收总行数: {line_count}")
 
-                        # 检查进程状态
-                        if self.process.poll() is None:
-                            self.logger.warning(
-                                f"进程仍在运行但无输出，尝试终止进程..."
-                            )
-                            self.process.terminate()
-                            try:
-                                self.process.wait(timeout=10)  # 增加等待时间
-                                self.logger.info(f"进程已终止")
-                            except subprocess.TimeoutExpired:
-                                self.logger.error(f"进程无法终止，强制kill")
-                                self.process.kill()
-                        else:
-                            self.logger.info(
-                                f"进程已退出，返回码: {self.process.poll()}"
-                            )
+                    # 检查进程状态
+                    if self.process.poll() is None:
+                        self.logger.warning("进程仍在运行但无输出，尝试终止进程...")
+                        self.process.terminate()
+                        try:
+                            self.process.wait(timeout=10)  # 增加等待时间
+                            self.logger.info("进程已终止")
+                        except subprocess.TimeoutExpired:
+                            self.logger.error("进程无法终止，强制kill")
+                            self.process.kill()
+                    else:
+                        self.logger.info(
+                            f"进程已自然退出，返回码: {self.process.poll()}"
+                        )
 
-                        break
+                    break
 
                 # 使用select检查是否有可读数据
                 import select

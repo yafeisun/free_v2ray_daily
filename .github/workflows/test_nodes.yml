@@ -156,11 +156,11 @@ jobs:
         echo "✅ Python syntax check passed"
         
         echo "🚀 Executing Python script..."
-        echo "🔗 Command: python3 src/cli/speedtest/test_nodes_with_subscheck.py --input result/nodetotal.txt --output result/nodelist.txt"
+        echo "🔗 Command: python3 -m src.cli.speedtest.test_nodes_with_subscheck --input result/nodetotal.txt --output result/nodelist.txt"
         echo "⏳ Starting test with progress monitoring..."
         echo ""
         echo "⚡ 开始执行节点测速..."
-        python3 src/cli/speedtest/test_nodes_with_subscheck.py --input result/nodetotal.txt --output result/nodelist.txt
+        cd . && python3 -m src.cli.speedtest.test_nodes_with_subscheck --input result/nodetotal.txt --output result/nodelist.txt
         
         echo ""
         echo "📊 Python脚本执行完成！"

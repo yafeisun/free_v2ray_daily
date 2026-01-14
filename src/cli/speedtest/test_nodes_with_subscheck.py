@@ -22,8 +22,8 @@ sys.path.insert(
     0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 )
 
-from src.utils.logger import get_logger
-from scripts.speedtest.intelligent_timeout import (
+from utils.logger import get_logger
+from .intelligent_timeout import (
     IntelligentTimeoutManager,
     PerformanceMonitor,
     ConcurrencyController,
@@ -1516,7 +1516,7 @@ def main():
 
     # 导入转换函数
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-    import convert_nodes_to_subscription
+    from ..utils import convert_nodes_to_subscription
 
     print(f"🔄 开始转换 {len(nodes)} 个节点为Clash格式...", flush=True)
     print(f"📋 转换进度: 0/0 开始...", flush=True)

@@ -190,9 +190,9 @@ class SubsCheckTester:
                 config = {
                     # 基本配置
                     "print-progress": True,
-                    "concurrent": 20,  # 高并发
+                    "concurrent": 6,  # 降低并发避免卡死（从20降到6）
                     "check-interval": 999999,
-                    "timeout": 10000,  # 连通性测试超时10秒
+                    "timeout": 5000,  # 快速跳过问题节点（从10秒降到5秒）
                     # 测速配置
                     "alive-test-url": "http://gstatic.com/generate_204",
                     "speed-test-url": "",
@@ -223,7 +223,7 @@ class SubsCheckTester:
                     "proxy": "",
                     # 其他
                     "keep-success-proxies": False,
-                    "sub-urls-retry": 3,
+                    "sub-urls-retry": 1,  # 大幅减少重试次数，避免卡死
                     "sub-urls-get-ua": "clash.meta (https://github.com/beck-8/subs-check)",
                     # 使用HTTP服务器提供本地文件
                     "sub-urls": [subscription_url],
@@ -239,9 +239,9 @@ class SubsCheckTester:
                 config = {
                     # 基本配置
                     "print-progress": True,
-                    "concurrent": 5,  # 低并发
+                    "concurrent": 3,  # 进一步降低并发（从5降到3）
                     "check-interval": 999999,
-                    "timeout": 25000,  # 连通性测试超时25秒（增加以适应媒体检测）
+                    "timeout": 8000,  # 快速跳过问题节点（从25秒降到8秒）
                     # 测速配置
                     "alive-test-url": "http://gstatic.com/generate_204",
                     "speed-test-url": "",
@@ -272,7 +272,7 @@ class SubsCheckTester:
                     "proxy": "",
                     # 其他
                     "keep-success-proxies": False,
-                    "sub-urls-retry": 3,
+                    "sub-urls-retry": 1,  # 大幅减少重试次数，避免卡死
                     "sub-urls-get-ua": "clash.meta (https://github.com/beck-8/subs-check)",
                     # 使用HTTP服务器提供本地文件
                     "sub-urls": [subscription_url],
@@ -593,11 +593,11 @@ class SubsCheckTester:
                         )
                         break
 
-                # 检查静默超时（根据阶段设置不同的静默超时时间）
+                # 检查静默超时 - 大幅缩短超时时间，快速跳过卡住的节点
                 if phase == 1:
-                    silent_timeout = 120  # 阶段1：2分钟无输出认为结束（连通性测试较快）
+                    silent_timeout = 45  # 阶段1：45秒无输出就结束（原来2分钟）
                 else:
-                    silent_timeout = 300  # 阶段2：5分钟无输出认为结束（媒体检测较慢）
+                    silent_timeout = 90  # 阶段2：90秒无输出就结束（原来5分钟）
 
                 silent_elapsed = time.time() - last_output_time
 

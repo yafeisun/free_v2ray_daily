@@ -138,19 +138,45 @@ class SubsCheckTester:
             import requests
 
             self.logger.info("下载subs-check...")
+            print("📥 正在下载subs-check工具...", flush=True)
             response = requests.get(download_url, stream=True, timeout=300)
             response.raise_for_status()
 
+            total_size = int(response.headers.get("content-length", 0))
+            downloaded = 0
+            print(f"📦 文件大小: {total_size // 1024 // 1024}MB", flush=True)
+
             with open(tar_file, "wb") as f:
                 for chunk in response.iter_content(chunk_size=8192):
-                    f.write(chunk)
+                    if chunk:
+                        f.write(chunk)
+                        downloaded += len(chunk)
+                        # 每下载10MB显示一次进度
+                        if (
+                            downloaded % (10 * 1024 * 1024) == 0
+                            or downloaded == total_size
+                        ):
+                            progress = (
+                                (downloaded / total_size * 100) if total_size > 0 else 0
+                            )
+                            print(
+                                f"📊 下载进度: {progress:.1f}% ({downloaded // 1024 // 1024}MB)",
+                                flush=True,
+                            )
 
             # 解压文件
             self.logger.info("解压文件...")
+            print("📂 正在解压subs-check...", flush=True)
             import tarfile
 
             with tarfile.open(tar_file, "r:gz") as tar:
-                tar.extractall(os.path.join(self.subscheck_dir, "bin"))
+                members = tar.getmembers()
+                for i, member in enumerate(members):
+                    tar.extract(member, os.path.join(self.subscheck_dir, "bin"))
+                    # 显示解压进度
+                    if i % 10 == 0 or i == len(members) - 1:
+                        print(f"📋 解压进度: {i + 1}/{len(members)} 文件", flush=True)
+            print("✅ 解压完成", flush=True)
 
             # 设置执行权限
             os.chmod(self.binary_path, 0o755)
@@ -1361,10 +1387,15 @@ def main():
     # 读取节点
     print(f"读取节点文件: {args.input}", flush=True)
     logger.info(f"读取节点文件: {args.input}")
+    import time
+
+    read_start = time.time()
+
     with open(args.input, "r", encoding="utf-8") as f:
         nodes = [line.strip() for line in f if line.strip()]
 
-    print(f"✓ 读取到 {len(nodes)} 个节点", flush=True)
+    read_elapsed = time.time() - read_start
+    print(f"✅ 读取到 {len(nodes)} 个节点 (耗时: {read_elapsed:.2f}秒)", flush=True)
     logger.info(f"读取到 {len(nodes)} 个节点")
 
     # 转换为Clash格式
@@ -1378,7 +1409,15 @@ def main():
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
     import convert_nodes_to_subscription
 
+    print(f"🔄 开始转换 {len(nodes)} 个节点为Clash格式...", flush=True)
+    import time
+
+    start_time = time.time()
+
     clash_config = convert_nodes_to_subscription.convert_nodes_to_clash(nodes)
+
+    elapsed = time.time() - start_time
+    print(f"⚡ Clash格式转换完成，耗时: {elapsed:.1f}秒", flush=True)
 
     # 保存Clash配置
     os.makedirs(os.path.dirname(subscription_file), exist_ok=True)

@@ -670,20 +670,44 @@ class SubsCheckTester:
                     )
 
                 if silent_elapsed > silent_timeout:
-                    # 在终止进程前，先检查是否真的完成了
-                    if current_progress >= 95.0 and tested_count >= total_count * 0.95:
-                        self.logger.info(
-                            f"检测到测试接近完成（进度: {current_progress}%, 测试: {tested_count}/{total_count}），认为阶段{phase}测试已完成"
-                        )
-                        break
+                    # 更智能的判断：区分"接近完成"和"可能卡住"
+                    remaining_nodes = total_count - tested_count if tested_count and total_count else 0
+                    
+                    if current_progress >= 99.0 and remaining_nodes <= 3:
+                        # 非常接近完成，给更多时间
+                        if silent_elapsed < silent_timeout * 2:
+                            self.logger.info(
+                                f"进度{current_progress:.1f}%，剩余{remaining_nodes}个节点，延长等待时间..."
+                            )
+                            continue  # 不终止，继续等待
+                        else:
+                            self.logger.warning(
+                                f"剩余{remaining_nodes}个节点可能卡住，准备终止..."
+                            )
+                    elif current_progress >= 97.0 and remaining_nodes <= 10:
+                        # 接近完成，给中等时间
+                        if silent_elapsed < silent_timeout * 1.5:
+                            self.logger.info(
+                                f"进度{current_progress:.1f}%，剩余{remaining_nodes}个节点，继续等待..."
+                            )
+                            continue  # 不终止，继续等待
+                        else:
+                            self.logger.warning(
+                                f"进度{current_progress:.1f}%但剩余{remaining_nodes}个节点处理过慢，准备终止..."
+                            )
                     else:
-                        self.logger.info(
-                            f"检测到{silent_timeout}秒（{silent_timeout / 60:.0f}分钟）无新输出（当前进度: {current_progress:.1f}%），认为阶段{phase}测试已完成"
+                        # 进度不够或剩余节点过多，可能真的卡住了
+                        self.logger.warning(
+                            f"进度{current_progress:.1f}%，剩余{remaining_nodes}个节点，可能卡死，准备终止..."
                         )
-                        self.logger.info(
-                            f"最后收到的输出: {last_line.strip() if last_line else '(空)'}"
-                        )
-                        self.logger.info(f"已接收总行数: {line_count}")
+                    
+                    self.logger.info(
+                        f"检测到{silent_timeout}秒（{silent_timeout / 60:.0f}分钟）无新输出（当前进度: {current_progress:.1f}%）"
+                    )
+                    self.logger.info(
+                        f"最后收到的输出: {last_line.strip() if last_line else '(空)'}"
+                    )
+                    self.logger.info(f"已接收总行数: {line_count}")
 
                         # 检查进程状态
                         if self.process.poll() is None:

@@ -494,7 +494,13 @@ class SubsCheckTester:
                 # 转换为秒并添加缓冲
                 timeout_seconds = timeout / 1000
                 timeout_seconds = timeout_seconds * 2.5  # 2.5倍缓冲
-                timeout_seconds = max(timeout_seconds, 900)  # 最少15分钟
+                # 对于大量节点，确保足够的超时时间
+                if node_count > 1000:
+                    timeout_seconds = max(timeout_seconds, 1800)  # 至少30分钟
+                elif node_count > 500:
+                    timeout_seconds = max(timeout_seconds, 1200)  # 至少20分钟
+                else:
+                    timeout_seconds = max(timeout_seconds, 900)  # 至少15分钟
 
                 print(
                     f"智能计算超时: 节点数={node_count}, 预计超时={int(timeout_seconds)}秒 ({int(timeout_seconds / 60)}分钟)",

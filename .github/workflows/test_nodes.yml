@@ -130,8 +130,27 @@ jobs:
           total_nodes=0
         fi
 
-        # 使用两阶段测试脚本
+        # 使用两阶段测试脚本 - 添加实时进度输出
+        set -e
+        echo "🔄 启动Python测速脚本..."
+        echo "📝 开始节点处理流程..."
+        
+        # 先检查节点文件是否存在
+        if [ -f result/nodetotal.txt ]; then
+          echo "📊 节点文件检查完成，准备启动Python脚本..."
+        else
+          echo "❌ 节点文件不存在，跳过测速"
+          exit 0
+        fi
+        
+        echo "🚀 即将执行Python脚本..."
+        echo "🔗 执行命令: python3 scripts/test_nodes_with_subscheck.py --input result/nodetotal.txt --output result/nodelist.txt"
+        echo ""
+        echo "⚡ 开始执行节点测速..."
         python3 scripts/test_nodes_with_subscheck.py --input result/nodetotal.txt --output result/nodelist.txt
+        
+        echo ""
+        echo "📊 Python脚本执行完成！"
 
         echo "节点测试完成"
       continue-on-error: true

@@ -56,9 +56,11 @@ class SubsCheckTester:
     def start_http_server(self) -> bool:
         """启动HTTP服务器"""
         try:
+            print(f"🌐 启动HTTP服务器，端口: {self.http_server_port}", flush=True)
             self.logger.info(f"启动HTTP服务器，端口: {self.http_server_port}")
 
             # 启动HTTP服务器
+            print(f"🚀 执行命令: python3 -m http.server {self.http_server_port}", flush=True)
             self.http_server_process = subprocess.Popen(
                 [
                     "python3",
@@ -74,11 +76,14 @@ class SubsCheckTester:
 
             # 等待服务器启动（增加等待时间确保完全启动）
             import time
-
-            time.sleep(5)
+            print(f"⏳ 等待HTTP服务器启动完成...", flush=True)
+            time.sleep(3)  # 减少等待时间，添加进度反馈
+            print(f"🔍 检查HTTP服务器状态...", flush=True)
+            time.sleep(2)
 
             # 检查服务器是否成功启动
             if self.http_server_process.poll() is None:
+                print(f"✅ HTTP服务器启动成功: http://127.0.0.1:{self.http_server_port}", flush=True)
                 self.logger.info(
                     f"HTTP服务器启动成功: http://127.0.0.1:{self.http_server_port}"
                 )
@@ -1411,16 +1416,22 @@ def main():
         os.path.dirname(args.output), "clash_subscription.yaml"
     )
 
-    # 导入转换函数
-    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-    import convert_nodes_to_subscription
+# 导入转换函数
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        import convert_nodes_to_subscription
 
     print(f"🔄 开始转换 {len(nodes)} 个节点为Clash格式...", flush=True)
+    print(f"📋 转换进度: 0/0 开始...", flush=True)
     import time
-
     start_time = time.time()
 
+    # 添加进度反馈
+    print(f"🔄 正在调用转换函数处理 {len(nodes)} 个节点...", flush=True)
+    logger.info(f"开始转换 {len(nodes)} 个节点")
+    
     clash_config = convert_nodes_to_subscription.convert_nodes_to_clash(nodes)
+    
+    print(f"📋 转换进度: {len(nodes)}/{len(nodes)} 完成", flush=True)
 
     elapsed = time.time() - start_time
     print(f"⚡ Clash格式转换完成，耗时: {elapsed:.1f}秒", flush=True)

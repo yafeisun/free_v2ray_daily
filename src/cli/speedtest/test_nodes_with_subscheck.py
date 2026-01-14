@@ -1267,20 +1267,74 @@ class SubsCheckTester:
 
                 time.sleep(0.01)
 
-            # 等待进程结束
-            try:
-                return_code = self.process.wait(timeout=30)
-                self.logger.info(f"阶段{phase}进程退出，返回码: {return_code}")
-            except subprocess.TimeoutExpired:
-                self.logger.warning(f"阶段{phase}进程未在30秒内退出，尝试终止...")
+            # 等待进程结束 - 增加等待时间以适应subs-check的清理过程
+            self.logger.info(f"等待阶段{phase}进程结束...")
+
+            # 智能等待：定期检查输出文件，如果文件已更新则认为任务完成
+            max_wait_time = 120
+            check_interval = 10
+            elapsed = 0
+
+            initial_file_size = 0
+            if os.path.exists(self.output_file):
+                try:
+                    initial_file_size = os.path.getsize(self.output_file)
+                except:
+                    initial_file_size = 0
+
+            while elapsed < max_wait_time:
+                if self.process.poll() is not None:
+                    # 进程已结束
+                    return_code = self.process.returncode
+                    self.logger.info(
+                        f"✅ 阶段{phase}进程自然结束，返回码: {return_code}"
+                    )
+                    break
+
+                # 检查输出文件是否有更新（表示任务可能已完成）
+                if os.path.exists(self.output_file):
+                    try:
+                        current_file_size = os.path.getsize(self.output_file)
+                        if (
+                            current_file_size > initial_file_size
+                            and current_file_size > 1024
+                        ):  # 文件有更新且大于1KB
+                            self.logger.info(
+                                f"📊 检测到输出文件已更新，任务可能已完成，等待进程自然退出..."
+                            )
+                            # 给进程更多时间自然退出
+                            if self.process.wait(timeout=30):
+                                return_code = self.process.returncode
+                                self.logger.info(
+                                    f"✅ 阶段{phase}进程在文件更新后自然退出，返回码: {return_code}"
+                                )
+                                break
+                    except:
+                        pass
+
+                time.sleep(check_interval)
+                elapsed += check_interval
+                self.logger.debug(f"等待阶段{phase}进程，已等待{elapsed}秒...")
+            else:
+                # 超时，强制终止
+                self.logger.warning(
+                    f"⚠️ 阶段{phase}进程未在{max_wait_time}秒内退出，尝试终止..."
+                )
                 self.process.terminate()
                 try:
-                    return_code = self.process.wait(timeout=10)
-                    self.logger.info(f"阶段{phase}进程已终止，返回码: {return_code}")
+                    return_code = self.process.wait(timeout=30)  # 增加终止等待时间
+                    self.logger.info(f"✅ 阶段{phase}进程已终止，返回码: {return_code}")
                 except subprocess.TimeoutExpired:
-                    self.logger.error(f"阶段{phase}进程无法终止，强制kill")
+                    self.logger.error(f"❌ 阶段{phase}进程无法终止，强制kill")
                     self.process.kill()
-                    return_code = -1
+                    try:
+                        return_code = self.process.wait(timeout=5)  # 等待kill完成
+                        self.logger.info(
+                            f"✅ 阶段{phase}进程已强制终止，返回码: {return_code}"
+                        )
+                    except subprocess.TimeoutExpired:
+                        self.logger.error(f"❌ 阶段{phase}进程强制终止也失败")
+                        return_code = -1
 
             # 检查输出文件
             tested_node_count = 0

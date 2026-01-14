@@ -81,7 +81,7 @@ class IntelligentTimeoutManager:
                 else:
                     return 6  # 较多数量+高延迟，降低避免超时
             else:
-                return 4  # 大量时降低并发，避免系统过载
+                return 3  # 大量时进一步降低并发，确保稳定
         else:
             # 阶段2：媒体检测，需要更保守的并发
             if node_count <= 10:
@@ -91,7 +91,7 @@ class IntelligentTimeoutManager:
             elif node_count <= 50:
                 return 4  # 中等数量
             else:
-                return 6  # 较多节点
+                return 4  # 较多节点，降低并发确保稳定
 
     def should_continue_waiting(
         self,

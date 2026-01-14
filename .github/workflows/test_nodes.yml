@@ -78,10 +78,13 @@ jobs:
     
     - name: Cache subs-check binary
       id: cache-subscheck
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: subscheck/bin/subs-check
         key: subs-check-${{ runner.os }}-${{ runner.arch }}-v1
+        restore-keys: |
+          subs-check-${{ runner.os }}-${{ runner.arch }}-
+          subs-check-${{ runner.os }}-
     
     - name: Install subs-check
       if: steps.cache-subscheck.outputs.cache-hit != 'true'
@@ -112,39 +115,41 @@ jobs:
     - name: Test nodes with subs-check
       id: tester
       run: |
-        echo "开始节点测试..."
-        echo "🔥 定时测速策略 (每12小时一次):"
-        echo "  - 使用两阶段测试方案，优化并发避免卡死"
-        echo "  - 阶段1: 连通性测试（禁用媒体检测，优化并发8）"
-        echo "  - 阶段2: 媒体检测（只检测openai和gemini，优化并发5）"
-        echo "  - 标准超时：阶段1静默60秒结束，阶段2静默120秒结束"
-        echo "  - 筛选规则：GPT或Gemini至少通过1个（2选1）"
-        echo "  - 优化：参考SubsCheck标准配置，平衡速度与稳定性"
-        echo "  - 频率：每12小时自动运行 + 手动触发"
+        echo "🚀 开始节点测试 - 12小时定时策略"
+        echo "📊 Configuration:"
+        echo "  ⏰ Schedule: Every 12 hours (00:00, 12:00 Beijing Time)"
+        echo "  🔧 Phase 1: Connectivity test (concurrent=8, timeout=4s, silent=60s)"
+        echo "  🔧 Phase 2: Media detection (concurrent=5, timeout=10s, silent=120s)"
+        echo "  🎯 Filter: GPT or Gemini at least 1 pass (2选1)"
+        echo "  📝 Strategy: Based on SubsCheck-Win-GUI standards"
 
         # 获取节点数
         if [ -f result/nodetotal.txt ]; then
           total_nodes=$(wc -l < result/nodetotal.txt)
-          echo "  - 节点总数: $total_nodes"
+          echo "📈 Total nodes to test: $total_nodes"
         else
           total_nodes=0
+          echo "⚠️ No nodes file found, creating empty one..."
+          mkdir -p result
+          touch result/nodetotal.txt
         fi
 
         # 使用两阶段测试脚本 - 添加实时进度输出
         set -e
-        echo "🔄 启动Python测速脚本..."
-        echo "📝 开始节点处理流程..."
+        echo "🔄 Starting Python test script with progress indicators..."
+        echo "📝 Processing nodes with enhanced feedback..."
         
         # 先检查节点文件是否存在
         if [ -f result/nodetotal.txt ]; then
-          echo "📊 节点文件检查完成，准备启动Python脚本..."
+          echo "✅ Node file verified, preparing to execute Python script..."
         else
-          echo "❌ 节点文件不存在，跳过测速"
+          echo "❌ Node file not found, skipping test"
           exit 0
         fi
         
-        echo "🚀 即将执行Python脚本..."
-        echo "🔗 执行命令: python3 scripts/test_nodes_with_subscheck.py --input result/nodetotal.txt --output result/nodelist.txt"
+        echo "🚀 Executing Python script..."
+        echo "🔗 Command: python3 scripts/test_nodes_with_subscheck.py --input result/nodetotal.txt --output result/nodelist.txt"
+        echo "⏳ Starting test with progress monitoring..."
         echo ""
         echo "⚡ 开始执行节点测速..."
         python3 scripts/test_nodes_with_subscheck.py --input result/nodetotal.txt --output result/nodelist.txt
@@ -211,7 +216,12 @@ jobs:
         fi
         
         # 生成详细的提交信息
-        git commit -m "节点测试 - 节点总数:${total_count} 有效节点:${valid_count} 通过率:$(echo "scale=1; ${valid_count} * 100 / ${total_count}" | bc)%"
+        if [ ${total_count} -gt 0 ]; then
+          pass_rate=$(echo "scale=1; ${valid_count} * 100 / ${total_count}" | bc -l)
+          git commit -m "节点测试 - 节点总数:${total_count} 有效节点:${valid_count} 通过率:${pass_rate}%"
+        else
+          git commit -m "节点测试 - 节点总数:${total_count} 有效节点:${valid_count} 通过率:N/A"
+        fi
         
         git push
         

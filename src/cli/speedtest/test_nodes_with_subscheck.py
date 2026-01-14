@@ -39,8 +39,11 @@ class SubsCheckTester:
 
         # 设置项目根目录
         if project_root is None:
+            # 计算项目根目录：从 src/cli/speedtest/test_nodes_with_subscheck.py 向上3级
             self.project_root = os.path.dirname(
-                os.path.dirname(os.path.abspath(__file__))
+                os.path.dirname(
+                    os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+                )
             )
         else:
             self.project_root = project_root
@@ -135,17 +138,42 @@ class SubsCheckTester:
         """安装subs-check工具"""
         try:
             self.logger.info("开始安装subs-check工具...")
+            print("🔧 开始安装subs-check工具...", flush=True)
 
             # 创建目录
-            os.makedirs(os.path.join(self.subscheck_dir, "bin"), exist_ok=True)
+            bin_dir = os.path.join(self.subscheck_dir, "bin")
+            os.makedirs(bin_dir, exist_ok=True)
             os.makedirs(os.path.join(self.subscheck_dir, "config"), exist_ok=True)
             os.makedirs(self.output_dir, exist_ok=True)
+
+            # 检查是否已经存在
+            if os.path.exists(self.binary_path):
+                print(f"✅ subs-check已存在: {self.binary_path}", flush=True)
+                # 测试是否可用
+                try:
+                    import subprocess
+
+                    result = subprocess.run(
+                        [self.binary_path, "--help"],
+                        capture_output=True,
+                        text=True,
+                        timeout=5,
+                    )
+                    if result.returncode == 0:
+                        print("✅ subs-check二进制文件可用", flush=True)
+                        return True
+                    else:
+                        print(f"⚠️  subs-check二进制文件损坏，重新安装", flush=True)
+                except Exception as e:
+                    print(f"⚠️  subs-check测试失败，重新安装: {e}", flush=True)
 
             # 检测系统架构
             import platform
 
             system = platform.system().lower()
             machine = platform.machine().lower()
+
+            print(f"🔍 系统信息: {system} {machine}", flush=True)
 
             # 确定下载URL
             if system == "linux":
@@ -154,15 +182,274 @@ class SubsCheckTester:
                 elif machine in ["aarch64", "arm64"]:
                     download_url = "https://github.com/beck-8/subs-check/releases/latest/download/subs-check_Linux_arm64.tar.gz"
                 else:
+                    print(f"❌ 不支持的架构: {machine}", flush=True)
                     self.logger.error(f"不支持的架构: {machine}")
                     return False
             else:
+                print(f"❌ 不支持的操作系统: {system}", flush=True)
                 self.logger.error(f"不支持的操作系统: {system}")
                 return False
 
+            print(f"📥 下载URL: {download_url}", flush=True)
             self.logger.info(f"下载URL: {download_url}")
 
             # 下载文件
+            tar_file = os.path.join(bin_dir, "subs-check.tar.gz")
+
+            import requests
+
+            print("🌐 下载subs-check...", flush=True)
+            self.logger.info("下载subs-check...")
+
+            try:
+                response = requests.get(download_url, stream=True, timeout=60)
+                response.raise_for_status()
+                print(f"✅ HTTP响应: {response.status_code}", flush=True)
+            except Exception as e:
+                print(f"❌ 下载失败: {e}", flush=True)
+                self.logger.error(f"下载失败: {e}")
+                return False
+
+            total_size = int(response.headers.get("content-length", 0))
+            downloaded = 0
+            print(f"📦 文件大小: {total_size // 1024 // 1024}MB", flush=True)
+
+            with open(tar_file, "wb") as f:
+                for chunk in response.iter_content(chunk_size=8192):
+                    if chunk:
+                        f.write(chunk)
+                        downloaded += len(chunk)
+                        # 每下载10MB显示一次进度
+                        if (
+                            downloaded % (10 * 1024 * 1024) == 0
+                            or downloaded == total_size
+                        ):
+                            progress = (
+                                (downloaded / total_size * 100) if total_size > 0 else 0
+                            )
+                            print(
+                                f"📊 下载进度: {progress:.1f}% ({downloaded // 1024 // 1024}MB)",
+                                flush=True,
+                            )
+
+            print("✅ 下载完成", flush=True)
+
+            # 解压文件
+            print("📂 解压subs-check...", flush=True)
+            self.logger.info("解压文件...")
+
+            try:
+                import tarfile
+
+                with tarfile.open(tar_file, "r:gz") as tar:
+                    members = tar.getmembers()
+                    print(f"📋 压缩包包含 {len(members)} 个文件", flush=True)
+
+                    for i, member in enumerate(members):
+                        tar.extract(member, bin_dir)
+                        # 显示解压进度
+                        if i % 5 == 0 or i == len(members) - 1:
+                            print(
+                                f"📋 解压进度: {i + 1}/{len(members)} 文件", flush=True
+                            )
+
+                print("✅ 解压完成", flush=True)
+            except Exception as e:
+                print(f"❌ 解压失败: {e}", flush=True)
+                self.logger.error(f"解压失败: {e}")
+                return False
+
+            # 清理下载文件
+            try:
+                os.remove(tar_file)
+                print("🧹 清理下载文件", flush=True)
+                self.logger.info("清理下载文件")
+            except:
+                pass
+
+            # 查找并设置执行权限
+            binary_found = False
+            extracted_files = os.listdir(bin_dir)
+            print(f"📁 解压后的文件: {extracted_files}", flush=True)
+
+            for file in extracted_files:
+                if file == "subs-check":
+                    binary_path = os.path.join(bin_dir, file)
+                    os.chmod(binary_path, 0o755)
+                    print(f"🔐 设置执行权限: {binary_path}", flush=True)
+                    self.logger.info(f"设置执行权限: {binary_path}")
+                    binary_found = True
+                    break
+
+            if not binary_found:
+                print("❌ 未找到subs-check二进制文件", flush=True)
+                self.logger.error("未找到subs-check二进制文件")
+                return False
+
+            # 验证安装
+            if os.path.exists(self.binary_path):
+                print("✅ 二进制文件存在，测试可用性...", flush=True)
+                try:
+                    import subprocess
+
+                    result = subprocess.run(
+                        [self.binary_path, "--help"],
+                        capture_output=True,
+                        text=True,
+                        timeout=10,
+                    )
+                    if result.returncode == 0:
+                        print("✅ subs-check安装成功并可用", flush=True)
+                        self.logger.info(f"subs-check安装成功: {self.binary_path}")
+                        return True
+                    else:
+                        print(f"❌ subs-check测试失败: {result.stderr}", flush=True)
+                        self.logger.error(f"subs-check测试失败: {result.stderr}")
+                        return False
+                except Exception as e:
+                    print(f"❌ subs-check测试异常: {e}", flush=True)
+                    self.logger.error(f"subs-check测试异常: {e}")
+                    return False
+            else:
+                print(
+                    f"❌ subs-check安装失败: 二进制文件不存在 {self.binary_path}",
+                    flush=True,
+                )
+                self.logger.error("subs-check安装失败: 二进制文件不存在")
+                return False
+
+        except Exception as e:
+            print(f"❌ subs-check安装异常: {e}", flush=True)
+            self.logger.error(f"subs-check安装失败: {str(e)}")
+            return False
+            tar_file = os.path.join(bin_dir, "subs-check.tar.gz")
+
+            import requests
+
+            print("🌐 下载subs-check...", flush=True)
+            self.logger.info("下载subs-check...")
+
+            try:
+                response = requests.get(download_url, stream=True, timeout=60)
+                response.raise_for_status()
+                print(f"✅ HTTP响应: {response.status_code}", flush=True)
+            except Exception as e:
+                print(f"❌ 下载失败: {e}", flush=True)
+                self.logger.error(f"下载失败: {e}")
+                return False
+
+            total_size = int(response.headers.get("content-length", 0))
+            downloaded = 0
+            print(f"📦 文件大小: {total_size // 1024 // 1024}MB", flush=True)
+
+            with open(tar_file, "wb") as f:
+                for chunk in response.iter_content(chunk_size=8192):
+                    if chunk:
+                        f.write(chunk)
+                        downloaded += len(chunk)
+                        # 每下载10MB显示一次进度
+                        if (
+                            downloaded % (10 * 1024 * 1024) == 0
+                            or downloaded == total_size
+                        ):
+                            progress = (
+                                (downloaded / total_size * 100) if total_size > 0 else 0
+                            )
+                            print(
+                                f"📊 下载进度: {progress:.1f}% ({downloaded // 1024 // 1024}MB)",
+                                flush=True,
+                            )
+
+            print("✅ 下载完成", flush=True)
+
+            # 解压文件
+            print("📂 解压subs-check...", flush=True)
+            self.logger.info("解压文件...")
+
+            try:
+                import tarfile
+
+                with tarfile.open(tar_file, "r:gz") as tar:
+                    members = tar.getmembers()
+                    print(f"📋 压缩包包含 {len(members)} 个文件", flush=True)
+
+                    for i, member in enumerate(members):
+                        tar.extract(member, bin_dir)
+                        # 显示解压进度
+                        if i % 5 == 0 or i == len(members) - 1:
+                            print(
+                                f"📋 解压进度: {i + 1}/{len(members)} 文件", flush=True
+                            )
+
+                print("✅ 解压完成", flush=True)
+            except Exception as e:
+                print(f"❌ 解压失败: {e}", flush=True)
+                self.logger.error(f"解压失败: {e}")
+                return False
+
+            # 清理下载文件
+            try:
+                os.remove(tar_file)
+                print("🧹 清理下载文件", flush=True)
+                self.logger.info("清理下载文件")
+            except:
+                pass
+
+            # 查找并设置执行权限
+            binary_found = False
+            extracted_files = os.listdir(bin_dir)
+            print(f"📁 解压后的文件: {extracted_files}", flush=True)
+
+            for file in extracted_files:
+                if file == "subs-check":
+                    binary_path = os.path.join(bin_dir, file)
+                    os.chmod(binary_path, 0o755)
+                    print(f"🔐 设置执行权限: {binary_path}", flush=True)
+                    self.logger.info(f"设置执行权限: {binary_path}")
+                    binary_found = True
+                    break
+
+            if not binary_found:
+                print("❌ 未找到subs-check二进制文件", flush=True)
+                self.logger.error("未找到subs-check二进制文件")
+                return False
+
+            # 验证安装
+            if os.path.exists(self.binary_path):
+                print("✅ 二进制文件存在，测试可用性...", flush=True)
+                try:
+                    import subprocess
+
+                    result = subprocess.run(
+                        [self.binary_path, "--help"],
+                        capture_output=True,
+                        text=True,
+                        timeout=10,
+                    )
+                    if result.returncode == 0:
+                        print("✅ subs-check安装成功并可用", flush=True)
+                        self.logger.info(f"subs-check安装成功: {self.binary_path}")
+                        return True
+                    else:
+                        print(f"❌ subs-check测试失败: {result.stderr}", flush=True)
+                        self.logger.error(f"subs-check测试失败: {result.stderr}")
+                        return False
+                except Exception as e:
+                    print(f"❌ subs-check测试异常: {e}", flush=True)
+                    self.logger.error(f"subs-check测试异常: {e}")
+                    return False
+            else:
+                print(
+                    f"❌ subs-check安装失败: 二进制文件不存在 {self.binary_path}",
+                    flush=True,
+                )
+                self.logger.error("subs-check安装失败: 二进制文件不存在")
+                return False
+
+        except Exception as e:
+            print(f"❌ subs-check安装异常: {e}", flush=True)
+            self.logger.error(f"subs-check安装失败: {str(e)}")
+            return False
             tar_file = os.path.join(self.subscheck_dir, "bin", "subs-check.tar.gz")
 
             import requests

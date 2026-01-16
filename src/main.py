@@ -9,8 +9,13 @@ import os
 import time
 import re
 from datetime import datetime, timedelta
-from src.utils.logger import get_logger
-from src.utils.file_handler import FileHandler
+
+# 添加项目根目录到Python路径
+project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, project_root)
+
+from utils.logger import get_logger
+from utils.file_handler import FileHandler
 from config.settings import *
 from config.websites import WEBSITES
 
@@ -278,10 +283,37 @@ class NodeCollector:
         self.all_nodes = unique_nodes
         duplicate_count = original_count - len(self.all_nodes)
 
-        # 保存去重后的所有节点到 nodetotal.txt（纯节点信息，无文件头）
+        # 为收集阶段的节点生成简单命名（国旗_区域_数字）
+        named_nodes = []
+        region_counters = {}
+
+        for i, node in enumerate(self.all_nodes):
+            # 提取地区信息用于生成简单名称
+            region = self._extract_region_for_collection(node)
+
+            # 初始化地区计数器
+            if region not in region_counters:
+                region_counters[region] = 0
+
+            # 地区编号递增
+            region_counters[region] += 1
+            region_number = region_counters[region]
+
+            # 生成简单名称
+            simple_name = self._generate_simple_node_name(region, region_number)
+
+            # 添加名称到节点（如果节点有名称部分）
+            if "#" in node:
+                node_with_name = node.rsplit("#", 1)[0] + f"#{simple_name}"
+            else:
+                node_with_name = f"{node}#{simple_name}"
+
+            named_nodes.append(node_with_name)
+
+        # 保存去重并重命名后的所有节点到 nodetotal.txt
         nodetotal_file = os.path.join(date_dir, "nodetotal.txt")
         with open(nodetotal_file, "w", encoding="utf-8") as f:
-            for node in self.all_nodes:
+            for node in named_nodes:
                 f.write(f"{node}\n")
 
         self.logger.info(
@@ -488,6 +520,74 @@ class NodeCollector:
         """查找现有的订阅链接"""
         key = f"{website_name}_{article_url}"
         return existing_subscriptions.get(key, [])
+
+    def _extract_region_for_collection(self, node: str) -> str:
+        """从节点中提取地区信息（收集阶段使用）"""
+        try:
+            # 简单的基于端口的地区判断
+            if ":" in node:
+                # 移除协议部分
+                rest = node.split("://", 1)[1] if "://" in node else node
+
+                # 移除名称部分
+                rest = rest.rsplit("#", 1)[0] if "#" in rest else rest
+
+                # 提取端口
+                if "@" in rest:
+                    rest = rest.split("@", 1)[1]
+
+                if ":" in rest:
+                    port_str = (
+                        rest.split(":")[1].split("?")[0].split("/")[0].rstrip("/")
+                    )
+                    try:
+                        port = int(port_str)
+
+                        # 基于端口范围判断地区
+                        if 10000 <= port <= 19999:
+                            return "US"  # 美国常用端口范围
+                        elif 20000 <= port <= 29999:
+                            return "HK"  # 香港常用端口范围
+                        elif 30000 <= port <= 39999:
+                            return "JP"  # 日本常用端口范围
+                        elif 40000 <= port <= 49999:
+                            return "SG"  # 新加坡常用端口范围
+                        elif port >= 50000:
+                            return "EU"  # 欧洲常用端口范围
+                    except ValueError:
+                        pass
+
+            # 默认返回US
+            return "US"
+        except:
+            return "US"
+
+    def _generate_simple_node_name(self, region: str, number: int) -> str:
+        """生成简单节点名称（收集阶段使用）"""
+        # 国旗映射
+        flags = {
+            "HK": "🇭🇰",
+            "US": "🇺🇸",
+            "JP": "🇯🇵",
+            "SG": "🇸🇬",
+            "TW": "🇨🇳",
+            "KR": "🇰🇷",
+            "DE": "🇩🇪",
+            "GB": "🇬🇧",
+            "FR": "🇫🇷",
+            "CA": "🇨🇦",
+            "NL": "🇳🇱",
+            "RU": "🇷🇺",
+            "IN": "🇮🇳",
+            "BR": "🇧🇷",
+            "AU": "🇦🇺",
+            "EU": "🇪🇺",
+        }
+
+        flag = flags.get(region, "🇺🇸")
+
+        # 简单格式：国旗_区域_数字
+        return f"{flag}{region}_{number}"
 
     def _get_nodes_from_subscription_links(self, subscription_links, collector):
         """从订阅链接获取实际节点"""

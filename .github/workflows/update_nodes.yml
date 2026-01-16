@@ -85,14 +85,14 @@ jobs:
         https_proxy: socks5://127.0.0.1:40000/
       run: |
         echo "开始节点收集..."
-        python3 main.py --collect
+        python3 -m src.main --collect
         echo "节点收集完成"
       continue-on-error: true
     
-    - name: Check for changes
-      id: changes
+    - name: Check for collection changes
+      id: collection_changes
       run: |
-        echo "检查文件状态..."
+        echo "检查收集完成的文件状态..."
         echo "当前目录内容:"
         ls -la
         echo ""
@@ -100,79 +100,68 @@ jobs:
         ls -la result/ || echo "result 目录不存在"
         echo ""
         
-        # 检查文件是否存在
+        # 检查nodetotal.txt是否存在
         if [ -f result/nodetotal.txt ]; then
           echo "result/nodetotal.txt 存在"
-          wc -l result/nodetotal.txt
+          total_count=$(wc -l < result/nodetotal.txt)
+          echo "总节点数: $total_count"
+          
+          echo ""
+          echo "Git 状态:"
+          git status
+          
+          echo ""
+          echo "检查nodetotal.txt变更..."
+          if git diff --quiet HEAD -- result/nodetotal.txt; then
+            echo "has_nodetotal_changes=false" >> $GITHUB_OUTPUT
+            echo "没有检测到收集更新"
+          else
+            echo "has_nodetotal_changes=true" >> $GITHUB_OUTPUT
+            echo "total_node_count=$total_count" >> $GITHUB_OUTPUT
+            echo "检测到收集更新，需要提交nodetotal.txt"
+          fi
         else
           echo "result/nodetotal.txt 不存在"
-        fi
-        
-        if [ -f result/nodelist.txt ]; then
-          echo "result/nodelist.txt 存在"
-          wc -l result/nodelist.txt
-        else
-          echo "result/nodelist.txt 不存在"
-        fi
-        
-        echo ""
-        echo "Git 状态:"
-        git status
-        
-        echo ""
-        echo "检查文件变更..."
-        if git diff --quiet HEAD -- result/nodelist.txt result/nodetotal.txt; then
-          echo "has_changes=false" >> $GITHUB_OUTPUT
-          echo "没有检测到节点更新"
-        else
-          echo "has_changes=true" >> $GITHUB_OUTPUT
-          echo "检测到节点更新"
-          # 显示更新统计
-          if [ -f result/nodelist.txt ]; then
-            node_count=$(wc -l < result/nodelist.txt)
-            echo "节点总数: $node_count"
-          fi
-          if [ -f result/nodetotal.txt ]; then
-            total_count=$(wc -l < result/nodetotal.txt)
-            echo "总节点数: $total_count"
-          fi
+          echo "has_nodetotal_changes=false" >> $GITHUB_OUTPUT
         fi
     
-    - name: Commit and push changes
-      if: steps.changes.outputs.has_changes == 'true'
+    - name: Commit nodetotal.txt (collection complete)
+      if: steps.collection_changes.outputs.has_nodetotal_changes == 'true'
       run: |
         git config --global user.email "${{ secrets.GIT_EMAIL || 'action@github.com' }}"
         git config --global user.name "${{ secrets.GIT_NAME || 'GitHub Action' }}"
         
-        # 添加文件到暂存区
-        git add result/nodelist.txt result/nodetotal.txt
+        # 只提交nodetotal.txt
+        git add result/nodetotal.txt
         
-        # 获取节点数量用于提交信息
-        if [ -f result/nodelist.txt ]; then
-          node_count=$(wc -l < result/nodelist.txt)
-          commit_msg="Auto update nodes - $(date '+%Y-%m-%d %H:%M:%S') ($node_count nodes)"
-        else
-          commit_msg="Auto update nodes - $(date '+%Y-%m-%d %H:%M:%S')"
-        fi
+        total_count="${{ steps.collection_changes.outputs.total_node_count }}"
+        commit_msg="Collect nodes - $(date '+%Y-%m-%d %H:%M:%S') ($total_count total nodes)"
         
         git commit -m "$commit_msg"
         git push
         
-        echo "更新已提交并推送到仓库"
+        echo "收集节点已提交并推送到仓库"
     
-    - name: Create summary
+    - name: Create summary (collection)
       if: always()
       run: |
-        echo "## 节点更新摘要" >> $GITHUB_STEP_SUMMARY
+        echo "## 📦 节点收集摘要" >> $GITHUB_STEP_SUMMARY
         echo "- **运行时间**: $(date '+%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_STEP_SUMMARY
         echo "- **触发方式**: ${{ github.event_name }}" >> $GITHUB_STEP_SUMMARY
         
-        if [ "${{ steps.changes.outputs.has_changes }}" == "true" ]; then
-          echo "- **更新状态**: ✅ 成功更新" >> $GITHUB_STEP_SUMMARY
-          if [ -f result/nodelist.txt ]; then
-            node_count=$(wc -l < result/nodelist.txt)
-            echo "- **节点数量**: $node_count" >> $GITHUB_STEP_SUMMARY
-          fi
+        if [ "${{ steps.collection_changes.outputs.has_nodetotal_changes }}" == "true" ]; then
+          echo "- **收集状态**: ✅ 成功收集" >> $GITHUB_STEP_SUMMARY
+          total_count="${{ steps.collection_changes.outputs.total_node_count }}"
+          echo "- **总节点数**: $total_count" >> $GITHUB_STEP_SUMMARY
+          echo "- **后续动作**: 🚀 已触发测速工作流" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "- **收集状态**: ℹ️ 无新节点收集" >> $GITHUB_STEP_SUMMARY
+        fi
+        
+        if [ "${{ steps.collector.outcome }}" != "success" ]; then
+          echo "- **收集状态**: ⚠️ 收集过程中出现错误" >> $GITHUB_STEP_SUMMARY
+          echo "- **后续动作**: ❌ 不会触发测速" >> $GITHUB_STEP_SUMMARY
+        fi
           if [ -f result/nodetotal.txt ]; then
             total_count=$(wc -l < result/nodetotal.txt)
             echo "- **总节点数**: $total_count" >> $GITHUB_STEP_SUMMARY

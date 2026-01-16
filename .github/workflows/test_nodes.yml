@@ -6,6 +6,22 @@ on:
     - cron: '0 */12 * * *'
   
   workflow_dispatch:  # 允许手动触发
+    inputs:
+      trigger_collection:
+        description: '是否由收集工作流触发'
+        required: false
+        default: 'false'
+        type: boolean
+      collection_commit:
+        description: '收集工作流的提交SHA'
+        required: false
+        default: ''
+        type: string
+      total_nodes:
+        description: '收集到的总节点数'
+        required: false
+        default: '0'
+        type: string
   
   workflow_run:
     workflows: ["Update Free Nodes"]
@@ -255,7 +271,18 @@ jobs:
       run: |
         echo "## 节点测速摘要" >> $GITHUB_STEP_SUMMARY
         echo "- **更新时间**: $(date '+%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_STEP_SUMMARY
-        echo "- **触发方式**: ${{ github.event_name }}" >> $GITHUB_STEP_SUMMARY
+        
+        # 判断触发来源
+        if [ "${{ github.event_name }}" == "workflow_dispatch" ] && [ "${{ github.event.inputs.trigger_collection }}" == "true" ]; then
+          echo "- **触发方式**: 📦 收集工作流触发" >> $GITHUB_STEP_SUMMARY
+          echo "- **收集提交**: ${{ github.event.inputs.collection_commit }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **总节点数**: ${{ github.event.inputs.total_nodes }}" >> $GITHUB_STEP_SUMMARY
+        elif [ "${{ github.event_name }}" == "workflow_run" ]; then
+          echo "- **触发方式**: 🔄 收集工作流完成触发" >> $GITHUB_STEP_SUMMARY
+          echo "- **收集工作流**: ${{ github.event.workflow_run.id }}" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "- **触发方式**: ⏰ 定时触发" >> $GITHUB_STEP_SUMMARY
+        fi
         
         if [ "${{ steps.changes.outputs.has_changes }}" == "true" ]; then
           echo "- **更新状态**: ✅ 成功更新" >> $GITHUB_STEP_SUMMARY

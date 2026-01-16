@@ -1390,6 +1390,9 @@ class SubsCheckTester:
             gpt_count = 0
             gemini_count = 0
 
+            # 地区计数器，确保每个地区按自然数编号
+            region_counters = {}
+
             if data and "proxies" in data:
                 for proxy in data["proxies"]:
                     total_count += 1
@@ -1397,8 +1400,13 @@ class SubsCheckTester:
                     # 提取地区信息
                     region = self._extract_region(proxy)
 
-                    # 提取地区编号
-                    region_number = self._extract_region_number(proxy)
+                    # 初始化地区计数器
+                    if region not in region_counters:
+                        region_counters[region] = 0
+
+                    # 地区编号递增（自然数编号）
+                    region_counters[region] += 1
+                    region_number = region_counters[region]
 
                     # 提取测试结果
                     media_info = self._extract_media_info(proxy)
@@ -1634,7 +1642,7 @@ class SubsCheckTester:
         return media_info
 
     def _generate_node_name(self, region: str, number: int, media_info: dict) -> str:
-        """生成节点名称"""
+        """生成节点名称 - 测速后使用复杂格式"""
         # 国旗映射
         flags = {
             "HK": "🇭🇰",
@@ -1647,6 +1655,11 @@ class SubsCheckTester:
             "GB": "🇬🇧",
             "FR": "🇫🇷",
             "CA": "🇨🇦",
+            "NL": "🇳🇱",
+            "RU": "🇷🇺",
+            "IN": "🇮🇳",
+            "BR": "🇧🇷",
+            "AU": "🇦🇺",
         }
 
         flag = flags.get(region, "")
@@ -1671,7 +1684,7 @@ class SubsCheckTester:
         else:
             yt_tag = ""
 
-        # 组合名称
+        # 组合复杂名称（测速后格式）
         return f"{flag}{region}_{number}|{ai_tag}{yt_tag}"
 
     def _convert_proxy_to_uri(self, proxy: dict, new_name: str) -> str:

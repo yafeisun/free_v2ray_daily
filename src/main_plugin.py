@@ -7,7 +7,8 @@
 import sys
 import os
 import time
-from datetime import datetime, timedelta
+import re
+from datetime import datetime
 
 # 添加项目根目录到Python路径
 project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -22,111 +23,137 @@ from config.websites import WEBSITES
 
 class PluginNodeCollector:
     """插件化节点收集器主类"""
-    
+
     def __init__(self):
         self.logger = get_logger("plugin_main")
         self.file_handler = FileHandler()
-        
+
         # 获取插件注册器
         self.registry = get_registry()
-        
+
         # 动态创建收集器实例
         self.collectors = {}
         self._initialize_collectors()
-        
+
         self.all_nodes = []
         self.v2ray_subscription_links = []
         self.v2ray_links_with_source = []
         self.articles_with_source = []
         self.source_info = {}
-    
+
     def _initialize_collectors(self):
         """动态初始化收集器"""
         self.logger.info("开始初始化收集器...")
-        
+
         for site_key, site_config in WEBSITES.items():
             if not site_config.get("enabled", True):
                 self.logger.info(f"跳过已禁用的网站: {site_key}")
                 continue
-            
+
             try:
                 # 获取收集器关键字
                 collector_key = site_config.get("collector_key", site_key)
-                
+
                 # 检查收集器是否可用
                 if not self.registry.is_collector_available(collector_key):
-                    self.logger.warning(f"未找到网站 '{site_key}' 的收集器插件: {collector_key}")
+                    self.logger.warning(
+                        f"未找到网站 '{site_key}' 的收集器插件: {collector_key}"
+                    )
                     continue
-                
+
                 # 创建收集器实例
-                collector = self.registry.create_collector_instance(collector_key, site_config)
+                collector = self.registry.create_collector_instance(
+                    collector_key, site_config
+                )
                 self.collectors[site_key] = collector
-                
-                self.logger.info(f"成功初始化收集器: {site_key} -> {collector.__class__.__name__}")
-                
+
+                self.logger.info(
+                    f"成功初始化收集器: {site_key} -> {collector.__class__.__name__}"
+                )
+
             except Exception as e:
                 self.logger.error(f"初始化收集器失败 {site_key}: {str(e)}")
-        
-        self.logger.info(f"共初始化了 {len(self.collectors)} 个收集器: {list(self.collectors.keys())}")
-    
+
+        self.logger.info(
+            f"共初始化了 {len(self.collectors)} 个收集器: {list(self.collectors.keys())}"
+        )
+
     def collect_all_nodes(self):
         """收集所有网站的节点"""
         self.logger.info("=" * 50)
         self.logger.info("开始收集节点")
         self.logger.info("=" * 50)
-        
+
         start_time = time.time()
-        today = datetime.now().strftime('%Y-%m-%d')
-        date_suffix = datetime.now().strftime('%Y%m%d')
-        
+        today = datetime.now().strftime("%Y-%m-%d")
+        date_suffix = datetime.now().strftime("%Y%m%d")
+
         for site_name, collector in self.collectors.items():
             try:
                 self.logger.info(f"正在收集 {site_name} 的节点...")
-                
+
                 # 收集节点
                 nodes = collector.collect()
-                
+
                 # 收集V2Ray订阅链接
                 v2ray_links = []
-                if hasattr(collector, 'last_article_url') and collector.last_article_url:
-                    v2ray_links = collector.get_v2ray_subscription_links(collector.last_article_url)
-                
+                if (
+                    hasattr(collector, "last_article_url")
+                    and collector.last_article_url
+                ):
+                    v2ray_links = collector.get_v2ray_subscription_links(
+                        collector.last_article_url
+                    )
+
                 # 保存文章链接信息
-                if hasattr(collector, 'last_article_url') and collector.last_article_url:
-                    self.articles_with_source.append({
-                        'website_name': site_name,
-                        'article_url': collector.last_article_url,
-                        'date': today
-                    })
-                
+                if (
+                    hasattr(collector, "last_article_url")
+                    and collector.last_article_url
+                ):
+                    self.articles_with_source.append(
+                        {
+                            "website_name": site_name,
+                            "article_url": collector.last_article_url,
+                            "date": today,
+                        }
+                    )
+
                 # 记录V2Ray订阅链接信息
                 if not v2ray_links:
-                    self.v2ray_links_with_source.append({
-                        'url': '# 无V2Ray订阅链接',
-                        'source': site_name,
-                        'source_url': collector.last_article_url if hasattr(collector, 'last_article_url') else 'N/A'
-                    })
+                    self.v2ray_links_with_source.append(
+                        {
+                            "url": "# 无V2Ray订阅链接",
+                            "source": site_name,
+                            "source_url": collector.last_article_url
+                            if hasattr(collector, "last_article_url")
+                            else "N/A",
+                        }
+                    )
                 else:
                     for link in v2ray_links:
-                        self.v2ray_links_with_source.append({
-                            'url': link,
-                            'source': site_name,
-                            'source_url': collector.last_article_url
-                        })
-                
+                        self.v2ray_links_with_source.append(
+                            {
+                                "url": link,
+                                "source": site_name,
+                                "source_url": collector.last_article_url,
+                            }
+                        )
+
                 if nodes:
                     self.all_nodes.extend(nodes)
                     self.v2ray_subscription_links.extend(v2ray_links)
-                    
+
                     self.source_info[site_name] = {
                         "count": len(nodes),
                         "enabled": collector.enabled,
                         "subscription_links": len(collector.subscription_links),
                         "v2ray_links": len(v2ray_links),
                         "links": collector.subscription_links[:5],
-                        "v2ray_link_samples": v2ray_links[:5]
+                        "v2ray_link_samples": v2ray_links[:5],
                     }
-                    self.logger.info(f"{site_name} 收集完成: {len(nodes)} 个节点，{len(v2ray_links)} 个V2Ray订阅链接")
+                    self.logger.info(
+                        f"{site_name} 收集完成: {len(nodes)} 个节点，{len(v2ray_links)} 个V2Ray订阅链接"
+                    )
                 else:
                     self.source_info[site_name] = {
                         "count": 0,
@@ -134,29 +161,31 @@ class PluginNodeCollector:
                         "subscription_links": 0,
                         "v2ray_links": 0,
                         "links": [],
-                        "v2ray_link_samples": []
+                        "v2ray_link_samples": [],
                     }
                     self.logger.warning(f"{site_name} 未收集到节点")
-                
+
                 # 请求间隔
                 if site_name != list(self.collectors.keys())[-1]:
                     time.sleep(REQUEST_DELAY)
-                    
+
             except Exception as e:
                 self.logger.error(f"收集 {site_name} 时出错: {str(e)}")
-        
+
         end_time = time.time()
         duration = end_time - start_time
-        
+
         # 去重
         original_count = len(self.all_nodes)
         self.all_nodes = list(set(self.all_nodes))
         duplicate_count = original_count - len(self.all_nodes)
-        
+
         original_v2ray_count = len(self.v2ray_subscription_links)
         self.v2ray_subscription_links = list(set(self.v2ray_subscription_links))
-        v2ray_duplicate_count = original_v2ray_count - len(self.v2ray_subscription_links)
-        
+        v2ray_duplicate_count = original_v2ray_count - len(
+            self.v2ray_subscription_links
+        )
+
         self.logger.info("=" * 50)
         self.logger.info("节点收集完成")
         self.logger.info(f"总收集时间: {duration:.2f}秒")
@@ -167,42 +196,156 @@ class PluginNodeCollector:
         self.logger.info(f"去重后V2Ray订阅链接数: {len(self.v2ray_subscription_links)}")
         self.logger.info(f"重复V2Ray订阅链接数: {v2ray_duplicate_count}")
         self.logger.info("=" * 50)
-        
+
         return self.all_nodes
-    
+
     def get_available_sites(self):
         """获取所有可用的网站列表"""
         return list(self.collectors.keys())
-    
+
     def get_plugin_info(self):
         """获取插件信息"""
         info = {}
         for site_key in self.collectors:
             metadata = self.registry.get_collector_metadata(site_key)
             info[site_key] = {
-                'collector_class': metadata.get('class_name', 'Unknown'),
-                'module': metadata.get('module', 'Unknown'),
-                'description': metadata.get('description', 'No description'),
-                'enabled': WEBSITES[site_key].get('enabled', True)
+                "collector_class": metadata.get("class_name", "Unknown"),
+                "module": metadata.get("module", "Unknown"),
+                "description": metadata.get("description", "No description"),
+                "enabled": WEBSITES[site_key].get("enabled", True),
             }
         return info
+
+    def update_github(self):
+        """更新GitHub仓库"""
+        try:
+            import git
+
+            repo_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            os.chdir(repo_path)
+
+            repo = git.Repo(repo_path)
+
+            with repo.config_writer() as cw:
+                cw.set_value("user", "email", GIT_EMAIL)
+                cw.set_value("user", "name", GIT_NAME)
+
+            if repo.is_dirty(untracked_files=True):
+                repo.index.add(["result/nodelist.txt", "result/nodetotal.txt"])
+
+                # 生成详细的提交信息
+                date_str = datetime.now().strftime("%Y-%m-%d")
+                date_dir = f"result/{date_str}"
+                update_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+                commit_lines = [f"更新节点列表 - {update_time}"]
+                commit_lines.append("=" * 60)
+                commit_lines.append(f"更新时间: {update_time}")
+
+                # 汇总网站收集情况
+                commit_lines.append("\n网站收集情况:")
+                success_sites = []
+                failed_sites = []
+
+                for site_name in self.collectors.keys():
+                    info_file = os.path.join(date_dir, f"{site_name}_info.txt")
+                    if os.path.exists(info_file):
+                        success_sites.append(site_name)
+                        # 读取 info 文件内容
+                        with open(info_file, "r", encoding="utf-8") as f:
+                            content = f.read()
+                            # 提取文章链接
+                            article_url = None
+                            for line in content.split("\n"):
+                                if line.startswith("## 文章链接\n"):
+                                    next_line = (
+                                        content.split("## 文章链接\n")[1].split("\n")[1]
+                                        if "## 文章链接\n" in content
+                                        else ""
+                                    )
+                                    if next_line and not next_line.startswith("#"):
+                                        article_url = next_line.strip()
+                                    break
+
+                            # 提取订阅链接数量
+                            subscription_count = 0
+                            for line in content.split("\n"):
+                                if line.startswith("## 订阅链接\n"):
+                                    subscription_section = (
+                                        content.split("## 订阅链接\n")[1].split("\n")[
+                                            1:
+                                        ]
+                                        if "## 订阅链接\n" in content
+                                        else []
+                                    )
+                                    subscription_count = len(
+                                        [
+                                            l
+                                            for l in subscription_section
+                                            if l.strip() and not l.startswith("#")
+                                        ]
+                                    )
+                                    break
+
+                            commit_lines.append(f"\n✓ {site_name}:")
+                            if article_url:
+                                commit_lines.append(f"  文章: {article_url}")
+                            if subscription_count > 0:
+                                commit_lines.append(
+                                    f"  订阅链接: {subscription_count} 个"
+                                )
+                            else:
+                                commit_lines.append(f"  订阅链接: 无")
+                    else:
+                        failed_sites.append(site_name)
+                        commit_lines.append(f"\n✗ {site_name}: 未获取到数据")
+
+                # 汇总统计
+                commit_lines.append("\n" + "=" * 60)
+                commit_lines.append(f"成功: {len(success_sites)} 个网站")
+                commit_lines.append(f"失败: {len(failed_sites)} 个网站")
+                if failed_sites:
+                    commit_lines.append(f"失败网站: {', '.join(failed_sites)}")
+
+                # 节点统计
+                node_count = len(self.all_nodes)
+                commit_lines.append(f"\n总节点数: {node_count}")
+
+                # 组合提交信息
+                commit_message = "\n".join(commit_lines)
+
+                repo.index.commit(commit_message)
+
+                origin = repo.remote(name="origin")
+                origin.push()
+
+                self.logger.info(f"成功推送到GitHub")
+                self.logger.info(f"提交信息:\n{commit_message}")
+            else:
+                self.logger.info("没有变化需要提交")
+
+            return True
+
+        except Exception as e:
+            self.logger.error(f"更新GitHub失败: {str(e)}")
+            return False
 
 
 def main():
     """主函数"""
     import argparse
-    
+
     parser = argparse.ArgumentParser(description="插件化免费V2Ray节点收集器")
     parser.add_argument("--update-github", action="store_true", help="更新GitHub仓库")
     parser.add_argument("--sites", nargs="+", help="指定要收集的网站")
     parser.add_argument("--list-sites", action="store_true", help="列出所有可用网站")
     parser.add_argument("--plugin-info", action="store_true", help="显示插件信息")
-    
+
     args = parser.parse_args()
-    
+
     # 创建收集器
     collector = PluginNodeCollector()
-    
+
     # 列出可用网站
     if args.list_sites:
         available_sites = collector.get_available_sites()
@@ -210,7 +353,7 @@ def main():
         for site in available_sites:
             print(f"  - {site}")
         return
-    
+
     # 显示插件信息
     if args.plugin_info:
         info = collector.get_plugin_info()
@@ -222,22 +365,101 @@ def main():
             print(f"    描述: {data['description']}")
             print(f"    启用: {data['enabled']}")
         return
-    
+
     # 如果指定了特定网站，只启用这些网站
     if args.sites:
         for site_name in list(collector.collectors.keys()):
             if site_name not in args.sites:
                 del collector.collectors[site_name]
                 collector.logger.info(f"禁用网站: {site_name}")
-    
+
     # 运行收集
     all_nodes = collector.collect_all_nodes()
     success = len(all_nodes) > 0
-    
+    date_suffix = datetime.now().strftime("%Y%m%d")
+
+    # 节点重命名和去重
+    if all_nodes:
+        try:
+            # 去重
+            unique_nodes = list(set(all_nodes))
+            collector.logger.info(
+                f"节点去重 - 原始: {len(all_nodes)}, 去重后: {len(unique_nodes)}"
+            )
+
+            # 节点重命名
+            renamed_nodes = []
+            for i, node in enumerate(unique_nodes, 1):
+                try:
+                    # 确保节点是字符串
+                    node_str = str(node).strip()
+
+                    # 移除常见的节点名称后缀
+                    clean_name = re.sub(
+                        r"[-_\s](node|server|proxy|trojan|vless|vmess|hysteria|ssr?|clash|sub|link|url)$",
+                        "",
+                        node_str,
+                        re.IGNORECASE,
+                    )
+
+                    # 清理多余的符号和空格
+                    clean_name = re.sub(r"[-_\s]+", "-", clean_name.strip(" -_"))
+
+                    # 移除开头的数字和连接符
+                    clean_name = re.sub(r"^[\d-]+", "", clean_name)
+
+                    # 如果清理后为空或变化不大，使用原始名称
+                    if not clean_name or len(clean_name) < 3:
+                        clean_name = node_str[:20]  # 限制长度
+
+                    # 添加序号前缀
+                    renamed_node = (
+                        f"{i:04d}-{clean_name}" if clean_name else f"{i:04d}-Node{i}"
+                    )
+                    renamed_nodes.append(renamed_node)
+
+                except Exception as e:
+                    collector.logger.warning(f"重命名节点时出错 {node}: {str(e)}")
+                    renamed_nodes.append(f"{i:04d}-Node{i}")
+
+            # 确保result目录存在
+            os.makedirs("result", exist_ok=True)
+            os.makedirs(f"result/{date_suffix}", exist_ok=True)
+
+            # 保存重命名后的节点到日期目录
+            nodetotal_file = f"result/{date_suffix}/nodetotal.txt"
+            collector.file_handler.save_nodes(
+                renamed_nodes, nodetotal_file, date_suffix
+            )
+            collector.logger.info(f"重命名后节点已保存到日期目录: {nodetotal_file}")
+
+            # 保存重命名后的节点到根目录（覆盖）
+            root_nodetotal_file = "result/nodetotal.txt"
+            collector.file_handler.save_nodes(renamed_nodes, root_nodetotal_file)
+            collector.logger.info(f"重命名后节点已覆盖到根目录: {root_nodetotal_file}")
+
+            collector.logger.info(f"节点重命名完成 - 总数: {len(renamed_nodes)}")
+
+        except Exception as e:
+            collector.logger.error(f"节点重命名过程中出错: {str(e)}")
+            # 保存原始节点作为备份
+            try:
+                nodetotal_file = f"result/{date_suffix}/nodetotal.txt"
+                collector.file_handler.save_nodes(
+                    all_nodes, nodetotal_file, date_suffix
+                )
+                collector.logger.info(f"已保存原始节点到: {nodetotal_file}")
+            except Exception as save_e:
+                collector.logger.error(f"保存原始节点失败: {str(save_e)}")
+
     # 更新GitHub
     if success and args.update_github:
-        collector.update_github()
-    
+        try:
+            # 这里可以添加GitHub更新逻辑
+            collector.logger.info("GitHub更新功能暂未实现")
+        except Exception as e:
+            collector.logger.error(f"GitHub更新失败: {str(e)}")
+
     if success:
         print("✓ 任务完成")
         sys.exit(0)

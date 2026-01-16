@@ -55,36 +55,57 @@ jobs:
       run: |
         # 启动 WARP 服务
         sudo systemctl enable --now warp-svc
-        
+
         # 等待服务启动
         sleep 10
-        
+
         # 检查服务状态
         sudo systemctl status warp-svc --no-pager || true
-        
+
         # 注册 WARP（使用匿名模式）
         warp-cli --accept-tos registration new
-        
+
         # 连接 WARP
         warp-cli --accept-tos connect
-        
+
         # 验证连接状态
         warp-cli --accept-tos status
-        
-        # 获取 WARP 代理端口（通常是 40000）
+
+        # 检查SOCKS5代理端口是否监听
+        echo "检查SOCKS5代理端口40000..."
+        if sudo ss -tlnp | grep -q ":40000"; then
+          echo "✓ SOCKS5代理端口40000已监听"
+        else
+          echo "✗ SOCKS5代理端口40000未监听，尝试重启WARP..."
+          sudo systemctl restart warp-svc
+          sleep 5
+          warp-cli --accept-tos disconnect || true
+          warp-cli --accept-tos connect
+          warp-cli --accept-tos status
+          sudo ss -tlnp | grep ":40000" || echo "警告：端口40000仍不可用"
+        fi
+
+        # 测试代理连接
+        echo "测试代理连接..."
+        timeout 10 curl -x socks5://127.0.0.1:40000 -s https://www.google.com -o /dev/null && echo "✓ 代理连接正常" || echo "✗ 代理连接失败"
+
         echo "WARP 代理已启用，SOCKS5 端口: 40000"
     
     - name: Run node collector
       id: collector
       env:
-        ALL_PROXY: socks5://127.0.0.1:40000/
+        ALL_PROXY: socks5://127.0.0.1:40000
         FORCE_UPDATE: ${{ github.event.inputs.force_update || 'false' }}
         GIT_EMAIL: ${{ secrets.GIT_EMAIL || 'action@github.com' }}
         GIT_NAME: ${{ secrets.GIT_NAME || 'GitHub Action' }}
-        http_proxy: socks5://127.0.0.1:40000/
-        https_proxy: socks5://127.0.0.1:40000/
+        http_proxy: socks5://127.0.0.1:40000
+        https_proxy: socks5://127.0.0.1:40000
       run: |
         echo "开始节点收集..."
+        echo "代理设置："
+        echo "  http_proxy=$http_proxy"
+        echo "  https_proxy=$https_proxy"
+        echo "  ALL_PROXY=$ALL_PROXY"
         python3 src/main.py
         echo "节点收集完成"
       continue-on-error: true

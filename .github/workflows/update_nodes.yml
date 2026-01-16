@@ -150,12 +150,14 @@ jobs:
         echo "- **触发方式**: ${{ github.event_name }}" >> $GITHUB_STEP_SUMMARY
         
         if [ "${{ steps.collection_changes.outputs.has_nodetotal_changes }}" == "true" ]; then
-          echo "- **收集状态**: ✅ 成功收集" >> $GITHUB_STEP_SUMMARY
-          total_count="${{ steps.collection_changes.outputs.total_node_count }}"
-          echo "- **总节点数**: $total_count" >> $GITHUB_STEP_SUMMARY
-          echo "- **后续动作**: 🚀 已触发测速工作流" >> $GITHUB_STEP_SUMMARY
+          echo "- **更新状态**: ✅ 成功更新" >> $GITHUB_STEPMARY
+          echo "- **总节点数**: ${{ steps.collection_changes.outputs.total_node_count }}" >> $GITHUB_STEP_SUMMARY
         else
-          echo "- **收集状态**: ℹ️ 无新节点收集" >> $GITHUB_STEP_SUMMARY
+          echo "- **更新状态**: ℹ️ 无更新" >> $GITHUB_STEPMARY
+        fi
+        
+        if [ "${{ steps.collector.outcome }}" != "success" ]; then
+          echo "- **收集状态**: ⚠️ 收集过程中出现错误" >> $GITHUB_STEP_SUMMARY
         fi
         
         if [ "${{ steps.collector.outcome }}" != "success" ]; then

@@ -14,10 +14,27 @@ from datetime import datetime, timedelta
 project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, project_root)
 
-from utils.logger import get_logger
-from utils.file_handler import FileHandler
-from config.settings import *
-from config.websites import WEBSITES
+# 使用绝对导入
+import sys
+import os
+import time
+import re
+from datetime import datetime, timedelta
+
+# 添加项目根目录到Python路径
+project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, project_root)
+
+# 导入工具模块
+try:
+    from utils.logger import get_logger
+    from utils.file_handler import FileHandler
+    from config.settings import *
+    from config.websites import WEBSITES
+except ImportError as e:
+    print(f"❌ 导入模块失败: {e}")
+    print("请确保在正确的目录运行")
+    sys.exit(1)
 
 # 导入各个网站的爬虫
 from src.collectors.freeclashnode import FreeClashNodeCollector

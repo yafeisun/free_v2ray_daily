@@ -12,7 +12,7 @@ media-check: true
 media-check-timeout: 8
 min-speed: 0
 node-prefix: ''
-output-dir: /home/geely/Documents/Github/free_v2ray_daily/output
+output-dir: output
 platforms:
 - youtube
 - openai

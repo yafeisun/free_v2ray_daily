@@ -107,5 +107,5 @@ python3 run.py collect && python3 run.py show-stats
 服务器自动化：
 ```bash
 # 定时任务收集所有网站
-0 */6 * * * cd /path/to/free_v2ray_daily && python3 run.py
+0 */6 * * * cd /path/to/v2raynode && python3 run.py
 ```

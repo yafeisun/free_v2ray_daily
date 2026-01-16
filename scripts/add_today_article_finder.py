@@ -9,14 +9,15 @@ import sys
 from datetime import datetime, timedelta
 from pathlib import Path
 
+# 获取项目根目录（脚本在scripts/下，所以需要往上两级）
+PROJECT_ROOT = Path(__file__).parent.parent
+sys.path.insert(0, str(PROJECT_ROOT))
+
 def add_today_article_finder_to_collectors():
     """为所有收集器添加今日文章查找功能"""
-    import sys
-    sys.path.insert(0, '/home/geely/Documents/Github/free_v2ray_daily')
-    
     from pathlib import Path
-    
-    collectors_dir = Path('/home/geely/Documents/Github/free_v2ray_daily/src/collectors')
+
+    collectors_dir = PROJECT_ROOT / "src" / "collectors"
     
     # 需要修复的收集器文件
     collectors_to_fix = [

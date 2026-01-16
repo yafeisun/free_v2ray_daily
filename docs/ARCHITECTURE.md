@@ -25,7 +25,7 @@
 ## 目录结构
 
 ```
-free_v2ray_daily/
+v2raynode/
 ├── 📄 README.md                 # 项目主文档
 ├── 📄 LICENSE                   # MIT许可证
 ├── 📄 requirements.txt          # Python依赖

@@ -10,7 +10,7 @@
 
 #### collect.py (根目录)
 ```
-free_v2ray_daily/
+v2raynode/
 ├── 📄 collect.py          # 用户友好的统一入口脚本
 ├── 📄 README.md           # 项目文档
 ├── 📄 requirements.txt    # Python依赖
@@ -28,7 +28,7 @@ free_v2ray_daily/
 
 #### src/main.py
 ```
-free_v2ray_daily/src/
+v2raynode/src/
 ├── 📄 main.py          # 完整的业务逻辑程序
 ├── 📂 collectors/       # 13个网站收集器
 ├── 📂 core/          # 核心模块
@@ -84,7 +84,7 @@ python3 -m src.main --sites freeclashnode --debug
 
 ### ❌ 优化前
 ```bash
-free_v2ray_daily/
+v2raynode/
 ├── main.py (重复)
 └── src/main.py (真正主程序)
 # 问题：用户不知道该运行哪个文件
@@ -92,7 +92,7 @@ free_v2ray_daily/
 
 ### ✅ 优化后
 ```bash
-free_v2ray_daily/
+v2raynode/
 ├── collect.py (入口脚本)
 └── src/main.py (业务逻辑)
 # 优势：职责清晰，用户友好

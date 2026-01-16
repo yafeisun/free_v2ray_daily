@@ -8,7 +8,7 @@
 
 ### ❌ 优化前
 ```
-free_v2ray_daily/
+v2raynode/
 ├── main.py              # 简单包装器，功能有限
 ├── src/
 │   └── main.py         # 完整主程序，功能丰富
@@ -18,7 +18,7 @@ free_v2ray_daily/
 
 ### ✅ 优化后
 ```
-free_v2ray_daily/
+v2raynode/
 ├── collect.py           # 用户友好的入口脚本
 ├── src/main.py         # 完整主程序（实际逻辑）
 ├── scripts/

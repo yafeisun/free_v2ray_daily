@@ -16,7 +16,7 @@ media-check-timeout: 10
 mihomo-overwrite-url: ''
 min-speed: 0
 node-prefix: ''
-output-dir: /home/geely/Documents/Github/free_v2ray_daily/result/output
+output-dir: result/output
 platforms: []
 print-progress: true
 proxy: ''

@@ -5,8 +5,12 @@
 """
 
 import sys
+import os
+from pathlib import Path
 
-sys.path.insert(0, "/home/geely/Documents/Github/free_v2ray_daily")
+# 获取项目根目录（脚本在scripts/下，所以需要往上两级）
+PROJECT_ROOT = Path(__file__).parent.parent
+sys.path.insert(0, str(PROJECT_ROOT))
 
 
 def fix_collectors():
@@ -14,9 +18,7 @@ def fix_collectors():
     import re
     from pathlib import Path
 
-    collectors_dir = Path(
-        "/home/geely/Documents/Github/free_v2ray_daily/src/collectors"
-    )
+    collectors_dir = PROJECT_ROOT / "src" / "collectors"
 
     # 需要修复的文件列表
     files_to_fix = [

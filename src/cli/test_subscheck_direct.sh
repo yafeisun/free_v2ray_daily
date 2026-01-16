@@ -37,7 +37,7 @@ rename-node: true
 node-prefix: ""
 success-limit: 0
 
-output-dir: /home/geely/Documents/Github/free_v2ray_daily/output
+output-dir: ../output
 listen-port: ""
 save-method: local
 
@@ -60,7 +60,7 @@ EOF
 
 # 3. 运行subs-check（60秒超时）
 echo "3. 运行subs-check（60秒超时）..."
-timeout 60 /home/geely/Documents/Github/free_v2ray_daily/subscheck/bin/subs-check -f /home/geely/Documents/Github/free_v2ray_daily/subscheck/config/config.yaml
+timeout 60 ../../subscheck/bin/subs-check -f ../../subscheck/config/config.yaml
 
 # 4. 清理
 echo "4. 清理..."

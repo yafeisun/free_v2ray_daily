@@ -65,6 +65,14 @@ jobs:
         # 注册 WARP（使用匿名模式）
         sudo warp-cli --accept-tos registration new || true
 
+        # 设置 WARP 代理模式（关键步骤）
+        echo "设置WARP为代理模式..."
+        sudo warp-cli --accept-tos mode proxy 2>/dev/null || sudo warp-cli --accept-tos set-mode proxy 2>/dev/null || true
+
+        # 设置 SOCKS5 代理端口
+        echo "设置SOCKS5代理端口40000..."
+        sudo warp-cli --accept-tos proxy port 40000 2>/dev/null || sudo warp-cli --accept-tos set-proxy-port 40000 2>/dev/null || true
+
         # 连接 WARP
         sudo warp-cli --accept-tos connect || true
 

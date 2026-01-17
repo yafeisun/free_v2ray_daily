@@ -73,32 +73,48 @@ jobs:
       run: |
         # 启动 WARP 服务
         sudo systemctl enable --now warp-svc
-        
+
         # 等待服务启动
         sleep 10
-        
+
         # 检查服务状态
         sudo systemctl status warp-svc --no-pager || true
-        
+
         # 注册 WARP（使用匿名模式）
         warp-cli --accept-tos registration new
-        
+
+        # 设置 WARP 代理模式（关键步骤）
+        echo "设置WARP为代理模式..."
+        warp-cli --accept-tos mode proxy 2>/dev/null || warp-cli --accept-tos set-mode proxy 2>/dev/null || true
+
+        # 设置 SOCKS5 代理端口
+        echo "设置SOCKS5代理端口40000..."
+        warp-cli --accept-tos proxy port 40000 2>/dev/null || warp-cli --accept-tos set-proxy-port 40000 2>/dev/null || true
+
         # 连接 WARP
         warp-cli --accept-tos connect
-        
+
         # 等待连接完全建立
         echo "⏳ 等待WARP连接完全建立..."
         sleep 20
-        
+
         # 验证连接状态
         echo "🔍 检查WARP连接状态..."
         warp-cli --accept-tos status
-        
+
+        # 验证SOCKS5代理端口
+        echo "🔍 检查SOCKS5代理端口40000..."
+        if sudo ss -tlnp | grep -q ":40000"; then
+          echo "✓ SOCKS5代理端口40000已监听"
+        else
+          echo "⚠️ SOCKS5代理端口40000未监听"
+        fi
+
         # 验证IP变更
         echo "🌐 验证IP地址变更..."
         current_ip=$(curl -s --max-time 10 ipinfo.io/ip || echo "检测失败")
         echo "当前IP: $current_ip"
-        
+
         # 获取 WARP 代理端口（通常是 40000）
         echo "✅ WARP 代理已启用，SOCKS5 端口: 40000"
     

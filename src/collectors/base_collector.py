@@ -40,9 +40,19 @@ class BaseCollector(ABC):
         self.session = requests.Session()
 
         # 添加更真实的请求头以绕过反爬虫
+        # 在GitHub Actions环境中使用更真实的User-Agent
+        import os
+
+        if os.getenv("GITHUB_ACTIONS") == "true":
+            # GitHub Actions环境使用浏览器UA
+            browser_ua = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+        else:
+            # 本地环境使用默认UA
+            browser_ua = USER_AGENT
+
         self.session.headers.update(
             {
-                "User-Agent": USER_AGENT,
+                "User-Agent": browser_ua,
                 "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
                 "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
                 "Accept-Encoding": "gzip, deflate, br",

@@ -66,7 +66,7 @@ jobs:
         warp-cli --accept-tos registration new
 
         # 设置代理模式（关键步骤）
-        warp-cli --accept-tos set-mode proxy
+        # warp-cli --accept-tos set-mode proxy
 
         # 连接 WARP
         warp-cli --accept-tos connect

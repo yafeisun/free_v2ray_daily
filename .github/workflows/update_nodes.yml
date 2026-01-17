@@ -68,28 +68,14 @@ jobs:
         # 连接 WARP
         warp-cli --accept-tos connect
 
+        # 等待连接完成
+        sleep 15
+
         # 验证连接状态
         warp-cli --accept-tos status
 
-        # 检查SOCKS5代理端口是否监听
-        echo "检查SOCKS5代理端口40000..."
-        if sudo ss -tlnp | grep -q ":40000"; then
-          echo "✓ SOCKS5代理端口40000已监听"
-        else
-          echo "✗ SOCKS5代理端口40000未监听，尝试重启WARP..."
-          sudo systemctl restart warp-svc
-          sleep 5
-          warp-cli --accept-tos disconnect || true
-          warp-cli --accept-tos connect
-          warp-cli --accept-tos status
-          sudo ss -tlnp | grep ":40000" || echo "警告：端口40000仍不可用"
-        fi
-
-        # 测试代理连接
-        echo "测试代理连接..."
-        timeout 10 curl -x socks5://127.0.0.1:40000 -s https://www.google.com -o /dev/null && echo "✓ 代理连接正常" || echo "✗ 代理连接失败"
-
         echo "WARP 代理已启用，SOCKS5 端口: 40000"
+        echo "注意：如果WARP在GitHub Actions环境无法正常工作，Python代码会自动降级为直连"
     
     - name: Run node collector
       id: collector

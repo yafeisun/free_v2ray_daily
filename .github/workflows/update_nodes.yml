@@ -65,6 +65,9 @@ jobs:
         # 注册 WARP（使用匿名模式）
         warp-cli --accept-tos registration new
 
+        # 设置代理模式（关键步骤）
+        warp-cli --accept-tos set-mode proxy
+
         # 连接 WARP
         warp-cli --accept-tos connect
 
@@ -74,8 +77,48 @@ jobs:
         # 验证连接状态
         warp-cli --accept-tos status
 
+        # 检查是否在代理模式
+        echo "WARP模式："
+        warp-cli --accept-tos settings | grep -i "mode\|proxy" || echo "无法获取模式信息"
+
+        # 检查SOCKS5代理端口是否监听
+        echo "检查SOCKS5代理端口40000..."
+        sleep 5
+
+        for i in {1..20}; do
+          if sudo ss -tlnp | grep -q ":40000"; then
+            echo "✓ SOCKS5代理端口40000已监听"
+            break
+          fi
+          if [ $i -eq 20 ]; then
+            echo "✗ SOCKS5代理端口40000未监听"
+            echo "尝试使用备用代理设置..."
+            # 备用方案：使用 warp-svc 内置代理
+            sudo ss -tlnp | grep -E ":(40000|28888|1080)" || echo "未找到可用的代理端口"
+          fi
+          sleep 1
+        done
+
+        # 测试代理连接
+        echo "测试代理连接..."
+        for attempt in {1..3}; do
+          if timeout 15 curl -x socks5://127.0.0.1:40000 -s -I https://www.google.com 2>&1 | grep -q "HTTP"; then
+            echo "✓ 代理连接正常 (尝试 $attempt/3)"
+            break
+          else
+            echo "✗ 代理连接失败 (尝试 $attempt/3)"
+            if [ $attempt -lt 3 ]; then
+              echo "尝试重新连接WARP..."
+              warp-cli --accept-tos disconnect || true
+              sleep 3
+              warp-cli --accept-tos connect
+              sleep 10
+              continue
+            fi
+          fi
+        done
+
         echo "WARP 代理已启用，SOCKS5 端口: 40000"
-        echo "注意：如果WARP在GitHub Actions环境无法正常工作，Python代码会自动降级为直连"
     
     - name: Run node collector
       id: collector

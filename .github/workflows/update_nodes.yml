@@ -50,31 +50,108 @@ jobs:
         # 更新包列表并安装 warp-cli
         sudo apt-get update
         sudo apt-get install -y cloudflare-warp
+        
+        # 清理并重新安装以确保干净状态
+        echo "重新安装WARP以确保干净状态..."
+        sudo apt-get purge -y cloudflare-warp || true
+        sudo apt-get install -y cloudflare-warp || true
     
     - name: Connect to Cloudflare WARP
       run: |
         # 启动 WARP 服务
         sudo systemctl enable --now warp-svc
 
-        # 等待服务启动
-        sleep 15
+        # 等待服务完全初始化
+        echo "等待WARP服务完全初始化..."
+        for i in {1..30}; do
+          if sudo systemctl is-active --quiet warp-svc; then
+            echo "✓ WARP服务已启动 ($i/30)"
+            break
+          fi
+          sleep 2
+        done
 
         # 检查服务状态
         sudo systemctl status warp-svc --no-pager || true
 
+        # 彻底重置WARP状态
+        echo "彻底重置WARP状态..."
+        sudo warp-cli --accept-tos disconnect || true
+        sleep 3
+        
         # 注册 WARP（使用匿名模式）
         sudo warp-cli --accept-tos registration new || true
+        sleep 5
 
         # 连接 WARP
         sudo warp-cli --accept-tos connect || true
 
-        # 等待连接稳定
-        sleep 20
+        # 等待连接完全建立
+        echo "等待WARP连接完全建立..."
+        for i in {1..60}; do
+          STATUS=$(sudo warp-cli --accept-tos status 2>&1 | grep -o "Status update:.*" | head -1 || echo "")
+          if echo "$STATUS" | grep -q "Success"; then
+            echo "✓ WARP已连接成功 ($i/60)"
+            break
+          fi
+          if [ $i -eq 60 ]; then
+            echo "⚠️ WARP连接超时，继续执行..."
+          fi
+          sleep 1
+        done
 
-        # 验证连接状态
+        # 验证最终状态
+        echo "WARP最终状态："
         sudo warp-cli --accept-tos status || true
 
-        echo "WARP 代理已设置，SOCKS5 端口: 40000"
+        # 检查SOCKS5代理端口（最多等待30秒）
+        echo "检查SOCKS5代理端口40000（最多等待30秒）..."
+        for i in {1..30}; do
+          if sudo ss -tlnp | grep -q ":40000"; then
+            echo "✓ SOCKS5代理端口40000已监听 ($i/30)"
+            break
+          fi
+          if [ $i -eq 30 ]; then
+            echo "⚠️ SOCKS5代理端口40000未监听，继续执行..."
+          fi
+          sleep 1
+        done
+
+        # 测试代理连接
+        echo "测试代理连接..."
+        for attempt in {1..3}; do
+          if timeout 15 curl -x socks5://127.0.0.1:40000 -s -I https://www.google.com 2>&1 | grep -q "HTTP"; then
+            echo "✓ 代理连接正常 (尝试 $attempt/3)"
+            break
+          else
+            echo "✗ 代理连接失败 (尝试 $attempt/3)"
+            if [ $attempt -lt 3 ]; then
+              echo "等待5秒后重试..."
+              sleep 5
+            fi
+          fi
+        done
+
+        # 强制重启warp-svc服务以确保代理端口正常工作
+        echo "强制重启warp-svc服务以确保代理端口正常工作..."
+        sudo systemctl restart warp-svc
+        sleep 10
+
+        # 验证重启后状态
+        echo "验证重启后状态..."
+        sudo warp-cli --accept-tos status || true
+        for i in {1..20}; do
+          if sudo ss -tlnp | grep -q ":40000"; then
+            echo "✓ SOCKS5代理端口40000已监听（重启后）"
+            break
+          fi
+          if [ $i -eq 20 ]; then
+            echo "⚠️ 重启后仍未监听，继续执行..."
+          fi
+          sleep 1
+        done
+
+        echo "WARP代理已设置，SOCKS5 端口: 40000"
         echo "注意：如果WARP代理不可用，Python代码会自动降级为直连"
     
     - name: Run node collector

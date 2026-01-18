@@ -19,6 +19,8 @@ import urllib3
 # 禁用SSL警告
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
+from playwright.sync_api import sync_playwright
+
 from config.settings import *
 from config.websites import *
 from src.utils.logger import get_logger

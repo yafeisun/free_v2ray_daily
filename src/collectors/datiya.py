@@ -15,6 +15,19 @@ from config.websites import UNIVERSAL_SELECTORS
 class DatiyaCollector(BaseCollector):
     """Datiya 专用爬虫"""
 
+    def __init__(self, site_config):
+        super().__init__(site_config)
+        self.session.headers.update(
+            {
+                "Referer": "https://free.datiya.com/",
+                "Origin": "https://free.datiya.com/",
+                "Sec-Fetch-Dest": "document",
+                "Sec-Fetch-Mode": "navigate",
+                "Sec-Fetch-Site": "same-origin",
+                "Sec-Fetch-User": "?1",
+            }
+        )
+
     def get_latest_article_url(self, target_date=None):
         """获取文章URL，支持指定日期"""
         try:
@@ -23,61 +36,43 @@ class DatiyaCollector(BaseCollector):
 
             soup = BeautifulSoup(response.text, "html.parser")
 
-            if target_date is None:
+            if not target_date:
                 target_date = datetime.now()
 
-            # 生成多种日期格式用于匹配
-            # Datiya使用无横线格式：20260117
-            date_str_no_dash = target_date.strftime("%Y%m%d")
-            date_str_with_dash = target_date.strftime("%Y-%m-%d")
-            date_str_alt = target_date.strftime("%Y/%m/%d")
-            date_str_month_day_cn = f"{target_date.month}月{target_date.day}日"
-            date_str_month_day_cn_alt = (
-                f"{target_date.month:02d}月{target_date.day:02d}日"
-            )
-            date_str_month_day = target_date.strftime("%m-%d")
-            date_str_year_month = target_date.strftime("%Y-%m")
-            date_str_year_month_cn = (
-                f"{target_date.year}年{target_date.month:02d}月{target_date.day:02d}日"
+            date_str = target_date.strftime("%Y%m%d")
+
+            today_links = soup.find_all(
+                "a", href=re.compile(f"/post/{date_str}", re.IGNORECASE)
             )
 
-            # 优先通过日期匹配查找文章
-            all_links = soup.find_all("a", href=True)
-            for link in all_links:
+            for link in today_links:
                 href = link.get("href")
                 text = link.get_text(strip=True)
 
-                # 检查链接文本或URL中是否包含今天的日期
-                if href and (
-                    date_str_no_dash in href  # 20260117
-                    or date_str_with_dash in href
-                    or date_str_alt in href
-                    or date_str_month_day_cn in text
-                    or date_str_month_day_cn_alt in text
-                    or date_str_with_dash in text
-                    or date_str_month_day in text
-                ):
-                    # 排除导航链接（只选择文章链接）
-                    if href and not any(
-                        x in href
-                        for x in ["category", "tag", "page", "search", "about", "feed"]
-                    ):
-                        article_url = self._process_url(href)
-                        self.logger.info(f"通过日期匹配找到文章: {article_url}")
-                        return article_url
+                if href and text and date_str in text:
+                    article_url = self._process_url(href)
+                    self.logger.info(f"通过日期匹配找到文章: {article_url}")
+                    return article_url
 
-            # 如果日期匹配失败，尝试特定选择器
-            selectors = self.site_config.get("selectors", [])
-            for selector in selectors:
-                links = soup.select(selector)
-                if links:
-                    href = links[0].get("href")
-                    if href:
-                        article_url = self._process_url(href)
-                        self.logger.info(f"通过选择器找到文章: {article_url}")
-                        return article_url
+            if not today_links:
+                selectors = [
+                    ".post-title a",
+                    ".entry-title a",
+                    "h1 a",
+                    "h2 a",
+                    "article h2 a",
+                    "content h2 a",
+                ]
 
-            # 尝试通用选择器
+                for selector in selectors:
+                    links = soup.select(selector)
+                    if links:
+                        href = links[0].get("href")
+                        if href:
+                            article_url = self._process_url(href)
+                            self.logger.info(f"通过选择器找到文章: {article_url}")
+                            return article_url
+
             for selector in UNIVERSAL_SELECTORS:
                 links = soup.select(selector)
                 if links:
@@ -87,17 +82,6 @@ class DatiyaCollector(BaseCollector):
                         self.logger.info(f"通过通用选择器找到文章: {article_url}")
                         return article_url
 
-            # 尝试查找今日链接
-            today_url = self._find_today_article(soup)
-            if today_url:
-                return today_url
-
-            # 尝试通过时间查找
-            time_url = self._find_by_time(soup)
-            if time_url:
-                return time_url
-
-            # 如果都没找到，返回None
             self.logger.warning(f"未找到文章链接")
             return None
 
@@ -106,16 +90,32 @@ class DatiyaCollector(BaseCollector):
             return None
 
     def find_subscription_links(self, content):
-        """重写订阅链接查找方法"""
+        """查找订阅链接"""
         links = []
 
         parent_links = super().find_subscription_links(content)
         links.extend(parent_links)
 
+        datiya_patterns = [
+            r'https?://[^\s\'"]*\.txt[^\s\'"]*',
+            r"https?://free\.datiya\.com/uploads/\d{8}[^\s<]*\.yaml",
+        ]
+
+        for pattern in datiya_patterns:
+            try:
+                matches = re.findall(pattern, content, re.IGNORECASE)
+                for match in matches:
+                    clean_link = self._clean_link(match)
+                    if clean_link and self._is_valid_url(clean_link):
+                        links.append(clean_link)
+                        self.logger.info(f"找到订阅链接: {clean_link}")
+            except Exception as e:
+                self.logger.warning(f"订阅链接匹配失败: {pattern} - {str(e)}")
+
         return list(set(links))
 
     def get_nodes_from_subscription(self, subscription_url):
-        """重写订阅链接处理"""
+        """从订阅链接获取节点"""
         try:
             self.logger.info(f"获取订阅内容: {subscription_url}")
             response = self.session.get(
@@ -124,12 +124,31 @@ class DatiyaCollector(BaseCollector):
             response.raise_for_status()
 
             content = response.text.strip()
+            nodes = []
 
-            try:
-                decoded_content = base64.b64decode(content).decode("utf-8")
-                nodes = self.parse_node_text(decoded_content)
-            except:
-                nodes = self.parse_node_text(content)
+            if subscription_url.endswith(".yaml"):
+                nodes = self._extract_datiya_yaml_nodes(content)
+                self.logger.info(f"从YAML文件获取到 {len(nodes)} 个节点")
+                return nodes
+
+            nodes = self.parse_node_text(content)
+
+            if not nodes:
+                try:
+                    decoded_content = base64.b64decode(content).decode("utf-8")
+                    nodes = self.parse_node_text(decoded_content)
+                except:
+                    pass
+
+            if not nodes:
+                try:
+                    import urllib.parse
+
+                    url_decoded = urllib.parse.unquote(content)
+                    url_nodes = self.parse_node_text(url_decoded)
+                    nodes.extend(url_nodes)
+                except:
+                    pass
 
             self.logger.info(f"从订阅链接获取到 {len(nodes)} 个节点")
             return nodes
@@ -137,3 +156,115 @@ class DatiyaCollector(BaseCollector):
         except Exception as e:
             self.logger.error(f"获取订阅链接失败: {str(e)}")
             return []
+
+    def _extract_datiya_yaml_nodes(self, content):
+        """从Datiya的YAML格式提取节点"""
+        nodes = []
+        try:
+            import yaml
+
+            yaml_data = yaml.safe_load(content)
+
+            if "proxies" in yaml_data:
+                proxies = yaml_data["proxies"]
+                for proxy in proxies:
+                    try:
+                        node = self._convert_clash_proxy_to_node(proxy)
+                        if node and len(node) >= 50:
+                            nodes.append(node)
+                    except:
+                        pass
+
+            self.logger.info(f"从Datiya YAML解析获取到 {len(nodes)} 个节点")
+
+        except Exception as e:
+            self.logger.error(f"YAML解析失败: {str(e)}")
+            try:
+                import re
+
+                proxy_pattern = r"  - \{([^}]+)\}"
+                matches = re.findall(proxy_pattern, content)
+
+                for match in matches:
+                    try:
+                        kv_pattern = r"([a-zA-Z-]+):\s*([^,}]+)"
+                        kv_pairs = re.findall(kv_pattern, match)
+                        proxy = dict(kv_pairs)
+
+                        if "port" in proxy:
+                            proxy["port"] = int(proxy["port"])
+                        if "skip-cert-verify" in proxy:
+                            proxy["skip-cert-verify"] = (
+                                proxy["skip-cert-verify"].lower() == "true"
+                            )
+                        if "tls" in proxy:
+                            proxy["tls"] = proxy["tls"].lower() == "true"
+
+                        node = self._convert_clash_proxy_to_node(proxy)
+                        if node and len(node) >= 50:
+                            nodes.append(node)
+                    except:
+                        pass
+
+                self.logger.info(f"从YAML fallback解析获取到 {len(nodes)} 个节点")
+
+            except Exception as fallback_e:
+                self.logger.error(f"YAML fallback解析也失败: {str(fallback_e)}")
+
+        return nodes
+
+    def extract_direct_nodes(self, content):
+        """从文章内容提取直接节点"""
+        nodes = []
+
+        from config.websites import NODE_PATTERNS
+
+        for pattern in NODE_PATTERNS:
+            try:
+                matches = re.findall(pattern, content, re.IGNORECASE)
+                for match in matches:
+                    node = match.strip()
+                    if len(node) >= 50:
+                        nodes.append(node)
+            except Exception as e:
+                self.logger.warning(f"节点匹配失败: {pattern} - {str(e)}")
+
+        return list(set(nodes))
+
+    def _clean_link(self, link):
+        """重写链接清理方法，处理Datiya的特殊格式"""
+        if not link:
+            return ""
+
+        clean_link = super()._clean_link(link)
+
+        clean_link = (
+            clean_link.replace("%3C", "").replace("%3E", "").replace("%20", " ")
+        )
+
+        contaminants = [
+            "</strong>",
+            "</span>",
+            "</div>",
+            "<p>",
+            "</h1>",
+            "</h2>",
+            "</h3>",
+            "Clash订阅链接",
+            "Sing-Box免费节点:",
+        ]
+
+        for contaminant in contaminants:
+            clean_link = clean_link.replace(contaminant, "")
+
+        return clean_link.strip()
+
+    def _is_valid_url(self, url):
+        """重写URL验证方法，支持Datiya的格式"""
+        try:
+            import urllib.parse
+
+            parsed = urllib.parse.urlparse(url)
+            return bool(parsed.scheme and parsed.netloc and len(url) > 10)
+        except:
+            return False

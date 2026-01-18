@@ -467,39 +467,94 @@ class BaseCollector(ABC):
         nodes = []
         try:
             import json
-            import re
+            import yaml
 
-            # 检查是否是 YAML/JSON 格式（查找 proxies 数组）
-            if "proxies:" not in content[:100] and "proxies" not in content[:100]:
-                # 不是 Clash 格式
-                return []
+            # 首先尝试作为完整JSON解析
+            try:
+                data = json.loads(content.strip())
+                proxies_list = None
 
-            # 按行分割提取每个 JSON 对象
-            lines = content.split("\n")
-            json_objects = []
+                if isinstance(data, list):
+                    # JSON数组格式
+                    proxies_list = data
+                    self.logger.info(
+                        f"识别为JSON数组格式，包含 {len(proxies_list)} 个代理"
+                    )
+                elif isinstance(data, dict):
+                    # JSON对象格式
+                    if "proxies" in data:
+                        proxies_list = data["proxies"]
+                        self.logger.info(
+                            f"识别为JSON对象格式，包含 {len(proxies_list)} 个代理"
+                        )
 
-            for line in lines:
-                line = line.strip()
-                # 查找行内的 JSON 对象（支持嵌套）
-                json_match = re.search(r"-\s*(\{.+\})", line)
-                if json_match:
-                    json_objects.append(json_match.group(1))
+                if proxies_list:
+                    for proxy in proxies_list:
+                        try:
+                            node = self._convert_clash_proxy_to_node(proxy)
+                            if node and len(node) >= MIN_NODE_LENGTH:
+                                nodes.append(node)
+                        except Exception as e:
+                            self.logger.debug(f"JSON代理转换失败: {str(e)}")
+                    return nodes
 
-            self.logger.info(f"从 YAML 内容中找到 {len(json_objects)} 个 JSON 对象")
+            except json.JSONDecodeError:
+                # 不是JSON格式，尝试YAML
+                pass
 
-            for json_str in json_objects:
-                try:
-                    proxy = json.loads(json_str)
-                    node = self._convert_clash_proxy_to_node(proxy)
-                    if node and len(node) >= MIN_NODE_LENGTH:
-                        nodes.append(node)
-                except json.JSONDecodeError as e:
-                    self.logger.warning(f"JSON 解析失败: {str(e)[:100]}")
-                except Exception as e:
-                    self.logger.debug(f"代理转换失败: {str(e)}")
+            # 尝试作为YAML解析
+            try:
+                yaml_data = yaml.safe_load(content.strip())
+                if isinstance(yaml_data, dict) and "proxies" in yaml_data:
+                    proxies_list = yaml_data["proxies"]
+                    self.logger.info(f"识别为YAML格式，包含 {len(proxies_list)} 个代理")
 
-        except ImportError:
-            self.logger.warning("json 或 re 模块导入失败")
+                    for proxy in proxies_list:
+                        try:
+                            node = self._convert_clash_proxy_to_node(proxy)
+                            if node and len(node) >= MIN_NODE_LENGTH:
+                                nodes.append(node)
+                        except Exception as e:
+                            self.logger.debug(f"YAML代理转换失败: {str(e)}")
+                    return nodes
+            except Exception:
+                # YAML解析失败，回退到行内JSON解析
+                pass
+
+            # 回退方案：从文本中提取行内JSON对象
+            if "proxies:" in content or "proxies" in content:
+                lines = content.split("\n")
+                json_objects = []
+
+                for line in lines:
+                    line = line.strip()
+                    # 查找行内的 JSON 对象（支持嵌套）
+                    json_matches = re.findall(r"-\s*(\{[^}]*\{[^}]*\}[^}]*\})", line)
+                    if not json_matches:
+                        json_match = re.search(r"-\s*(\{.+\})", line)
+                        if json_match:
+                            json_matches.append(json_match.group(1))
+                        if json_match:
+                            json_matches = [json_match.group(1)]
+
+                    for json_str in json_matches:
+                        json_objects.append(json_str)
+
+                self.logger.info(f"从YAML文本中找到 {len(json_objects)} 个行内JSON对象")
+
+                for json_str in json_objects:
+                    try:
+                        proxy = json.loads(json_str)
+                        node = self._convert_clash_proxy_to_node(proxy)
+                        if node and len(node) >= MIN_NODE_LENGTH:
+                            nodes.append(node)
+                    except json.JSONDecodeError as e:
+                        self.logger.warning(f"行内JSON解析失败: {str(e)[:100]}")
+                    except Exception as e:
+                        self.logger.debug(f"代理转换失败: {str(e)}")
+
+        except ImportError as e:
+            self.logger.warning(f"模块导入失败: {str(e)}")
         except Exception as e:
             self.logger.warning(f"YAML/JSON 解析失败: {str(e)}")
 

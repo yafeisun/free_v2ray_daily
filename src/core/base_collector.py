@@ -78,8 +78,45 @@ class BaseCollector(ABC):
                 "sec-ch-ua": '"Not_A Brand";v="8", "Chromium";v="120", "Google Chrome";v="120"',
                 "sec-ch-ua-mobile": "?0",
                 "sec-ch-ua-platform": '"Windows"',
+                # 添加更多真实浏览器特征
+                "sec-ch-ua-arch": '"x86"',
+                "sec-ch-ua-bitness": '"64"',
+                "sec-ch-ua-full-version": '"120.0.6099.109"',
+                "sec-ch-ua-full-version-list": '"Not_A Brand";v="8.0.0.0", "Chromium";v="120.0.6099.109", "Google Chrome";v="120.0.6099.109"',
+                "sec-ch-ua-model": '""',
+                "sec-ch-ua-platform-version": '"15.0.0"',
+                # Referer for realistic browsing
+                "Referer": "https://www.google.com/",
             }
         )
+
+        # 在GitHub Actions中添加额外的反检测措施
+        if os.getenv("GITHUB_ACTIONS") == "true":
+            # 添加更长的延迟来模拟真实用户行为
+            import time
+
+            time.sleep(3)  # 等待3秒让环境稳定
+
+            # 添加一些额外的请求头来伪装
+            self.session.headers.update(
+                {
+                    "sec-purpose": "prefetch",
+                    "sec-ch-ua-wow64": "?0",
+                    "sec-gpc": "1",
+                }
+            )
+
+        # 在GitHub Actions中添加session预热
+        if os.getenv("GITHUB_ACTIONS") == "true":
+            try:
+                self.logger.debug("预热session：访问中性页面获取cookies")
+                # 访问一个不会触发反爬虫的页面来建立正常的session状态
+                self.session.get("https://httpbin.org/get", timeout=10, verify=False)
+                import time
+
+                time.sleep(1)
+            except Exception as e:
+                self.logger.debug(f"Session预热失败（不影响主要功能）: {str(e)}")
 
         # 禁用SSL验证（与代理使用保持一致）
         self.session.verify = False

@@ -309,6 +309,10 @@ class BaseCollector(ABC):
                 article_url = self._find_article_from_soup(soup, target_date)
 
             if not article_url:
+                self.logger.warning(f"{self.site_name}: 使用浏览器自动化重试")
+                article_url = self._fetch_with_playwright(target_date)
+
+            if not article_url:
                 self.logger.warning(f"{self.site_name}: 未找到最新文章")
                 return None
 
@@ -397,6 +401,32 @@ class BaseCollector(ABC):
         # 如果都没找到，返回None
         self.logger.warning(f"未找到文章链接")
         return None
+
+    def _fetch_with_playwright(self, target_date=None):
+        """使用Playwright浏览器自动化获取页面内容"""
+        try:
+            self.logger.info(f"启动浏览器访问: {self.base_url}")
+            with sync_playwright() as p:
+                browser = p.chromium.launch(
+                    headless=True, args=["--no-sandbox", "--disable-dev-shm-usage"]
+                )
+                context = browser.new_context(
+                    user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                    viewport={"width": 1920, "height": 1080},
+                    locale="zh-CN",
+                )
+                page = context.new_page()
+                page.goto(self.base_url, wait_until="networkidle", timeout=30000)
+                content = page.content()
+                browser.close()
+
+            soup = BeautifulSoup(content, "html.parser")
+            article_url = self._find_article_from_soup(soup, target_date)
+            return article_url
+
+        except Exception as e:
+            self.logger.error(f"Playwright访问失败: {str(e)}")
+            return None
 
     def extract_nodes_from_article(self, article_url):
         """从文章中提取节点"""

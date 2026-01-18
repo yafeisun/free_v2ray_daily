@@ -106,6 +106,14 @@ class BaseCollector(ABC):
         http_proxy = os.getenv("http_proxy") or os.getenv("HTTP_PROXY")
         https_proxy = os.getenv("https_proxy") or os.getenv("HTTPS_PROXY")
 
+        # 设置session代理
+        if http_proxy or https_proxy:
+            self.session.proxies = {
+                "http": http_proxy,
+                "https": https_proxy,
+            }
+            self.logger.debug(f"已设置代理 - HTTP: {http_proxy}, HTTPS: {https_proxy}")
+
         # 配置参数
         self.timeout = REQUEST_TIMEOUT
         self.retry_count = REQUEST_RETRY

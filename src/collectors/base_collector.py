@@ -1007,7 +1007,9 @@ class BaseCollector(ABC):
             if clean_link.endswith(suffix):
                 clean_link = clean_link[: -len(suffix)]
 
-        # 移除末尾的无效字符和HTML标签残留
+        # 移除末尾的HTML标签（包括完整标签如</p>、</div>等）
+        clean_link = re.sub(r"<[^>]+>$", "", clean_link)
+        # 移除末尾的无效字符
         clean_link = re.sub(r'[<>"]+$', "", clean_link)
         clean_link = clean_link.rstrip(";/")
 

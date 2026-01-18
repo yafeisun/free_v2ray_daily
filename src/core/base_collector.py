@@ -302,7 +302,8 @@ class BaseCollector(ABC):
                         locale="zh-CN",
                     )
                     page = context.new_page()
-                    page.goto(article_url, wait_until="networkidle", timeout=30000)
+                    # 增加超时时间到 60 秒
+                    page.goto(article_url, wait_until="networkidle", timeout=60000)
                     content = page.content()
                     browser.close()
 

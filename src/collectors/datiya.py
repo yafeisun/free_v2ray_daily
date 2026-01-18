@@ -9,6 +9,7 @@ import base64
 from datetime import datetime
 from bs4 import BeautifulSoup
 from .base_collector import BaseCollector
+from config.websites import UNIVERSAL_SELECTORS
 
 
 class DatiyaCollector(BaseCollector):

@@ -201,16 +201,9 @@ jobs:
           echo "- **收集状态**: ⚠️ 收集过程中出现错误" >> $GITHUB_STEP_SUMMARY
           echo "- **后续动作**: ❌ 不会触发测速" >> $GITHUB_STEP_SUMMARY
         fi
-          if [ -f result/nodetotal.txt ]; then
-            total_count=$(wc -l < result/nodetotal.txt)
-            echo "- **总节点数**: $total_count" >> $GITHUB_STEP_SUMMARY
-          fi
-        else
-          echo "- **更新状态**: ℹ️ 无更新" >> $GITHUB_STEP_SUMMARY
-        fi
-        
-        if [ "${{ steps.collector.outcome }}" != "success" ]; then
-          echo "- **收集状态**: ⚠️ 收集过程中出现错误" >> $GITHUB_STEP_SUMMARY
+        if [ -f result/nodetotal.txt ]; then
+          total_count=$(wc -l < result/nodetotal.txt)
+          echo "- **总节点数**: $total_count" >> $GITHUB_STEP_SUMMARY
         fi
     
     - name: Notify on failure

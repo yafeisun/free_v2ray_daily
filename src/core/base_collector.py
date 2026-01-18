@@ -279,8 +279,39 @@ class BaseCollector(ABC):
             self.last_article_url = article_url
 
             # 访问文章页面并提取订阅链接
-            response = self._make_request(article_url)
-            content = response.text
+            # 对于 BROWSER_ONLY_SITES，使用浏览器访问文章页面
+            from config.websites import BROWSER_ONLY_SITES
+
+            site_key = self.site_config.get(
+                "collector_key", self.site_config.get("name")
+            )
+
+            if site_key in BROWSER_ONLY_SITES:
+                self.logger.info(f"使用浏览器访问文章页面: {article_url}")
+                # 临时禁用代理
+                original_proxies = self.session.proxies
+                self.session.proxies = {"http": None, "https": None}
+
+                with sync_playwright() as p:
+                    browser = p.chromium.launch(
+                        headless=True, args=["--no-sandbox", "--disable-dev-shm-usage"]
+                    )
+                    context = browser.new_context(
+                        user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                        viewport={"width": 1920, "height": 1080},
+                        locale="zh-CN",
+                    )
+                    page = context.new_page()
+                    page.goto(article_url, wait_until="networkidle", timeout=30000)
+                    content = page.content()
+                    browser.close()
+
+                # 恢复代理设置
+                self.session.proxies = original_proxies
+            else:
+                response = self._make_request(article_url)
+                content = response.text
+
             self.raw_data = content
 
             # 查找订阅链接

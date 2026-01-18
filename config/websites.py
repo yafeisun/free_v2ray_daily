@@ -345,19 +345,14 @@ BASE64_PATTERNS = [
 
 # 需要使用浏览器访问且禁用代理的网站列表
 # 这些网站通过代理无法正常访问，需要使用浏览器直连访问
-# 当前配置：所有网站都使用浏览器直连访问
+# 当前配置：
+# - 浏览器直连：freeclashnode, mibei77, clashnodev2ray, wanzhuanmi, cfmem, telegeam
+# - 代理访问：proxyqueen, clashnodecc, datiya, clashgithub, oneclash, freev2raynode, eighty_five_la
 BROWSER_ONLY_SITES = [
     "freeclashnode",
     "mibei77",
     "clashnodev2ray",
-    "proxyqueen",
     "wanzhuanmi",
     "cfmem",
-    "clashnodecc",
-    "datiya",
     "telegeam",
-    "clashgithub",
-    "oneclash",
-    "freev2raynode",
-    "eighty_five_la",
 ]

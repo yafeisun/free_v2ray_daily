@@ -296,88 +296,107 @@ class BaseCollector(ABC):
         try:
             self.logger.info(f"访问网站: {self.base_url}")
             response = self._make_request(self.base_url)
-
             soup = BeautifulSoup(response.text, "html.parser")
 
-            # 默认使用今天作为目标日期
-            if target_date is None:
-                target_date = datetime.now()
+            article_url = self._find_article_from_soup(soup, target_date)
 
-            # 生成多种日期格式用于匹配
-            date_str = target_date.strftime("%Y-%m-%d")
-            date_str_alt = target_date.strftime("%Y/%m/%d")
-            date_str_month_day_cn = f"{target_date.month}月{target_date.day}日"
-            date_str_month_day_cn_alt = f"{target_date.month:02d}月{target_date.day:02d}日"  # 带前导零的中文格式
-            date_str_month_day = target_date.strftime("%m-%d")
-            date_str_year_month = target_date.strftime("%Y-%m")
-            date_str_year_month_cn = f"{target_date.year}年{target_date.month:02d}月{target_date.day:02d}日"  # 完整中文日期
+            if not article_url and self.session.proxies.get("http"):
+                self.logger.warning(f"使用代理未找到文章，尝试禁用代理直接访问")
+                self.session.proxies = {"http": None, "https": None}
+                self.logger.info(f"访问网站: {self.base_url} (直接连接)")
+                response = self._make_request(self.base_url)
+                soup = BeautifulSoup(response.text, "html.parser")
+                article_url = self._find_article_from_soup(soup, target_date)
 
-            # 优先通过日期匹配查找文章（最准确的方法）
-            all_links = soup.find_all("a", href=True)
-            for link in all_links:
-                href = link.get("href")
-                text = link.get_text(strip=True)
+            if not article_url:
+                self.logger.warning(f"{self.site_name}: 未找到最新文章")
+                return None
 
-                # 检查链接文本或URL中是否包含今天的日期
-                if href and (
-                    date_str in href
-                    or date_str_alt in href
-                    or date_str_month_day_cn in text
-                    or date_str_month_day_cn_alt in text
-                    or date_str_year_month_cn in text
-                    or date_str in text
-                    or date_str_month_day in text
-                    or date_str_year_month in href
-                ):
-                    # 排除导航链接（只选择文章链接）
-                    if href and not any(
-                        x in href
-                        for x in ["category", "tag", "page", "search", "about", "feed"]
-                    ):
-                        article_url = self._process_url(href)
-                        self.logger.info(f"通过日期匹配找到文章: {article_url}")
-                        return article_url
-
-            # 如果日期匹配失败，尝试特定选择器
-            selectors = self.site_config.get("selectors", [])
-            links = []
-
-            for selector in selectors:
-                links = soup.select(selector)
-                if links:
-                    href = links[0].get("href")
-                    if href:
-                        article_url = self._process_url(href)
-                        self.logger.info(f"通过选择器找到文章: {article_url}")
-                        return article_url
-
-            # 尝试通用选择器
-            for selector in UNIVERSAL_SELECTORS:
-                links = soup.select(selector)
-                if links:
-                    href = links[0].get("href")
-                    if href:
-                        article_url = self._process_url(href)
-                        self.logger.info(f"通过通用选择器找到文章: {article_url}")
-                        return article_url
-
-            # 尝试查找今日链接
-            today_url = self._find_today_article(soup)
-            if today_url:
-                return today_url
-
-            # 尝试通过时间查找
-            time_url = self._find_by_time(soup)
-            if time_url:
-                return time_url
-
-            # 如果都没找到，返回None
-            self.logger.warning(f"未找到文章链接")
-            return None
+            return article_url
 
         except Exception as e:
-            self.logger.error(f"获取文章链接失败: {str(e)}")
+            self.logger.error(f"{self.site_name}: 获取文章URL失败 - {str(e)}")
             return None
+
+    def _find_article_from_soup(self, soup, target_date=None):
+        """从BeautifulSoup对象中查找文章URL"""
+        # 默认使用今天作为目标日期
+        if target_date is None:
+            target_date = datetime.now()
+
+        # 生成多种日期格式用于匹配
+        date_str = target_date.strftime("%Y-%m-%d")
+        date_str_alt = target_date.strftime("%Y/%m/%d")
+        date_str_month_day_cn = f"{target_date.month}月{target_date.day}日"
+        date_str_month_day_cn_alt = f"{target_date.month:02d}月{target_date.day:02d}日"
+        date_str_month_day = target_date.strftime("%m-%d")
+        date_str_year_month = target_date.strftime("%Y-%m")
+        date_str_year_month_cn = (
+            f"{target_date.year}年{target_date.month:02d}月{target_date.day:02d}日"
+        )
+
+        # 优先通过日期匹配查找文章（最准确的方法）
+        all_links = soup.find_all("a", href=True)
+        for link in all_links:
+            href = link.get("href")
+            text = link.get_text(strip=True)
+
+            # 检查链接文本或URL中是否包含今天的日期
+            if href and (
+                date_str in href
+                or date_str_alt in href
+                or date_str_month_day_cn in text
+                or date_str_month_day_cn_alt in text
+                or date_str_year_month_cn in text
+                or date_str in text
+                or date_str_month_day in text
+                or date_str_year_month in href
+            ):
+                # 排除导航链接（只选择文章链接）
+                if href and not any(
+                    x in href
+                    for x in ["category", "tag", "page", "search", "about", "feed"]
+                ):
+                    article_url = self._process_url(href)
+                    self.logger.info(f"通过日期匹配找到文章: {article_url}")
+                    return article_url
+
+        # 如果日期匹配失败，尝试特定选择器
+        selectors = self.site_config.get("selectors", [])
+        links = []
+
+        for selector in selectors:
+            links = soup.select(selector)
+            if links:
+                href = links[0].get("href")
+                if href:
+                    article_url = self._process_url(href)
+                    self.logger.info(f"通过选择器找到文章: {article_url}")
+                    return article_url
+
+        # 尝试通用选择器
+        for selector in UNIVERSAL_SELECTORS:
+            links = soup.select(selector)
+            if links:
+                href = links[0].get("href")
+                if href:
+                    article_url = self._process_url(href)
+                    self.logger.info(f"通过通用选择器找到文章: {article_url}")
+                    return article_url
+
+        # 尝试查找今日链接
+        today_url = self._find_today_article(soup)
+        if today_url:
+            return today_url
+
+        # 尝试通过时间查找
+        time_url = self._find_by_time(soup)
+        if time_url:
+            return time_url
+
+        # 如果都没找到，返回None
+        self.logger.warning(f"未找到文章链接")
+        return None
 
     def extract_nodes_from_article(self, article_url):
         """从文章中提取节点"""

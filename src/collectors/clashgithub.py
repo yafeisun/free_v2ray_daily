@@ -9,7 +9,7 @@ import time
 import random
 from datetime import datetime
 from bs4 import BeautifulSoup
-from .base_collector import BaseCollector
+from src.core.base_collector import BaseCollector
 from config.websites import (
     SUBSCRIPTION_PATTERNS,
     SUBSCRIPTION_KEYWORDS,
@@ -41,6 +41,10 @@ class ClashGithubCollector(BaseCollector):
 
         # 调用父类方法
         return super()._make_request(url, method, **kwargs)
+
+    def _get_latest_article_url(self):
+        """获取最新文章URL - 实现抽象方法"""
+        return self.get_latest_article_url()
 
     def get_latest_article_url(self, target_date=None):
         """获取文章URL - ClashGithub 使用固定格式的文章链接"""

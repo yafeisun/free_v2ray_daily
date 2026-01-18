@@ -19,7 +19,7 @@ CONNECTION_TIMEOUT = 5  # 连接超时时间（秒）
 MAX_WORKERS = 10  # 最大并发测试线程数
 
 # 请求配置
-REQUEST_TIMEOUT = 30  # 请求超时时间（秒）
+REQUEST_TIMEOUT = 60  # 请求超时时间（秒）
 REQUEST_DELAY = 2  # 请求间隔时间（秒）
 REQUEST_RETRY = 3  # 请求重试次数
 

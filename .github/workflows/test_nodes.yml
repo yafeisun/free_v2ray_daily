@@ -10,7 +10,7 @@ on:
       trigger_collection:
         description: '是否由收集工作流触发'
         required: false
-        default: 'false'
+        default: false
         type: boolean
       collection_commit:
         description: '收集工作流的提交SHA'
@@ -133,8 +133,8 @@ jobs:
       if: steps.cache-subscheck.outputs.cache-hit != 'true'
       run: |
         echo "安装subs-check工具..."
-        chmod +x src/cli/utils/convert_nodes_to_subscription.py
-        chmod +x src/cli/speedtest/test_nodes_with_subscheck.py
+        chmod +x src/utils/convert_nodes_to_subscription.py
+        chmod +x src/speedtest/test_nodes_with_subscheck.py
         
         # 手动下载subs-check
         mkdir -p tools/subscheck/bin
@@ -158,41 +158,33 @@ jobs:
         echo "  🎯 Filter: GPT or Gemini at least 1 pass (2选1)"
         echo "  📝 Strategy: Based on SubsCheck-Win-GUI standards"
 
-        # 获取节点数
-        if [ -f result/nodetotal.txt ]; then
-          total_nodes=$(wc -l < result/nodetotal.txt)
-          echo "📈 Total nodes to test: $total_nodes"
-        else
-          total_nodes=0
-          echo "⚠️ No nodes file found, creating empty one..."
-          mkdir -p result
-          touch result/nodetotal.txt
+        # 检查节点文件是否存在且不为空
+        if [ ! -f result/nodetotal.txt ] || [ ! -s result/nodetotal.txt ]; then
+          echo "❌ No valid nodes file found (result/nodetotal.txt is missing or empty)"
+          echo "⚠️ Skipping node testing as there are no nodes to test"
+          exit 0
         fi
+
+        # 获取节点数
+        total_nodes=$(wc -l < result/nodetotal.txt)
+        echo "📈 Total nodes to test: $total_nodes"
 
         # 使用两阶段测试脚本 - 添加实时进度输出
         set -e
         echo "🔄 Starting Python test script with progress indicators..."
         echo "📝 Processing nodes with enhanced feedback..."
         
-        # 先检查节点文件是否存在
-        if [ -f result/nodetotal.txt ]; then
-          echo "✅ Node file verified, preparing to execute Python script..."
-        else
-          echo "❌ Node file not found, skipping test"
-          exit 0
-        fi
-        
         # Python语法检查
         echo "🔍 Python syntax check..."
-        python3 -m py_compile src/cli/speedtest/test_nodes_with_subscheck.py
+        python3 -m py_compile src/speedtest/test_nodes_with_subscheck.py
         echo "✅ Python syntax check passed"
-        
+
         echo "🚀 Executing Python script..."
-        echo "🔗 Command: python3 -m src.cli.speedtest.test_nodes_with_subscheck --input result/nodetotal.txt --output result/nodelist.txt"
+        echo "🔗 Command: python3 src/speedtest/test_nodes_with_subscheck.py --input result/nodetotal.txt --output result/nodelist.txt"
         echo "⏳ Starting test with progress monitoring..."
         echo ""
         echo "⚡ 开始执行节点测速..."
-        cd . && python3 -m src.cli.speedtest.test_nodes_with_subscheck --input result/nodetotal.txt --output result/nodelist.txt
+        python3 src/speedtest/test_nodes_with_subscheck.py --input result/nodetotal.txt --output result/nodelist.txt
         
         echo ""
         echo "📊 Python脚本执行完成！"

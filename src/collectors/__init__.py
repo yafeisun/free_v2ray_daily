@@ -1,20 +1,30 @@
 # 爬虫模块初始化文件
 
-from .clashnodecc import ClashNodeCCCollector
-from .cfmem import CfmemCollector
-from .clashnodev2ray import ClashNodeV2RayCollector
-from .freeclashnode import FreeClashNodeCollector
-from .mibei77 import Mibei77Collector
-from .proxyqueen import ProxyQueenCollector
-from .wanzhuanmi import WanzhuanmiCollector
-from .datiya import DatiyaCollector
-from .telegeam import TelegeamCollector
-from .clashgithub import ClashGithubCollector
-from .freev2raynode import FreeV2rayNodeCollector
-from .eighty_five_la import EightyFiveLaCollector
-from .oneclash import OneClashCollector
+import sys
+import os
 
-# 收集器映射表
+# 添加父目录到路径
+parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if parent_dir not in sys.path:
+    sys.path.insert(0, parent_dir)
+
+try:
+    from .clashnodecc import ClashNodeCCCollector
+    from .cfmem import CfmemCollector
+    from .clashnodev2ray import ClashNodeV2RayCollector
+    from .freeclashnode import FreeClashNodeCollector
+    from .mibei77 import Mibei77Collector
+    from .proxyqueen import ProxyQueenCollector
+    from .wanzhuanmi import WanzhuanmiCollector
+    from .datiya import DatiyaCollector
+    from .telegeam import TelegeamCollector
+    from .clashgithub import ClashGithubCollector
+    from .freev2raynode import FreeV2rayNodeCollector
+    from .la import LaCollector
+    from .oneclash import OneClashCollector
+except ImportError as e:
+    print(f"导入收集器模块失败: {e}")
+    sys.exit(1)
 COLLECTOR_MAPPING = {
     "freeclashnode": FreeClashNodeCollector,
     "mibei77": Mibei77Collector,
@@ -28,7 +38,7 @@ COLLECTOR_MAPPING = {
     "clashgithub": ClashGithubCollector,
     "oneclash": OneClashCollector,
     "freev2raynode": FreeV2rayNodeCollector,
-    "85la": EightyFiveLaCollector,
+    "la": LaCollector,
 }
 
 

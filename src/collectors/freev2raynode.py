@@ -9,7 +9,7 @@ import time
 import random
 from datetime import datetime
 from bs4 import BeautifulSoup
-from .base_collector import BaseCollector
+from src.core.base_collector import BaseCollector
 from config.websites import (
     SUBSCRIPTION_PATTERNS,
     SUBSCRIPTION_KEYWORDS,
@@ -42,10 +42,13 @@ class FreeV2rayNodeCollector(BaseCollector):
         # 调用父类方法
         return super()._make_request(url, method, **kwargs)
 
+    def _get_latest_article_url(self):
+        """获取最新文章URL - 实现抽象方法"""
+        return self.get_latest_article_url()
+
     def get_latest_article_url(self, target_date=None):
         """获取文章URL，支持指定日期"""
         try:
-            self.logger.info(f"访问网站: {self.base_url}")
             response = self._make_request(self.base_url)
 
             soup = BeautifulSoup(response.text, "html.parser")

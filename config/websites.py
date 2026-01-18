@@ -11,15 +11,10 @@ WEBSITES = {
         "url": "https://www.freeclashnode.com/free-node/",
         "enabled": True,
         "collector_key": "freeclashnode",  # 对应收集器插件的关键字
-        "selectors": [
-            '.post-title a',
-            'h2 a',
-            '.entry-title a',
-            'article h2 a'
-        ],
+        "selectors": [".post-title a", "h2 a", ".entry-title a", "article h2 a"],
         "patterns": [
-            r'node\.freeclashnode\.com/uploads/\d{4}/\d{2}/[^\\s\\<]*\.(?:txt|yaml|json)'
-        ]
+            r"node\.freeclashnode\.com/uploads/\d{4}/\d{2}/[^\\s\\<]*\.(?:txt|yaml|json)"
+        ],
     },
     "mibei77": {
         "name": "米贝节点",
@@ -27,18 +22,18 @@ WEBSITES = {
         "enabled": True,
         "collector_key": "mibei77",  # 对应收集器插件的关键字
         "selectors": [
-            '.post h2 a',
-            '.entry-title a',
-            'h1 a',
-            '.post-title a',
+            ".post h2 a",
+            ".entry-title a",
+            "h1 a",
+            ".post-title a",
             'a[href*="/2025"]',
-            'a[href*="/2025/12"]'
+            'a[href*="/2025/12"]',
         ],
         "patterns": [
             r'https?://[^\s\'"]*?/sub[^\s\'"]*?',
             r'https?://[^\s\'"]*?/subscribe[^\s\'"]*?',
-            r'https?://[^\s\'"]*\.txt[^\s\'"]*'
-        ]
+            r'https?://[^\s\'"]*\.txt[^\s\'"]*',
+        ],
     },
     "clashnodev2ray": {
         "name": "ClashNodeV2Ray",
@@ -46,34 +41,27 @@ WEBSITES = {
         "enabled": True,
         "collector_key": "clashnodev2ray",  # 对应收集器插件的关键字
         "selectors": [
-            'h1 a',
-            '.post-title a',
-            'article h1 a',
-            'h2 a',
+            "h1 a",
+            ".post-title a",
+            "article h1 a",
+            "h2 a",
             'a[href*="/2025"]',
-            'a[href*="/2025/12"]'
+            'a[href*="/2025/12"]',
         ],
         "patterns": [
-            r'vmess://[^\s\n\r]+',
-            r'vless://[^\s\n\r]+',
-            r'trojan://[^\s\n\r]+',
-            r'https?://[^\s\'"]*\.txt[^\s\'"]*'
-        ]
+            r"vmess://[^\s\n\r]+",
+            r"vless://[^\s\n\r]+",
+            r"trojan://[^\s\n\r]+",
+            r'https?://[^\s\'"]*\.txt[^\s\'"]*',
+        ],
     },
     "proxyqueen": {
         "name": "ProxyQueen",
         "url": "https://www.proxyqueen.top/",
         "enabled": True,
         "collector_key": "proxyqueen",  # 对应收集器插件的关键字
-        "selectors": [
-            '.post-title a',
-            'h2 a',
-            '.entry-header a',
-            'article h2 a'
-        ],
-        "patterns": [
-            r'https?://[^\s\'"]*?(?:vmess|vless|trojan|hysteria|ss)[^\s\'"]*'
-        ]
+        "selectors": [".post-title a", "h2 a", ".entry-header a", "article h2 a"],
+        "patterns": [r'https?://[^\s\'"]*?(?:vmess|vless|trojan|hysteria|ss)[^\s\'"]*'],
     },
     "wanzhuanmi": {
         "name": "玩转迷",
@@ -82,14 +70,14 @@ WEBSITES = {
         "collector_key": "wanzhuanmi",  # 对应收集器插件的关键字
         "selectors": [
             'a[href*="/archives/"]',
-            '.post-title a',
-            'h2 a',
-            '.entry-title a',
-            'article h2 a'
+            ".post-title a",
+            "h2 a",
+            ".entry-title a",
+            "article h2 a",
         ],
         "patterns": [
             r'https?://[^\s\'"]*?\.(?:top|com|org|net|io|gg|tk|ml)[^\s\'"]*(?:/sub|/api|/link)[^\s\'"]*'
-        ]
+        ],
     },
     "cfmem": {
         "name": "CFMem",
@@ -97,17 +85,17 @@ WEBSITES = {
         "enabled": True,
         "collector_key": "cfmem",  # 对应收集器插件的关键字
         "selectors": [
-            '.post-title a',
-            'h2 a',
-            '.entry-title a',
-            'article h2 a',
-            '.content h2 a'
+            ".post-title a",
+            "h2 a",
+            ".entry-title a",
+            "article h2 a",
+            ".content h2 a",
         ],
         "patterns": [
             r'https?://[^\s\'"]*?\.txt[^\s\'"]*',
             r'https?://[^\s\'"]*?/sub[^\s\'"]*',
-            r'https?://[^\s\'"]*?/subscribe[^\s\'"]*'
-        ]
+            r'https?://[^\s\'"]*?/subscribe[^\s\'"]*',
+        ],
     },
     "clashnodecc": {
         "name": "ClashNodeCC",
@@ -115,27 +103,27 @@ WEBSITES = {
         "enabled": True,
         "collector_key": "clashnodecc",  # 对应收集器插件的关键字
         "selectors": [
-            'article:first-child a',
-            '.post:first-child a',
-            '.entry-title:first-child a',
-            'h1 a',
-            'h2 a',
-            '.post-title a',
-            '.entry-title a',
-            'article h2 a',
-            '.content h2 a',
-            '.latest-post a',
+            "article:first-child a",
+            ".post:first-child a",
+            ".entry-title:first-child a",
+            "h1 a",
+            "h2 a",
+            ".post-title a",
+            ".entry-title a",
+            "article h2 a",
+            ".content h2 a",
+            ".latest-post a",
             'a[href*="/archives/"]',
             'a[href*="/post/"]',
-            'a[href*="/node/"]'
+            'a[href*="/node/"]',
         ],
         "patterns": [
             r'https?://[^\s\'"]*\.txt[^\s\'"]*',
             r'https?://[^\s\'"]*(?:sub|subscribe|link|api|node)[^\s\'"]*\.txt[^\s\'"]*',
             r'https?://[^\s\'"]*(?:github\.com|gitlab\.com|raw\.githubusercontent\.com)[^\s\'"]*\.txt[^\s\'"]*',
             r'https?://[^\s\'"]*/[^\s\'"]*(?:sub|subscribe|link)[^\s\'"]*',
-            r'https?://[^\s\'"]*\.txt'
-        ]
+            r'https?://[^\s\'"]*\.txt',
+        ],
     },
     "datiya": {
         "name": "Datiya",
@@ -143,20 +131,20 @@ WEBSITES = {
         "enabled": True,
         "collector_key": "datiya",  # 对应收集器插件的关键字
         "selectors": [
-            '.post-title a',
-            'h2 a',
-            '.entry-title a',
-            'article h2 a',
+            ".post-title a",
+            "h2 a",
+            ".entry-title a",
+            "article h2 a",
             'a[href*="/node"]',
-            'a[href*="/free"]'
+            'a[href*="/free"]',
         ],
         "patterns": [
             r'https?://[^\s\'"]*\.txt[^\s\'"]*',
             r'https?://[^\s\'"]*(?:sub|subscribe|link|api|node)[^\s\'"]*',
-            r'vmess://[^\s\n\r]+',
-            r'vless://[^\s\n\r]+',
-            r'trojan://[^\s\n\r]+'
-        ]
+            r"vmess://[^\s\n\r]+",
+            r"vless://[^\s\n\r]+",
+            r"trojan://[^\s\n\r]+",
+        ],
     },
     "telegeam": {
         "name": "Telegeam",
@@ -164,21 +152,21 @@ WEBSITES = {
         "enabled": True,
         "collector_key": "telegeam",  # 对应收集器插件的关键字
         "selectors": [
-            'h1 a',
-            '.post-title a',
-            'article h1 a',
-            'h2 a',
+            "h1 a",
+            ".post-title a",
+            "article h1 a",
+            "h2 a",
             'a[href*="/202"]',
-            'a[href*="/2025/12"]'
+            'a[href*="/2025/12"]',
         ],
         "patterns": [
-            r'vmess://[^\s\n\r]+',
-            r'vless://[^\s\n\r]+',
-            r'trojan://[^\s\n\r]+',
-            r'hysteria://[^\s\n\r]+',
-            r'ss://[^\s\n\r]+',
-            r'https?://[^\s\'"]*\.txt[^\s\'"]*'
-        ]
+            r"vmess://[^\s\n\r]+",
+            r"vless://[^\s\n\r]+",
+            r"trojan://[^\s\n\r]+",
+            r"hysteria://[^\s\n\r]+",
+            r"ss://[^\s\n\r]+",
+            r'https?://[^\s\'"]*\.txt[^\s\'"]*',
+        ],
     },
     "clashgithub": {
         "name": "ClashGithub",
@@ -186,25 +174,25 @@ WEBSITES = {
         "enabled": True,
         "collector_key": "clashgithub",  # 对应收集器插件的关键字
         "selectors": [
-            'h3 a',
-            '.post-title a',
-            'article h3 a',
-            'h2 a',
-            'h1 a',
+            "h3 a",
+            ".post-title a",
+            "article h3 a",
+            "h2 a",
+            "h1 a",
             'a[href*="/202"]',
-            'a[href*="/2025"]'
+            'a[href*="/2025"]',
         ],
         "patterns": [
-            r'vmess://[^\s\n\r]+',
-            r'vless://[^\s\n\r]+',
-            r'trojan://[^\s\n\r]+',
-            r'hysteria://[^\s\n\r]+',
-            r'hysteria2://[^\s\n\r]+',
-            r'ss://[^\s\n\r]+',
-            r'ssr://[^\s\n\r]+',
+            r"vmess://[^\s\n\r]+",
+            r"vless://[^\s\n\r]+",
+            r"trojan://[^\s\n\r]+",
+            r"hysteria://[^\s\n\r]+",
+            r"hysteria2://[^\s\n\r]+",
+            r"ss://[^\s\n\r]+",
+            r"ssr://[^\s\n\r]+",
             r'https?://[^\s\'"]*\.txt[^\s\'"]*',
-            r'https?://[^\s\'"]*(?:sub|subscribe|link|api|node)[^\s\'"]*\.txt[^\s\'"]*'
-        ]
+            r'https?://[^\s\'"]*(?:sub|subscribe|link|api|node)[^\s\'"]*\.txt[^\s\'"]*',
+        ],
     },
     "oneclash": {
         "name": "OneClash",
@@ -212,89 +200,85 @@ WEBSITES = {
         "enabled": True,
         "collector_key": "oneclash",  # 对应收集器插件的关键字
         "selectors": [
-            '.post-title a',
-            'h2 a',
-            '.entry-title a',
-            'article h2 a',
+            ".post-title a",
+            "h2 a",
+            ".entry-title a",
+            "article h2 a",
             'a[href*="/202"]',
-            'a[href*="/2025"]'
+            'a[href*="/2025"]',
         ],
         "patterns": [
             r'https?://[^\s\'"]*\.txt[^\s\'"]*',
             r'https?://[^\s\'"]*(?:sub|subscribe|link|api|node)[^\s\'"]*',
-            r'vmess://[^\s\n\r]+',
-            r'vless://[^\s\n\r]+',
-            r'trojan://[^\s\n\r]+'
-        ]
+            r"vmess://[^\s\n\r]+",
+            r"vless://[^\s\n\r]+",
+            r"trojan://[^\s\n\r]+",
+        ],
     },
     "freev2raynode": {
         "name": "FreeV2rayNode",
         "url": "https://www.freev2raynode.com/free-node-subscription/",
         "enabled": True,
         "collector_key": "freev2raynode",  # 对应收集器插件的关键字
-        "selectors": [
-            '.post-title a',
-            'h2 a',
-            '.entry-title a',
-            'article h2 a'
-        ],
+        "selectors": [".post-title a", "h2 a", ".entry-title a", "article h2 a"],
         "patterns": [
             r'https?://[^\s\'"]*\.txt[^\s\'"]*',
             r'https?://[^\s\'"]*(?:sub|subscribe|link|api|node)[^\s\'"]*',
-            r'vmess://[^\s\n\r]+',
-            r'vless://[^\s\n\r]+',
-            r'trojan://[^\s\n\r]+'
-        ]
+            r"vmess://[^\s\n\r]+",
+            r"vless://[^\s\n\r]+",
+            r"trojan://[^\s\n\r]+",
+        ],
     },
     "85la": {
         "name": "85LA",
         "url": "https://www.85la.com/internet-access/free-network-nodes",
         "enabled": True,
-        "collector_key": "85la",  # 对应收集器插件的关键字
+        "collector_key": "la",  # 对应收集器插件的关键字
         "selectors": [
-            '.post-title a',
-            'h2 a',
-            '.entry-title a',
-            'article h2 a',
+            ".post-title a",
+            "h2 a",
+            ".entry-title a",
+            "article h2 a",
             'a[href*="/202"]',
-            'a[href*="/2025"]'
+            'a[href*="/2025"]',
         ],
         "patterns": [
             r'https?://[^\s\'"]*\.txt[^\s\'"]*',
             r'https?://[^\s\'"]*(?:sub|subscribe|link|api|node)[^\s\'"]*',
-            r'vmess://[^\s\n\r]+',
-            r'vless://[^\s\n\r]+',
-            r'trojan://[^\s\n\r]+'
-        ]
-    }
+            r"vmess://[^\s\n\r]+",
+            r"vless://[^\s\n\r]+",
+            r"trojan://[^\s\n\r]+",
+        ],
+    },
 }
 
 # 通用选择器（当特定网站选择器失败时使用）
 UNIVERSAL_SELECTORS = [
-    'article:first-child a',
-    '.post:first-child a',
-    '.entry-title:first-child a',
-    'h1 a',
-    'h2:first-child a',
-    '.latest-post a',
+    "article:first-child a",
+    ".post:first-child a",
+    ".entry-title:first-child a",
+    "h1 a",
+    "h2:first-child a",
+    ".latest-post a",
     'a[href*="/post/"]',
     'a[href*="/article/"]',
     'a[href*="/node/"]',
-    'a[href*="/free/"]'
+    'a[href*="/free/"]',
 ]
 
 # 时间选择器（用于查找最新文章）
-TIME_SELECTORS = [
-    'time',
-    '.post-date',
-    '.entry-date',
-    '.published',
-    '[datetime]'
-]
+TIME_SELECTORS = ["time", ".post-date", ".entry-date", ".published", "[datetime]"]
 
 # 订阅链接关键词
 SUBSCRIPTION_KEYWORDS = [
-    '订阅', 'subscription', 'sub', 'link', '节点', 'nodes', '配置', 'config'
+    "订阅",
+    "subscription",
+    "sub",
+    "link",
+    "节点",
+    "nodes",
+    "配置",
+    "config",
 ]
 
 # 订阅链接模式
@@ -311,55 +295,50 @@ SUBSCRIPTION_PATTERNS = [
 # 非节点订阅链接排除模式（排除明显不是V2Ray节点的链接）
 EXCLUDED_SUBSCRIPTION_PATTERNS = [
     # 排除Clash相关订阅（只排除路径中包含clash的文件，不影响域名）
-    r'https?://[^/]+/[^/]*(?:clash|Clash|CLASH)[^/]*\.txt',
-    r'.*(?:sing-?box|singbox|Sing-?Box|SINGBOX).*\.txt',
-    r'.*(?:yaml|yml).*\.txt',
-    r'.*(?:config|Config).*\.txt',
-    
+    r"https?://[^/]+/[^/]*(?:clash|Clash|CLASH)[^/]*\.txt",
+    r".*(?:sing-?box|singbox|Sing-?Box|SINGBOX).*\.txt",
+    r".*(?:yaml|yml).*\.txt",
+    r".*(?:config|Config).*\.txt",
     # 排除明显的内容聚合网站
-    r'.*(?:parsing|Parsing|PAESING).*\.txt',
-    r'.*(?:convert|Convert|CONVERT).*\.txt',
-    r'.*(?:transform|Transform|TRANSFORM).*\.txt',
-    
+    r".*(?:parsing|Parsing|PAESING).*\.txt",
+    r".*(?:convert|Convert|CONVERT).*\.txt",
+    r".*(?:transform|Transform|TRANSFORM).*\.txt",
     # 排除特定的非节点网站
-    r'.*(?:subconverter|subx|sub\.xeton).*',
-    r'.*(?:api\.v1\.mk|v1\.mk).*',
-    r'.*(?:raw\.git).*',
-    
+    r".*(?:subconverter|subx|sub\.xeton).*",
+    r".*(?:api\.v1\.mk|v1\.mk).*",
+    r".*(?:raw\.git).*",
     # 排除包含特定关键词的链接
-    r'.*(?:免费机场|机场推荐|vpn推荐|科学上网).*',
-    r'.*(?:广告|推广|aff).*',
-    r'.*(?:破解|crack|hack).*',
-    
+    r".*(?:免费机场|机场推荐|vpn推荐|科学上网).*",
+    r".*(?:广告|推广|aff).*",
+    r".*(?:破解|crack|hack).*",
     # 排除明显的测试链接
-    r'.*(?:test|Test|TEST).*\.txt',
-    r'.*(?:demo|Demo|DEMO).*\.txt',
-    r'.*(?:example|Example|EXAMPLE).*\.txt',
-    
+    r".*(?:test|Test|TEST).*\.txt",
+    r".*(?:demo|Demo|DEMO).*\.txt",
+    r".*(?:example|Example|EXAMPLE).*\.txt",
     # 排除过长的路径（通常不是节点订阅，超过6层）
-    r'https?://[^/]+/[^/]+/[^/]+/[^/]+/[^/]+/[^/]+/',
+    r"https?://[^/]+/[^/]+/[^/]+/[^/]+/[^/]+/[^/]+/",
 ]
 
 # 节点协议模式
 NODE_PATTERNS = [
-    r'(vmess://[^\s\n\r]+)',
-    r'(vless://[^\s\n\r]+)',
-    r'(trojan://[^\s\n\r]+)',
-    r'(hysteria2://[^\s\n\r]+)',
-    r'(hysteria://[^\s\n\r]+)',
-    r'(ss://[^\s\n\r]+)',
-    r'(ssr://[^\s\n\r]+)'
+    r"(vmess://[^\s\n\r]+)",
+    r"(vless://[^\s\n\r]+)",
+    r"(trojan://[^\s\n\r]+)",
+    r"(hysteria2://[^\s\n\r]+)",
+    r"(hysteria://[^\s\n\r]+)",
+    r"(ss://[^\s\n\r]+)",
+    r"(ssr://[^\s\n\r]+)",
 ]
 
 # 代码块选择器
 CODE_BLOCK_SELECTORS = [
-    r'<(?:code|pre)[^>]*>(.*?)</(?:code|pre)>',
+    r"<(?:code|pre)[^>]*>(.*?)</(?:code|pre)>",
     r'<div[^>]*class="[^"]*(?:node|config|subscription)[^"]*"[^>]*>(.*?)</div>',
-    r'<textarea[^>]*>(.*?)</textarea>',
+    r"<textarea[^>]*>(.*?)</textarea>",
     r'<input[^>]*value="([^"]*(?:vmess|vless|trojan|hysteria|ss://)[^"]*)"',
 ]
 
 # Base64模式
 BASE64_PATTERNS = [
-    r'([A-Za-z0-9+/]{50,}={0,2})',
+    r"([A-Za-z0-9+/]{50,}={0,2})",
 ]

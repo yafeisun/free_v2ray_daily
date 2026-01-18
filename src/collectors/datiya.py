@@ -8,7 +8,7 @@ import re
 import base64
 from datetime import datetime
 from bs4 import BeautifulSoup
-from .base_collector import BaseCollector
+from src.core.base_collector import BaseCollector
 from config.websites import UNIVERSAL_SELECTORS
 
 
@@ -28,13 +28,20 @@ class DatiyaCollector(BaseCollector):
             }
         )
 
+    def _get_latest_article_url(self):
+        """获取最新文章URL - 实现抽象方法"""
+        return self.get_latest_article_url()
+
     def get_latest_article_url(self, target_date=None):
         """获取文章URL，支持指定日期"""
         try:
-            self.logger.info(f"访问网站: {self.base_url}")
             response = self._make_request(self.base_url)
+            response_text = response.text
+            if not response_text:
+                self.logger.error("无法获取页面内容")
+                return None
 
-            soup = BeautifulSoup(response.text, "html.parser")
+            soup = BeautifulSoup(response_text, "html.parser")
 
             if not target_date:
                 target_date = datetime.now()
@@ -115,47 +122,11 @@ class DatiyaCollector(BaseCollector):
         return list(set(links))
 
     def get_nodes_from_subscription(self, subscription_url):
-        """从订阅链接获取节点"""
-        try:
-            self.logger.info(f"获取订阅内容: {subscription_url}")
-            response = self.session.get(
-                subscription_url, timeout=self.timeout, verify=False
-            )
-            response.raise_for_status()
+        """使用统一订阅解析器处理订阅链接"""
+        from src.core.subscription_parser import get_subscription_parser
 
-            content = response.text.strip()
-            nodes = []
-
-            if subscription_url.endswith(".yaml"):
-                nodes = self._extract_datiya_yaml_nodes(content)
-                self.logger.info(f"从YAML文件获取到 {len(nodes)} 个节点")
-                return nodes
-
-            nodes = self.parse_node_text(content)
-
-            if not nodes:
-                try:
-                    decoded_content = base64.b64decode(content).decode("utf-8")
-                    nodes = self.parse_node_text(decoded_content)
-                except:
-                    pass
-
-            if not nodes:
-                try:
-                    import urllib.parse
-
-                    url_decoded = urllib.parse.unquote(content)
-                    url_nodes = self.parse_node_text(url_decoded)
-                    nodes.extend(url_nodes)
-                except:
-                    pass
-
-            self.logger.info(f"从订阅链接获取到 {len(nodes)} 个节点")
-            return nodes
-
-        except Exception as e:
-            self.logger.error(f"获取订阅链接失败: {str(e)}")
-            return []
+        parser = get_subscription_parser()
+        return parser.parse_subscription_url(subscription_url, self.session)
 
     def _extract_datiya_yaml_nodes(self, content):
         """从Datiya的YAML格式提取节点"""

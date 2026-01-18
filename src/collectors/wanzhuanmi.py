@@ -7,11 +7,15 @@
 import re
 import base64
 from bs4 import BeautifulSoup
-from .base_collector import BaseCollector
+from src.core.base_collector import BaseCollector
 
 
 class WanzhuanmiCollector(BaseCollector):
     """玩转迷专用爬虫"""
+
+    def _get_latest_article_url(self):
+        """获取最新文章URL - 实现抽象方法"""
+        return self.get_latest_article_url()
 
     def get_latest_article_url(self, target_date=None):
         """重写获取最新文章URL的方法"""
@@ -20,7 +24,6 @@ class WanzhuanmiCollector(BaseCollector):
             return super().get_latest_article_url(target_date)
 
         try:
-            self.logger.info(f"访问网站: {self.base_url}")
             response = self.session.get(
                 self.base_url, timeout=self.timeout, verify=False
             )
@@ -149,7 +152,11 @@ class WanzhuanmiCollector(BaseCollector):
         for pattern in tech_patterns:
             try:
                 matches = re.findall(pattern, content, re.IGNORECASE)
-                links.extend(matches)
+                for match in matches:
+                    # 清理HTML标签
+                    clean_url = re.sub(r"<[^>]+>", "", match).strip()
+                    if clean_url and clean_url.startswith(("http://", "https://")):
+                        links.append(clean_url)
             except Exception as e:
                 self.logger.warning(f"技术链接匹配失败: {pattern} - {str(e)}")
 

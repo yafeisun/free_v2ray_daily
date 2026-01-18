@@ -8,11 +8,15 @@ import re
 import base64
 from datetime import datetime, timedelta
 from bs4 import BeautifulSoup
-from .base_collector import BaseCollector
+from src.core.base_collector import BaseCollector
 
 
 class TelegeamCollector(BaseCollector):
     """Telegeam 专用爬虫"""
+
+    def _get_latest_article_url(self):
+        """获取最新文章URL - 实现抽象方法"""
+        return self.get_latest_article_url()
 
     def get_latest_article_url(self, target_date=None):
         """重写获取最新文章URL的方法，支持查找最近7天的文章"""
@@ -20,7 +24,6 @@ class TelegeamCollector(BaseCollector):
             return super().get_latest_article_url(target_date)
 
         try:
-            self.logger.info(f"访问网站: {self.base_url}")
             response = self.session.get(
                 self.base_url, timeout=self.timeout, verify=False
             )
@@ -80,28 +83,8 @@ class TelegeamCollector(BaseCollector):
         return list(set(links))
 
     def get_nodes_from_subscription(self, subscription_url):
-        """重写订阅链接处理"""
-        try:
-            self.logger.info(f"获取订阅内容: {subscription_url}")
-            response = self.session.get(
-                subscription_url, timeout=self.timeout, verify=False
-            )
-            response.raise_for_status()
+        """使用统一订阅解析器处理订阅链接"""
+        from src.core.subscription_parser import get_subscription_parser
 
-            content = response.text.strip()
-
-            # 如果是base64编码，先解码
-            try:
-                decoded_content = base64.b64decode(content).decode("utf-8")
-                nodes = self.parse_node_text(decoded_content)
-            except:
-                # 如果不是base64，直接解析
-                nodes = self.parse_node_text(content)
-
-            # 保留所有协议的节点
-            self.logger.info(f"从订阅链接获取到 {len(nodes)} 个节点")
-            return nodes
-
-        except Exception as e:
-            self.logger.error(f"获取订阅链接失败: {str(e)}")
-            return []
+        parser = get_subscription_parser()
+        return parser.parse_subscription_url(subscription_url, self.session)

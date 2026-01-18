@@ -7,102 +7,78 @@
 import re
 import base64
 from bs4 import BeautifulSoup
-from .base_collector import BaseCollector
+from src.core.base_collector import BaseCollector
+
 
 class Mibei77Collector(BaseCollector):
     """米贝节点专用爬虫"""
-    
+
     def __init__(self, site_config):
         super().__init__(site_config)
         # 添加额外的请求头以适配米贝77
-        self.session.headers.update({
-            'Referer': 'https://www.mibei77.com/',
-            'Origin': 'https://www.mibei77.com',
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-            'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
-        })
-    
+        self.session.headers.update(
+            {
+                "Referer": "https://www.mibei77.com/",
+                "Origin": "https://www.mibei77.com",
+                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+                "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
+            }
+        )
+
+    def _get_latest_article_url(self):
+        """获取最新文章URL - 实现抽象方法"""
+        return self.get_latest_article_url()
+
     def get_latest_article_url(self, target_date=None):
         """重写获取最新文章URL的方法"""
         # 如果指定了日期，使用基类的日期匹配逻辑
         if target_date:
             return super().get_latest_article_url(target_date)
-        
+
         try:
-            self.logger.info(f"访问网站: {self.base_url}")
-            response = self.session.get(self.base_url, timeout=self.timeout, verify=False)
+            response = self.session.get(
+                self.base_url, timeout=self.timeout, verify=False
+            )
             response.raise_for_status()
-            
-            soup = BeautifulSoup(response.text, 'html.parser')
-            
+
+            soup = BeautifulSoup(response.text, "html.parser")
+
             # 米贝节点通常有特定的文章结构
             selectors = [
-                '.post-list .post-title a',  # 文章列表
-                '.article-list .title a',
-                '.content-list h2 a',
-                '.blog-list .entry-title a'
+                ".post-list .post-title a",  # 文章列表
+                ".article-list .title a",
+                ".content-list h2 a",
+                ".blog-list .entry-title a",
             ]
-            
+
             # 先尝试特定选择器
             for selector in selectors:
                 links = soup.select(selector)
                 if links:
-                    href = links[0].get('href')
+                    href = links[0].get("href")
                     if href:
                         article_url = self._process_url(href)
                         self.logger.info(f"通过特定选择器找到文章: {article_url}")
                         return article_url
-            
+
             # 调用父类方法
             return super().get_latest_article_url()
-            
+
         except Exception as e:
             self.logger.error(f"获取文章链接失败: {str(e)}")
             return None
-    
+
     def get_nodes_from_subscription(self, subscription_url):
-        """重写从订阅链接获取节点的方法，支持base64解码"""
-        try:
-            self.logger.info(f"获取订阅内容: {subscription_url}")
-            response = self.session.get(subscription_url, timeout=self.timeout, verify=False)
-            response.raise_for_status()
-            
-            content = response.text.strip()
-            
-            # 先尝试直接解析
-            nodes = self.parse_node_text(content)
-            
-            # 如果没有找到节点，尝试base64解码
-            if not nodes:
-                try:
-                    # 米贝节点通常使用base64编码
-                    decoded_content = base64.b64decode(content).decode('utf-8', errors='ignore')
-                    self.logger.info("检测到base64编码，已解码内容")
-                    nodes = self.parse_node_text(decoded_content)
-                except Exception as e:
-                    self.logger.warning(f"base64解码失败: {str(e)}")
-                    # 尝试其他编码方式
-                    try:
-                        # 移除可能的填充字符后重试
-                        padded_content = content + '=' * (-len(content) % 4)
-                        decoded_content = base64.b64decode(padded_content).decode('utf-8', errors='ignore')
-                        nodes = self.parse_node_text(decoded_content)
-                        if nodes:
-                            self.logger.info("修复填充字符后解码成功")
-                    except Exception as e2:
-                        self.logger.warning(f"修复base64解码也失败: {str(e2)}")
-            
-            self.logger.info(f"从订阅链接获取到 {len(nodes)} 个节点")
-            return nodes
-            
-        except Exception as e:
-            self.logger.error(f"获取订阅链接失败: {str(e)}")
-            return []
-    
+        """使用统一订阅解析器处理订阅链接"""
+        from src.core.subscription_parser import get_subscription_parser
+
+        parser = get_subscription_parser()
+        return parser.parse_subscription_url(subscription_url, self.session)
+
     def find_subscription_links(self, content):
         """重写订阅链接查找方法，专门查找米贝77的订阅链接"""
         links = []
-        
+
         # 米贝77特定的订阅链接模式
         mibei77_patterns = [
             # 标准的V2Ray订阅链接
@@ -114,60 +90,63 @@ class Mibei77Collector(BaseCollector):
             r'https?://[^\s\'"]*/\d{4}\.\d{2}[^\s\'"]*\.txt[^\s\'"]*',
             r'https?://[^\s\'"]*/\d{8}[^\s\'"]*\.txt[^\s\'"]*',
         ]
-        
+
         for pattern in mibei77_patterns:
             try:
                 matches = re.findall(pattern, content, re.IGNORECASE)
                 links.extend(matches)
             except Exception as e:
                 self.logger.warning(f"米贝77链接匹配失败: {pattern} - {str(e)}")
-        
+
         # 清理和去重 - 使用改进的逻辑
         cleaned_links = []
         seen = set()
-        
+
         for link in links:
             # 先从原始链接中提取所有独立的.txt URL（避免先清理导致URL合并）
             url_matches = re.findall(r'https?://[^\s<>"\']+\.(?:txt|TXT)', link)
-            
+
             for url_match in url_matches:
                 # 然后对每个提取的URL进行清理
                 clean_link = self._clean_link(url_match)
-                if (clean_link and clean_link not in seen and 
-                    self._is_valid_url(clean_link) and 
-                    self._is_valid_subscription_link(clean_link)):
+                if (
+                    clean_link
+                    and clean_link not in seen
+                    and self._is_valid_url(clean_link)
+                    and self._is_valid_subscription_link(clean_link)
+                ):
                     cleaned_links.append(clean_link)
                     seen.add(clean_link)
                     self.logger.info(f"找到米贝77订阅链接: {clean_link}")
-        
+
         self.logger.info(f"米贝77找到 {len(cleaned_links)} 个订阅链接")
-        
+
         return cleaned_links
-    
+
     def _is_valid_subscription_link(self, link):
         """验证是否为有效的V2Ray订阅链接"""
         # 排除明显的非V2Ray链接
         excluded_patterns = [
-            r'.*clash.*',
-            r'.*sing.*box.*',
-            r'.*yaml.*',
-            r'.*json.*',
+            r".*clash.*",
+            r".*sing.*box.*",
+            r".*yaml.*",
+            r".*json.*",
         ]
-        
+
         for pattern in excluded_patterns:
             if re.search(pattern, link, re.IGNORECASE):
                 return False
-        
+
         return True
-    
+
     def extract_direct_nodes(self, content):
         """重写直接节点提取方法"""
         nodes = []
-        
+
         # 调用父类方法
         parent_nodes = super().extract_direct_nodes(content)
         nodes.extend(parent_nodes)
-        
+
         # 米贝节点可能有特殊的节点展示格式
         # 查找包含节点信息的特定区域
         node_areas = [
@@ -175,7 +154,7 @@ class Mibei77Collector(BaseCollector):
             r'<pre[^>]*class="[^"]*(?:node|config)[^"]*"[^>]*>(.*?)</pre>',
             r'<textarea[^>]*class="[^"]*(?:node|config)[^"]*"[^>]*>(.*?)</textarea>',
         ]
-        
+
         for pattern in node_areas:
             try:
                 matches = re.findall(pattern, content, re.DOTALL | re.IGNORECASE)
@@ -184,9 +163,9 @@ class Mibei77Collector(BaseCollector):
                     nodes.extend(area_nodes)
             except Exception as e:
                 self.logger.warning(f"节点区域匹配失败: {pattern} - {str(e)}")
-        
+
         # 查找可能在表格中的节点
-        table_pattern = r'<table[^>]*>(.*?)</table>'
+        table_pattern = r"<table[^>]*>(.*?)</table>"
         try:
             tables = re.findall(table_pattern, content, re.DOTALL | re.IGNORECASE)
             for table in tables:
@@ -194,5 +173,5 @@ class Mibei77Collector(BaseCollector):
                 nodes.extend(table_nodes)
         except:
             pass
-        
+
         return list(set(nodes))  # 去重

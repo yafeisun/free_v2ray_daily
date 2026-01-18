@@ -8,8 +8,10 @@ import re
 import base64
 import time
 import random
+from datetime import datetime
+from urllib.parse import urljoin
 from bs4 import BeautifulSoup
-from .base_collector import BaseCollector
+from src.core.base_collector import BaseCollector
 
 
 class FreeClashNodeCollector(BaseCollector):
@@ -29,6 +31,51 @@ class FreeClashNodeCollector(BaseCollector):
             }
         )
         # 移除硬编码的代理禁用，让父类统一管理代理
+
+    def _get_latest_article_url(self):
+        """获取最新文章URL"""
+        try:
+            self.logger.info("正在查找最新文章...")
+
+            # 访问主页
+            main_page = self._get_page(self.base_url)
+            if not main_page:
+                self.logger.error("无法获取主页内容")
+                return None
+
+            soup = BeautifulSoup(main_page, "html.parser")
+
+            # 查找今天日期的文章链接
+            today = datetime.now().strftime("%Y-%m-%d")
+            article_pattern = f"/free-node/{today}-"
+
+            # 在所有链接中查找
+            links = soup.find_all("a", href=True)
+            for link in links:
+                href = link.get("href", "")
+                if article_pattern in href:
+                    article_url = urljoin(self.base_url, href)
+                    self.logger.info(f"找到今日文章: {article_url}")
+                    return article_url
+
+            # 如果没找到今天的，尝试最新的文章
+            self.logger.info(f"未找到今日文章，尝试获取最新文章...")
+            # 查找最新文章的模式
+            latest_pattern = r"/free-node/\d{4}-\d{1,2}-\d{1,2}-"
+
+            for link in links:
+                href = link.get("href", "")
+                if re.search(latest_pattern, href) and ".htm" in href:
+                    article_url = urljoin(self.base_url, href)
+                    self.logger.info(f"找到最新文章: {article_url}")
+                    return article_url
+
+            self.logger.warning("未找到任何文章链接")
+            return None
+
+        except Exception as e:
+            self.logger.error(f"获取最新文章URL失败: {e}")
+            return None
 
     def _make_request(self, url, method="GET", **kwargs):
         """重写请求方法，添加随机延迟"""
@@ -137,31 +184,11 @@ class FreeClashNodeCollector(BaseCollector):
         return links
 
     def get_nodes_from_subscription(self, subscription_url):
-        """重写订阅链接处理，处理特殊编码"""
-        try:
-            self.logger.info(f"获取订阅内容: {subscription_url}")
-            response = self.session.get(
-                subscription_url, timeout=self.timeout, verify=False
-            )
-            response.raise_for_status()
+        """使用统一订阅解析器处理订阅链接"""
+        from src.core.subscription_parser import get_subscription_parser
 
-            content = response.text.strip()
-
-            # 如果是base64编码，先解码
-            try:
-                decoded_content = base64.b64decode(content).decode("utf-8")
-                nodes = self.parse_node_text(decoded_content)
-            except:
-                # 如果不是base64，直接解析
-                nodes = self.parse_node_text(content)
-
-            # 保留所有协议的节点
-            self.logger.info(f"从订阅链接获取到 {len(nodes)} 个节点")
-            return nodes
-
-        except Exception as e:
-            self.logger.error(f"获取订阅链接失败: {str(e)}")
-            return []
+        parser = get_subscription_parser()
+        return parser.parse_subscription_url(subscription_url, self.session)
 
     def get_v2ray_subscription_links(self, article_url):
         """获取V2Ray订阅链接（重写方法以处理特殊格式）"""

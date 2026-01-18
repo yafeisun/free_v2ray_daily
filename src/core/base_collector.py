@@ -112,7 +112,13 @@ class BaseCollector(ABC):
                 "http": http_proxy,
                 "https": https_proxy,
             }
-            self.logger.debug(f"已设置代理 - HTTP: {http_proxy}, HTTPS: {https_proxy}")
+            self.logger.info(
+                f"✅ 已设置代理 - HTTP: {http_proxy}, HTTPS: {https_proxy}"
+            )
+            # 验证代理设置
+            self.logger.info(f"当前session代理设置: {self.session.proxies}")
+        else:
+            self.logger.info("❌ 未检测到代理环境变量，将使用直连")
 
         # 配置参数
         self.timeout = REQUEST_TIMEOUT

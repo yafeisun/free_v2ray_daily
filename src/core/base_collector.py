@@ -117,6 +117,23 @@ class BaseCollector(ABC):
             )
             # 验证代理设置
             self.logger.info(f"当前session代理设置: {self.session.proxies}")
+
+            # 测试代理连接
+            try:
+                test_response = self.session.get(
+                    "https://httpbin.org/ip", timeout=10, verify=False
+                )
+                if test_response.status_code == 200:
+                    ip_info = test_response.json()
+                    self.logger.info(
+                        f"✅ 代理连接测试成功，当前IP: {ip_info.get('origin', 'unknown')}"
+                    )
+                else:
+                    self.logger.warning(
+                        f"⚠️ 代理连接测试失败，状态码: {test_response.status_code}"
+                    )
+            except Exception as e:
+                self.logger.warning(f"⚠️ 代理连接测试异常: {str(e)}")
         else:
             self.logger.info("❌ 未检测到代理环境变量，将使用直连")
 

@@ -45,26 +45,26 @@ class BaseCollector(ABC):
         import os
         import random
 
-        # 多种真实的浏览器User-Agent
         real_user_agents = [
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
             "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:120.0) Gecko/20100101 Firefox/120.0",
             "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.1 Safari/605.1.15",
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36 Edg/119.0.0.0",
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
+            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
+            "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
         ]
 
         if os.getenv("GITHUB_ACTIONS") == "true":
-            # GitHub Actions环境使用随机真实UA
             browser_ua = random.choice(real_user_agents)
         else:
-            # 本地环境使用默认UA
             browser_ua = USER_AGENT
 
         self.session.headers.update(
             {
                 "User-Agent": browser_ua,
-                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
+                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
                 "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8,en-GB;q=0.7,en-US;q=0.6",
                 "Accept-Encoding": "gzip, deflate, br",
                 "Connection": "keep-alive",
@@ -78,24 +78,20 @@ class BaseCollector(ABC):
                 "sec-ch-ua": '"Not_A Brand";v="8", "Chromium";v="120", "Google Chrome";v="120"',
                 "sec-ch-ua-mobile": "?0",
                 "sec-ch-ua-platform": '"Windows"',
-                # 添加更多真实浏览器特征
                 "sec-ch-ua-arch": '"x86"',
                 "sec-ch-ua-bitness": '"64"',
                 "sec-ch-ua-full-version": '"120.0.6099.109"',
                 "sec-ch-ua-full-version-list": '"Not_A Brand";v="8.0.0.0", "Chromium";v="120.0.6099.109", "Google Chrome";v="120.0.6099.109"',
                 "sec-ch-ua-model": '""',
                 "sec-ch-ua-platform-version": '"15.0.0"',
-                # Referer for realistic browsing
-                "Referer": "https://www.google.com/",
             }
         )
 
-        # 在GitHub Actions中添加基本的反检测措施
         if os.getenv("GITHUB_ACTIONS") == "true":
-            # 简单的延迟，避免过于频繁的请求
             import time
+            import random
 
-            time.sleep(1)
+            time.sleep(random.uniform(2, 4))
 
         # 禁用SSL验证（与代理使用保持一致）
         self.session.verify = False
@@ -155,12 +151,29 @@ class BaseCollector(ABC):
             self.session.proxies.get("http") or self.session.proxies.get("https")
         )
 
+        import time
+        import random
+
         for attempt in range(self.retry_count + 1):
             try:
+                if os.getenv("GITHUB_ACTIONS") == "true" and attempt > 0:
+                    time.sleep(random.uniform(1, 3))
+
                 response = self.session.request(
                     method, url, timeout=self.timeout, verify=False, **kwargs
                 )
                 response.raise_for_status()
+
+                if using_proxy and len(response.text) < 1000:
+                    self.logger.warning(
+                        f"返回内容过短（{len(response.text)}字节），可能被拦截: {url}"
+                    )
+                    if attempt == 0:
+                        self.logger.info(f"尝试禁用代理直接访问: {url}")
+                        self.session.proxies = {"http": None, "https": None}
+                        using_proxy = False
+                        continue
+
                 return response
 
             except requests.exceptions.Timeout as e:

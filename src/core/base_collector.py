@@ -100,9 +100,17 @@ class BaseCollector(ABC):
 
         # 配置代理（如果系统有设置代理）
         import os
+        from config.websites import BROWSER_ONLY_SITES
 
         http_proxy = os.getenv("http_proxy") or os.getenv("HTTP_PROXY")
         https_proxy = os.getenv("https_proxy") or os.getenv("HTTPS_PROXY")
+
+        # 检查是否需要禁用代理（使用浏览器直连访问）
+        site_key = self.site_config.get("collector_key", self.site_config.get("name"))
+        if site_key in BROWSER_ONLY_SITES:
+            self.logger.info(f"⚠️ {self.site_name} 使用浏览器直连访问（禁用代理）")
+            http_proxy = None
+            https_proxy = None
 
         # 设置session代理
         if http_proxy or https_proxy:
@@ -405,9 +413,15 @@ class BaseCollector(ABC):
         return None
 
     def _fetch_with_playwright(self, target_date=None):
-        """使用Playwright浏览器自动化获取页面内容"""
+        """使用Playwright浏览器自动化获取页面内容（禁用代理）"""
         try:
-            self.logger.info(f"启动浏览器访问: {self.base_url}")
+            self.logger.info(f"启动浏览器访问: {self.base_url} (禁用代理)")
+
+            # 临时禁用代理
+            original_proxies = self.session.proxies
+            self.session.proxies = {"http": None, "https": None}
+            self.logger.debug("临时禁用代理")
+
             with sync_playwright() as p:
                 browser = p.chromium.launch(
                     headless=True, args=["--no-sandbox", "--disable-dev-shm-usage"]
@@ -422,12 +436,19 @@ class BaseCollector(ABC):
                 content = page.content()
                 browser.close()
 
+            # 恢复代理设置
+            self.session.proxies = original_proxies
+            self.logger.debug("恢复代理设置")
+
             soup = BeautifulSoup(content, "html.parser")
             article_url = self._find_article_from_soup(soup, target_date)
             return article_url
 
         except Exception as e:
             self.logger.error(f"Playwright访问失败: {str(e)}")
+            # 恢复代理设置（即使失败也要恢复）
+            if "original_proxies" in dir():
+                self.session.proxies = original_proxies
             return None
 
     def extract_nodes_from_article(self, article_url):
